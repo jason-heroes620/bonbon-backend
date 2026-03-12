@@ -2,13 +2,13 @@ import { Button } from "@/components/ui/button";
 import AppLayout from "@/layouts/AppLayout";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { User } from "@/types";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { DataTable } from "@/components/datatable/data-table";
 import { router } from "@inertiajs/react";
 
 export const columns: ColumnDef<User>[] = [
     {
-        accessorKey: "user_name",
+        accessorKey: "name",
         header: "Name",
         cell: ({ row }) => row.original.name,
     },
@@ -63,7 +63,7 @@ const Users = () => {
                                 Users
                             </h2>
                         </div>
-                        <div>
+                        {/* <div>
                             <Button
                                 variant="default"
                                 onClick={() =>
@@ -73,7 +73,7 @@ const Users = () => {
                                 <Plus className="mr-2" size={20} />
                                 User
                             </Button>
-                        </div>
+                        </div> */}
                     </div>
                     <div className="mt-4">
                         <div>

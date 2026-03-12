@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Memberships extends Model
 {
@@ -15,6 +16,7 @@ class Memberships extends Model
         'membership_code',
         'membership_name',
         'membership_description',
+        'membership_type_id',
         'membership_type',
         'membership_price',
         'duration',
@@ -31,4 +33,9 @@ class Memberships extends Model
         'is_active' => 'boolean',
         'best_value' => 'boolean',
     ];
+
+    public function membershipType(): BelongsTo
+    {
+        return $this->belongsTo(MembershipTypes::class, 'membership_type_id', 'membership_type_id');
+    }
 }

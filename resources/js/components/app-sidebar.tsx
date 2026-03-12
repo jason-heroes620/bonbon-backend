@@ -7,8 +7,10 @@ import {
     Building2,
     Settings,
     Users,
+    Award,
+    ChevronDown,
 } from "lucide-react";
-import type { ComponentType } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
     Sidebar,
     SidebarContent,
@@ -24,6 +26,7 @@ import {
     SidebarHeader,
 } from "@/components/ui/sidebar";
 import { Link, usePage } from "@inertiajs/react";
+import { cn } from "@/lib/utils";
 
 const items: {
     title: string;
@@ -71,6 +74,16 @@ const items: {
         ],
     },
     {
+        title: "Memberships",
+        icon: Award,
+        items: [
+            {
+                title: "All Memberships",
+                url: "/memberships",
+            },
+        ],
+    },
+    {
         title: "Users",
         icon: Users,
         items: [
@@ -89,9 +102,10 @@ const items: {
         icon: Settings,
         items: [
             {
-                title: "Memberships",
-                url: "/memberships",
+                title: "Membership Types",
+                url: "/membership-types",
             },
+
             {
                 title: "Categories",
                 url: "/categories",
@@ -113,6 +127,26 @@ export function AppSidebar() {
         if (url !== "/" && currentPath.startsWith(`${url}/`)) return true;
         return false;
     };
+
+    const activeGroupTitle = useMemo(() => {
+        for (const item of items) {
+            const hasSubItems =
+                Array.isArray(item.items) && item.items.length > 0;
+            if (!hasSubItems) continue;
+            if (item.items!.some((subItem) => isActiveUrl(subItem.url))) {
+                return item.title;
+            }
+        }
+        return null;
+    }, [currentPath]);
+
+    const [openGroupTitle, setOpenGroupTitle] = useState<string | null>(
+        activeGroupTitle,
+    );
+
+    useEffect(() => {
+        setOpenGroupTitle(activeGroupTitle);
+    }, [activeGroupTitle]);
 
     return (
         <Sidebar>
@@ -139,6 +173,9 @@ export function AppSidebar() {
                                         item.items!.some((subItem) =>
                                             isActiveUrl(subItem.url),
                                         ));
+                                const isExpanded =
+                                    hasSubItems &&
+                                    openGroupTitle === item.title;
 
                                 return (
                                     <SidebarMenuItem key={item.title}>
@@ -156,13 +193,33 @@ export function AppSidebar() {
                                             <SidebarMenuButton
                                                 isActive={isActive}
                                                 type="button"
+                                                onClick={() =>
+                                                    setOpenGroupTitle((prev) =>
+                                                        prev === item.title
+                                                            ? null
+                                                            : item.title,
+                                                    )
+                                                }
+                                                aria-expanded={Boolean(
+                                                    isExpanded,
+                                                )}
                                             >
                                                 <item.icon />
                                                 <span>{item.title}</span>
+                                                {hasSubItems ? (
+                                                    <ChevronDown
+                                                        className={cn(
+                                                            "ml-auto transition-transform",
+                                                            isExpanded
+                                                                ? "rotate-180"
+                                                                : "rotate-0",
+                                                        )}
+                                                    />
+                                                ) : null}
                                             </SidebarMenuButton>
                                         )}
 
-                                        {hasSubItems ? (
+                                        {hasSubItems && isExpanded ? (
                                             <SidebarMenuSub>
                                                 {item.items!.map((subItem) => {
                                                     // const SubIcon = subItem.icon

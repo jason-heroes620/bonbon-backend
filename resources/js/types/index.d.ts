@@ -62,6 +62,7 @@ export type Membership = {
     membership_code: string;
     membership_name: string;
     membership_description?: string | null;
+    membership_type_id?: string | null;
     membership_type: string;
     membership_price: string;
     duration: number;
@@ -123,6 +124,12 @@ export type Tax = {
     tax_name: string;
     tax_rate: string;
     is_active: boolean;
+};
+
+export type MembershipType = {
+    membership_type_id: string;
+    membership_type: string;
+    is_active?: boolean;
 };
 
 export interface ApiResponse<T> {

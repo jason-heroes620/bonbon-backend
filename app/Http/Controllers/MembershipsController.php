@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Memberships;
+use App\Models\MembershipTypes;
 use App\Models\Products;
 use App\Models\Taxes;
 use Illuminate\Http\Request;
@@ -59,7 +60,14 @@ class MembershipsController extends Controller
 
     public function create()
     {
-        return Inertia::render('memberships/create');
+        $membershipTypes = MembershipTypes::query()
+            ->where('is_active', true)
+            ->orderBy('membership_type')
+            ->get(['membership_type_id', 'membership_type']);
+
+        return Inertia::render('memberships/create', [
+            'membershipTypes' => $membershipTypes,
+        ]);
     }
 
     public function store(Request $request)
@@ -67,7 +75,7 @@ class MembershipsController extends Controller
         $validated = $request->validate([
             'membership_name' => ['required', 'string', 'max:100'],
             'membership_description' => ['nullable', 'string', 'max:255'],
-            'membership_type' => ['required', 'string', 'max:10'],
+            'membership_type_id' => ['required', 'uuid', 'exists:membership_types,membership_type_id'],
             'membership_price' => ['required', 'numeric', 'min:0'],
             'duration' => ['required', 'integer', 'min:1', 'max:9999'],
             'duration_unit' => ['required', Rule::in(['days', 'months', 'years'])],
@@ -77,6 +85,15 @@ class MembershipsController extends Controller
             'sort_order' => ['required', 'integer', 'min:0', 'max:999'],
             'best_value' => ['required', 'boolean'],
         ]);
+
+        $membershipType = MembershipTypes::query()->find($validated['membership_type_id']);
+        if (!$membershipType) {
+            return back()->with([
+                'error' => 'Selected membership type does not exist.',
+            ]);
+        }
+
+        $validated['membership_type'] = $membershipType->membership_type;
 
         $membership_id = Memberships::create($validated);
         $defaultTaxRateId = Taxes::where('is_active', true)->value('tax_rate_id');
@@ -102,7 +119,6 @@ class MembershipsController extends Controller
             'retail_price' => $validated['membership_price'],
             'sale_price' => $validated['membership_price'],
             'is_active' => $validated['is_active'],
-            'is_unlimited' => true,
         ]);
 
         return redirect()->route('memberships.index')->with([
@@ -112,8 +128,14 @@ class MembershipsController extends Controller
 
     public function edit(Memberships $membership)
     {
+        $membershipTypes = MembershipTypes::query()
+            ->where('is_active', true)
+            ->orderBy('membership_type')
+            ->get(['membership_type_id', 'membership_type']);
+
         return Inertia::render('memberships/edit', [
             'membership' => $membership,
+            'membershipTypes' => $membershipTypes,
         ]);
     }
 
@@ -123,7 +145,7 @@ class MembershipsController extends Controller
             'membership_code' => ['required', 'string', 'max:20'],
             'membership_name' => ['required', 'string', 'max:100'],
             'membership_description' => ['nullable', 'string', 'max:255'],
-            'membership_type' => ['required', 'string', 'max:10'],
+            'membership_type_id' => ['required', 'uuid', 'exists:membership_types,membership_type_id'],
             'membership_price' => ['required', 'numeric', 'min:0'],
             'duration' => ['required', 'integer', 'min:1', 'max:9999'],
             'duration_unit' => ['required', Rule::in(['days', 'months', 'years'])],
@@ -133,6 +155,15 @@ class MembershipsController extends Controller
             'sort_order' => ['required', 'integer', 'min:0', 'max:999'],
             'best_value' => ['required', 'boolean'],
         ]);
+
+        $membershipType = MembershipTypes::query()->find($validated['membership_type_id']);
+        if (!$membershipType) {
+            return back()->with([
+                'error' => 'Selected membership type does not exist.',
+            ]);
+        }
+
+        $validated['membership_type'] = $membershipType->membership_type;
 
         $oldMembershipCode = $membership->membership_code;
         $membership->update($validated);
@@ -156,7 +187,6 @@ class MembershipsController extends Controller
                 'retail_price' => $validated['membership_price'],
                 'sale_price' => $validated['membership_price'],
                 'is_active' => $validated['is_active'],
-                'is_unlimited' => $validated['is_unlimited'],
             ]);
 
         return redirect()->route('memberships.index')->with([

@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoriesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MembershipsController;
+use App\Http\Controllers\MembershipTypesController;
 use App\Http\Controllers\ProductDiscountsController;
 use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\TaxesController;
@@ -73,6 +74,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/memberships/{membership}', [MembershipsController::class, 'edit'])->name('memberships.edit');
     Route::put('/memberships/{membership}', [MembershipsController::class, 'update'])->name('memberships.update');
     Route::delete('/memberships/{membership}', [MembershipsController::class, 'destroy'])->name('memberships.destroy');
+
+    Route::get('/membership-types', [MembershipTypesController::class, 'index'])->name('membership_types.index');
+    Route::get('/membership-types/all', [MembershipTypesController::class, 'showAll'])->name('membership_types.all');
+    Route::get('/membership-types/create', [MembershipTypesController::class, 'create'])->name('membership_types.create');
+    Route::post('/membership-types/create', [MembershipTypesController::class, 'store'])->name('membership_types.store');
+    Route::get('/membership-types/{membershipType}', [MembershipTypesController::class, 'edit'])->name('membership_types.edit');
+    Route::put('/membership-types/{membershipType}', [MembershipTypesController::class, 'update'])->name('membership_types.update');
 
     Route::get('/categories', [CategoriesController::class, 'index'])->name('categories.index');
     Route::get('/categories/all', [CategoriesController::class, 'showAll'])->name('categories.all');
