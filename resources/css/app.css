@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
@@ -13,8 +13,10 @@
 @source '../**/*.tsx';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans:
+        "Instrument Sans", ui-sans-serif, system-ui, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
 }
 
 @theme inline {
@@ -71,7 +73,7 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
+    --primary: #3730a3;
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
@@ -88,11 +90,11 @@
     --chart-3: oklch(0.398 0.07 227.392);
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
-    --brand: #4F46E5;
-    --brand-foreground: #FFFFFF;
-    --brand-soft: #EEF2FF;
-    --brand-soft-foreground: #3730A3;
-    --brand-border: #C7D2FE;
+    --brand: #4f46e5;
+    --brand-foreground: #ffffff;
+    --brand-soft: #eef2ff;
+    --brand-soft-foreground: #3730a3;
+    --brand-border: #c7d2fe;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -132,11 +134,11 @@
     --chart-3: oklch(0.769 0.188 70.08);
     --chart-4: oklch(0.627 0.265 303.9);
     --chart-5: oklch(0.645 0.246 16.439);
-    --brand: #818CF8;
-    --brand-foreground: #0B1020;
-    --brand-soft: #1E1B4B;
-    --brand-soft-foreground: #E0E7FF;
-    --brand-border: #312E81;
+    --brand: #818cf8;
+    --brand-foreground: #0b1020;
+    --brand-soft: #1e1b4b;
+    --brand-soft-foreground: #e0e7ff;
+    --brand-border: #312e81;
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -148,12 +150,12 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-    @apply border-border outline-ring/50;
+    * {
+        @apply border-border outline-ring/50;
+        @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground;
-    @apply bg-background text-foreground;
+    body {
+        @apply bg-background text-foreground;
+        @apply bg-background text-foreground;
     }
 }

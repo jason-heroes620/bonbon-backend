@@ -5,21 +5,21 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select';
-import { useTable } from '@/hooks/useTable';
-import type { TableOptions } from '@/types';
+} from "@/components/ui/select";
+import { useTable } from "@/hooks/useTable";
+import type { TableOptions } from "@/types";
 import {
     type ColumnDef,
     flexRender,
     getCoreRowModel,
-    getFilteredRowModel, 
+    getFilteredRowModel,
     getPaginationRowModel,
     getSortedRowModel,
     useReactTable,
-} from '@tanstack/react-table';
-import { X } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+} from "@tanstack/react-table";
+import { X } from "lucide-react";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 
 type FilterConfig = {
     key: string;
@@ -56,7 +56,6 @@ export function DataTable<T>({
         showSearch,
         showFilters,
         showPagination,
-        fetchData,
     } = useTable<T>(columns, endpoint, options);
 
     const table = useReactTable({
@@ -100,7 +99,7 @@ export function DataTable<T>({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => setSearch('')}
+                                    onClick={() => setSearch("")}
                                 >
                                     <X size={20} className="h-4 w-4" />
                                 </Button>
@@ -119,7 +118,7 @@ export function DataTable<T>({
                                             ? filters[f.key] || filters[0]
                                             : f.options.length === 1
                                               ? f.options[0].id
-                                              : ''
+                                              : ""
                                     }
                                     onValueChange={(value) =>
                                         setFilters({
@@ -172,8 +171,8 @@ export function DataTable<T>({
                                                 header.getContext(),
                                             )}
                                             {{
-                                                asc: ' ↑',
-                                                desc: ' ↓',
+                                                asc: " ↑",
+                                                desc: " ↓",
                                             }[
                                                 header.column.getIsSorted() as string
                                             ] ?? null}
@@ -227,16 +226,16 @@ export function DataTable<T>({
             {showPagination && meta && (
                 <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
                     <div className="text-sm text-gray-700">
-                        Showing <span className="font-medium">{meta.from}</span>{' '}
-                        to <span className="font-medium">{meta.to}</span> of{' '}
-                        <span className="font-medium">{meta.total}</span>{' '}
+                        Showing <span className="font-medium">{meta.from}</span>{" "}
+                        to <span className="font-medium">{meta.to}</span> of{" "}
+                        <span className="font-medium">{meta.total}</span>{" "}
                         results
                     </div>
 
                     <div className="flex gap-2">
                         <Button
                             variant="outline"
-                            size={'sm'}
+                            size={"sm"}
                             onClick={() => table.previousPage()}
                             disabled={!table.getCanPreviousPage()}
                             className="rounded-md border px-4 py-2 disabled:opacity-50"
@@ -257,8 +256,8 @@ export function DataTable<T>({
                                         className={`rounded-md border bg-white px-4 py-2 hover:text-[#F06F40] ${
                                             table.getState().pagination
                                                 .pageIndex === index
-                                                ? 'bg-[#F06F40] text-white opacity-80'
-                                                : 'text-gray-700'
+                                                ? "bg-[#F06F40] text-white opacity-80"
+                                                : "text-gray-700"
                                         }`}
                                     >
                                         {index + 1}
@@ -268,7 +267,7 @@ export function DataTable<T>({
                         </div>
                         <Button
                             variant="outline"
-                            size={'sm'}
+                            size={"sm"}
                             onClick={() => table.nextPage()}
                             disabled={!table.getCanNextPage()}
                             className="rounded-md border px-4 py-2 disabled:opacity-50"

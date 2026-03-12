@@ -1,61 +1,47 @@
-import { Button } from "@/components/ui/button";
+import {
+    VoucherForm,
+    type VoucherFormValues,
+} from "@/components/vouchers/voucher-form";
 import AppLayout from "@/layouts/AppLayout";
-import type { Voucher } from "@/types";
-import { router, useForm } from "@inertiajs/react";
+import { Head, router } from "@inertiajs/react";
+import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
-import Form from "./form";
-import { toast } from "sonner";
 
 const Create = () => {
-    const mode = "create";
-    const { data, setData, processing, errors, post } = useForm({
-        voucher_name: '',
-        voucher_short_description: '',
+    const handleSubmit = (values: VoucherFormValues) => {
+        router.post(route("vouchers.store"), values as any, {
+            forceFormData: true,
+        });
+    };
 
-    })
-
-  const handleSubmit = (e: SubmitEvent) => {
-    e.preventDefault();
-    post(route.post('vouchers.store'), {
-        onSuccess: () => {
-            toast.success("Voucher created.")
-            router.visit(route('vouchers.index'))
-        },
-        onError: () => {
-            toast.error("Failed to create voucher")
-            Object.values(errors).forEach(error => toast.error(error))
-        }
-    })
-  }
-  return (
-    <AppLayout>
-     <div className='flex flex-col px-4 py-2 w-full'>
-        <div className='flex-1'>
-          <div className='flex justify-between items-center bg-[#3730A3]/20 px-4 py-2 rounded-md'>
-            <div className='flex items-center gap-4'>
-              <Button variant="default" onClick={() => router.visit(route('vouchers.index'))}>
-                <ChevronLeft className="mr" size={20} />
-                Back
-              </Button>
-              <span className='text-lg font-bold text-[#3730A3]'>Create Voucher</span>
+    return (
+        <AppLayout>
+            <Head title="Create Voucher" />
+            <div className="flex flex-col px-4 py-2 w-full">
+                <div className="flex-1">
+                    <div className="flex justify-between items-center bg-[#3730A3]/20 px-4 py-2 rounded-md">
+                        <div className="flex items-center gap-4">
+                            <Button
+                                variant="default"
+                                onClick={() =>
+                                    router.visit(route("vouchers.index"))
+                                }
+                            >
+                                <ChevronLeft className="mr-2" size={20} />
+                                Back
+                            </Button>
+                            <h2 className="text-lg font-bold text-[#3730A3]">
+                                Create Voucher
+                            </h2>
+                        </div>
+                    </div>
+                </div>
+                <div className="mt-4">
+                    <VoucherForm onSubmit={handleSubmit} />
+                </div>
             </div>
-          </div>
-        </div>
-        <div className='mt-4'>
-          <div>
-            <Form 
-            mode={mode} 
-            data={data} 
-            setData={setData} 
-            errors={errors} 
-            processing={processing} 
-            handleSubmit={handleSubmit}
-            />
-          </div>
-        </div>
-      </div>
-    </AppLayout>
-  )
-}
+        </AppLayout>
+    );
+};
 
-export default Create
+export default Create;

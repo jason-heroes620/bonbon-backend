@@ -1,11 +1,11 @@
-import type { ApiResponse, PaginationMeta, TableOptions } from '@/types';
+import type { ApiResponse, PaginationMeta, TableOptions } from "@/types";
 import type {
     ColumnDef,
     PaginationState,
     SortingState,
-} from '@tanstack/react-table';
-import axios from 'axios';
-import { useEffect, useState } from 'react';
+} from "@tanstack/react-table";
+import axios from "axios";
+import { useEffect, useState } from "react";
 
 export function useTable<T>(
     columns: ColumnDef<T>[],
@@ -23,7 +23,7 @@ export function useTable<T>(
     const [meta, setMeta] = useState<PaginationMeta | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState("");
     const [filters, setFilters] = useState<Record<string, any>>({});
     const [sorting, setSorting] = useState<SortingState>([]);
     const [pagination, setPagination] = useState<PaginationState>({
@@ -51,7 +51,7 @@ export function useTable<T>(
             if (sorting.length > 0) {
                 params.sort = {
                     field: sorting[0].id,
-                    direction: sorting[0].desc ? 'desc' : 'asc',
+                    direction: sorting[0].desc ? "desc" : "asc",
                 };
             }
 
@@ -66,7 +66,7 @@ export function useTable<T>(
             }
             setError(null);
         } catch (err) {
-            setError('Failed to fetch data');
+            setError("Failed to fetch data");
             console.error(err);
         } finally {
             setLoading(false);

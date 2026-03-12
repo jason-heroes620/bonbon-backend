@@ -2,9 +2,174 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Memberships;
+use App\Models\Products;
+use App\Models\Taxes;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class MembershipsController extends Controller
 {
-    //
+    public function index()
+    {
+        return Inertia::render('memberships/memberships');
+    }
+
+    public function showAll(Request $request)
+    {
+        $query = Memberships::query();
+
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('membership_name', 'like', "%{$search}%")
+                    ->orWhere('membership_type', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->has('filters')) {
+            foreach ($request->filters as $column => $value) {
+                if ($value !== null) {
+                    $query->where($column, $value);
+                }
+            }
+        }
+
+        if ($request->has('sort')) {
+            $query->orderBy($request->sort['field'], $request->sort['direction']);
+        } else {
+            $query->orderBy('memberships.sort_order', 'asc');
+        }
+
+        $perPage = $request->per_page ?? 10;
+        $memberships = $query->paginate($perPage);
+
+        return response()->json([
+            'data' => $memberships->items(),
+            'meta' => [
+                'current_page' => $memberships->currentPage(),
+                'last_page' => $memberships->lastPage(),
+                'per_page' => $memberships->perPage(),
+                'total' => $memberships->total(),
+                'from' => $memberships->firstItem(),
+                'to' => $memberships->lastItem(),
+            ],
+        ]);
+    }
+
+    public function create()
+    {
+        return Inertia::render('memberships/create');
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'membership_name' => ['required', 'string', 'max:100'],
+            'membership_description' => ['nullable', 'string', 'max:255'],
+            'membership_type' => ['required', 'string', 'max:10'],
+            'membership_price' => ['required', 'numeric', 'min:0'],
+            'duration' => ['required', 'integer', 'min:1', 'max:9999'],
+            'duration_unit' => ['required', Rule::in(['days', 'months', 'years'])],
+            'membership_start_date' => ['required', 'date'],
+            'membership_end_date' => ['nullable', 'date', 'after_or_equal:membership_start_date'],
+            'is_active' => ['required', 'boolean'],
+            'sort_order' => ['required', 'integer', 'min:0', 'max:999'],
+            'best_value' => ['required', 'boolean'],
+        ]);
+
+        $membership_id = Memberships::create($validated);
+        $defaultTaxRateId = Taxes::where('is_active', true)->value('tax_rate_id');
+
+        if (!$defaultTaxRateId) {
+            return back()->with([
+                'error' => 'No active tax rate found. Please create one before creating memberships.',
+            ]);
+        }
+
+        Products::create([
+            'product_code' => $membership_id->membership_code,
+            'product_name' => $validated['membership_name'],
+            'product_sku' => null,
+            'product_description' => $validated['membership_description'] ?? $validated['membership_name'],
+            'stock_quantity' => 0,
+            'product_weight' => null,
+            'product_dimensions' => null,
+            'is_featured' => false,
+            'is_visible' => false,
+            'is_taxable' => false,
+            'tax_rate_id' => $defaultTaxRateId,
+            'retail_price' => $validated['membership_price'],
+            'sale_price' => $validated['membership_price'],
+            'is_active' => $validated['is_active'],
+            'is_unlimited' => true,
+        ]);
+
+        return redirect()->route('memberships.index')->with([
+            'success' => 'Membership created successfully',
+        ]);
+    }
+
+    public function edit(Memberships $membership)
+    {
+        return Inertia::render('memberships/edit', [
+            'membership' => $membership,
+        ]);
+    }
+
+    public function update(Request $request, Memberships $membership)
+    {
+        $validated = $request->validate([
+            'membership_code' => ['required', 'string', 'max:20'],
+            'membership_name' => ['required', 'string', 'max:100'],
+            'membership_description' => ['nullable', 'string', 'max:255'],
+            'membership_type' => ['required', 'string', 'max:10'],
+            'membership_price' => ['required', 'numeric', 'min:0'],
+            'duration' => ['required', 'integer', 'min:1', 'max:9999'],
+            'duration_unit' => ['required', Rule::in(['days', 'months', 'years'])],
+            'membership_start_date' => ['required', 'date'],
+            'membership_end_date' => ['nullable', 'date', 'after_or_equal:membership_start_date'],
+            'is_active' => ['required', 'boolean'],
+            'sort_order' => ['required', 'integer', 'min:0', 'max:999'],
+            'best_value' => ['required', 'boolean'],
+        ]);
+
+        $oldMembershipCode = $membership->membership_code;
+        $membership->update($validated);
+        $defaultTaxRateId = Taxes::where('is_active', true)->value('tax_rate_id');
+
+        if (!$defaultTaxRateId) {
+            return back()->with([
+                'error' => 'No active tax rate found. Please create one before updating memberships.',
+            ]);
+        }
+
+        Products::where('product_code', $oldMembershipCode)
+            ->update([
+                'product_name' => $validated['membership_name'],
+                'product_code' => $validated['membership_code'],
+                'product_description' => $validated['membership_description'] ?? $validated['membership_name'],
+                'stock_quantity' => 0,
+                'is_visible' => false,
+                'is_taxable' => false,
+                'tax_rate_id' => $defaultTaxRateId,
+                'retail_price' => $validated['membership_price'],
+                'sale_price' => $validated['membership_price'],
+                'is_active' => $validated['is_active'],
+                'is_unlimited' => $validated['is_unlimited'],
+            ]);
+
+        return redirect()->route('memberships.index')->with([
+            'success' => 'Membership updated successfully',
+        ]);
+    }
+
+    public function destroy(Memberships $membership)
+    {
+        $membership->delete();
+
+        return redirect()->route('memberships.index')->with([
+            'success' => 'Membership deleted successfully',
+        ]);
+    }
 }

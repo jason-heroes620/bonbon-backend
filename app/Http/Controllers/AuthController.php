@@ -50,6 +50,8 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'name' => explode('@', $request->email)[0], // Simple name generation
+            'role' => 'user',
+            'referral_code' => Str::random(10),
         ]);
 
         event(new Registered($user));
@@ -74,8 +76,8 @@ class AuthController extends Controller
         );
 
         return $status === Password::RESET_LINK_SENT
-                    ? response()->json(['message' => __($status)])
-                    : response()->json(['message' => __($status)], 400);
+            ? response()->json(['message' => __($status)])
+            : response()->json(['message' => __($status)], 400);
     }
 
     /**
@@ -106,8 +108,8 @@ class AuthController extends Controller
         );
 
         return $status === Password::PASSWORD_RESET
-                    ? response()->json(['message' => __($status)])
-                    : response()->json(['message' => __($status)], 400);
+            ? response()->json(['message' => __($status)])
+            : response()->json(['message' => __($status)], 400);
     }
 
     /**

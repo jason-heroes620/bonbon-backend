@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
+
 class Vendors extends Model
 {
     use HasUuids;
@@ -23,4 +24,21 @@ class Vendors extends Model
         'profile_picture',
         'is_active',
     ];
+
+
+
+    public function locations()
+    {
+        return $this->hasMany(VendorLocation::class, 'vendor_id', 'vendor_id');
+    }
+
+    public function voucher()
+    {
+        return $this->hasMany(Vouchers::class, 'vendor_id', 'vendor_id');
+    }
+
+    public function categories()
+    {
+        return $this->hasMany(VendorCategories::class, 'vendor_id', 'vendor_id');
+    }
 }

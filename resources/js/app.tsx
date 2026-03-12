@@ -4,15 +4,14 @@ import "./bootstrap";
 import { createInertiaApp } from "@inertiajs/react";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 import { createRoot } from "react-dom/client";
-import { Toaster } from "@/components/ui/sonner"
+import { Toaster } from "@/components/ui/sonner";
 import React, { useEffect } from "react";
-import { toast } from "sonner"
-
+import { toast } from "sonner";
 
 const appName = import.meta.env.VITE_APP_NAME || "Heroes";
 
 function AppWrapper({ App, props }: any) {
-    const { flash } = props.initialPage.props; 
+    const { flash } = props.initialPage.props;
 
     useEffect(() => {
         if (flash?.success) toast.success(flash.success);
@@ -49,14 +48,14 @@ createInertiaApp({
     resolve: (name) =>
         resolvePageComponent(
             `./pages/${name}.tsx`,
-            import.meta.glob("./pages/**/*.tsx")
+            import.meta.glob("./pages/**/*.tsx"),
         ),
     setup({ el, App, props }) {
         const root = createRoot(el);
         root.render(
             <React.StrictMode>
                 <AppWrapper App={App} props={props} />
-            </React.StrictMode>
+            </React.StrictMode>,
         );
     },
     progress: {
