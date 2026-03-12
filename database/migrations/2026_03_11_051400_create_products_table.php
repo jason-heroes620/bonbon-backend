@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('product_sku', 100)->nullable();
             $table->text('product_description');
             $table->integer('stock_quantity')->default(0)->autoIncrement(false);
+            $table->string('uom', 50)->default('unit');
             $table->decimal('product_weight', 10, 2)->nullable();
             $table->string('product_dimensions', 100)->nullable();
             $table->boolean('is_featured')->default(false);

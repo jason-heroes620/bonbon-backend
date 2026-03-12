@@ -18,7 +18,7 @@ class UserController extends Controller
     {
         $query = User::query();
 
-        if ($search = $request->has('search')) {
+        if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
@@ -50,6 +50,27 @@ class UserController extends Controller
                 'from' => $users->firstItem(),
                 'to' => $users->lastItem(),
             ],
+        ]);
+    }
+
+    public function options(Request $request)
+    {
+        $q = (string) $request->input('q', '');
+        $users = User::query()
+            ->select('user_id', 'name', 'email')
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('name', 'like', "%{$q}%")
+                        ->orWhere('email', 'like', "%{$q}%");
+                });
+            })
+            ->where('role', 'user')
+            ->orderBy('name', 'asc')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'data' => $users,
         ]);
     }
 

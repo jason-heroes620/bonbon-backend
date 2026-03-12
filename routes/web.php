@@ -7,6 +7,8 @@ use App\Http\Controllers\CategoriesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MembershipsController;
 use App\Http\Controllers\MembershipTypesController;
+use App\Http\Controllers\OrdersController;
+use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\ProductDiscountsController;
 use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\TaxesController;
@@ -98,8 +100,23 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/taxes/{tax}', [TaxesController::class, 'update'])->name('taxes.update');
     Route::delete('/taxes/{tax}', [TaxesController::class, 'destroy'])->name('taxes.destroy');
 
+    Route::get('/orders', [OrdersController::class, 'index'])->name('orders.index');
+    Route::get('/orders/all', [OrdersController::class, 'showAll'])->name('orders.all');
+    Route::get('/orders/create', [OrdersController::class, 'create'])->name('orders.create');
+    Route::post('/orders/create', [OrdersController::class, 'store'])->name('orders.store');
+    Route::get('/orders/{order}', [OrdersController::class, 'edit'])->name('orders.edit');
+    Route::put('/orders/{order}', [OrdersController::class, 'update'])->name('orders.update');
+
+    Route::get('/payments', [PaymentsController::class, 'index'])->name('payments.index');
+    Route::get('/payments/all', [PaymentsController::class, 'showAll'])->name('payments.all');
+    Route::get('/payments/create', [PaymentsController::class, 'create'])->name('payments.create');
+    Route::post('/payments/create', [PaymentsController::class, 'store'])->name('payments.store');
+    Route::get('/payments/{payment}', [PaymentsController::class, 'edit'])->name('payments.edit');
+    Route::put('/payments/{payment}', [PaymentsController::class, 'update'])->name('payments.update');
+
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/all', [UserController::class, 'showAll'])->name('users.all');
+    Route::get('/users/options', [UserController::class, 'options'])->name('users.options');
     Route::get('/users/{user}', [UserController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
 });

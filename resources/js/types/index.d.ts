@@ -82,6 +82,7 @@ export type Product = {
     product_description: string;
     category_id?: string | null;
     stock_quantity: number;
+    uom: string;
     product_weight?: string | null;
     product_dimensions?: string | null;
     is_featured: boolean;
@@ -130,6 +131,64 @@ export type MembershipType = {
     membership_type_id: string;
     membership_type: string;
     is_active?: boolean;
+};
+
+export type OrderItem = {
+    order_item_id: string;
+    order_id: string;
+    product_id: string;
+    quantity: number;
+    uom: string;
+    unit_price: string;
+    tax: string;
+    discount: string;
+    total_price: string;
+    product?: {
+        product_id: string;
+        product_name: string;
+        uom: string;
+    } | null;
+};
+
+export type Order = {
+    order_id: string;
+    user_id: string;
+    order_no: string;
+    order_date: string;
+    total_price: string;
+    total_tax: string;
+    total_discount: string;
+    total_payment: string;
+    shipping_method: string;
+    shipping_address: string;
+    billing_address: string;
+    discount_code?: string | null;
+    wallet_credit_used?: string | null;
+    order_status:
+        | "pending"
+        | "processing"
+        | "shipped"
+        | "completed"
+        | "refunded";
+    order_items?: OrderItem[];
+};
+
+export type Payment = {
+    payment_id: string;
+    order_id: string;
+    order_no: string;
+    transaction_id: string;
+    ref_no: string;
+    payment_description: string;
+    payment_method: string;
+    payment_amount: string;
+    payment_date: string;
+    issuing_bank: string;
+    payment_ref: string;
+    bank_ref: string;
+    cc_name: string;
+    cc_number: string;
+    payment_status: number;
 };
 
 export interface ApiResponse<T> {

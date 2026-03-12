@@ -9,6 +9,7 @@ import {
     Users,
     Award,
     ChevronDown,
+    Receipt,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
@@ -80,6 +81,20 @@ const items: {
             {
                 title: "All Memberships",
                 url: "/memberships",
+            },
+        ],
+    },
+    {
+        title: "Sales",
+        icon: Receipt,
+        items: [
+            {
+                title: "Orders",
+                url: "/orders",
+            },
+            {
+                title: "Payments",
+                url: "/payments",
             },
         ],
     },

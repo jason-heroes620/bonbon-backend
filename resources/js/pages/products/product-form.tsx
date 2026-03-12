@@ -25,6 +25,7 @@ type ProductFormValues = {
     product_description: string;
     category_ids: string[];
     stock_quantity: number;
+    uom: string;
     product_weight?: number | null;
     product_dimensions?: string | null;
     is_featured: boolean;
@@ -36,6 +37,11 @@ type ProductFormValues = {
     is_active: boolean;
     is_unlimited: boolean;
 };
+
+const uoms = [
+    { value: "unit", label: "Unit" },
+    { value: "pax", label: "Pax" },
+];
 
 const normalizeNumberOrNull = (value: unknown) => {
     if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -69,6 +75,7 @@ export function ProductForm({
             product_description: product?.product_description ?? "",
             category_ids: selectedCategoryIds,
             stock_quantity: Number(product?.stock_quantity ?? 0),
+            uom: product?.uom ?? "",
             product_weight: toNumberOrNull(product?.product_weight),
             product_dimensions: product?.product_dimensions ?? "",
             is_featured: Boolean(product?.is_featured),
@@ -248,6 +255,36 @@ export function ProductForm({
                         {...methods.register("stock_quantity", {
                             valueAsNumber: true,
                         })}
+                    />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <Label htmlFor="uom">UOM</Label>
+                    <Controller
+                        name="uom"
+                        control={methods.control}
+                        render={({ field }) => (
+                            <Select
+                                value={field.value}
+                                onValueChange={field.onChange}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select UOM" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        {uoms.map((item) => (
+                                            <SelectItem
+                                                key={item.value}
+                                                value={item.value}
+                                            >
+                                                {item.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        )}
                     />
                 </div>
 

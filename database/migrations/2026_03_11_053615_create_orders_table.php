@@ -20,9 +20,9 @@ return new class extends Migration
             $table->decimal('total_tax', 10, 2);
             $table->decimal('total_discount', 10, 2);
             $table->decimal('total_payment', 10, 2);
-            $table->string('shipping_method', 50);
-            $table->string('shipping_address', 255);
-            $table->string('billing_address', 255);
+            $table->string('shipping_method', 50)->nullable();
+            $table->string('shipping_address', 255)->nullable();
+            $table->string('billing_address', 255)->nullable();
             $table->string('discount_code', 50)->nullable();
             $table->decimal('wallet_credit_used', 10, 2)->default(0.00);
             $table->enum('order_status', ['pending', 'processing', 'shipped', 'completed', 'refunded'])->default('pending');

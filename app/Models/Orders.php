@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
 class Orders extends Model
 {
-    //
+    use HasUuids;
+
     protected $table = 'orders';
     protected $primaryKey = 'order_id';
     protected $fillable = [
-        'order_id',
         'user_id',
         'order_no',
         'order_date',
@@ -22,8 +23,14 @@ class Orders extends Model
         'shipping_address',
         'billing_address',
         'discount_code',
+        'wallet_credit_used',
         'order_status',
     ];
 
     public $timestamps = true;
+
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItems::class, 'order_id', 'order_id');
+    }
 }

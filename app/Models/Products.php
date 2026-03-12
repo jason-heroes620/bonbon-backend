@@ -16,6 +16,7 @@ class Products extends Model
         'product_code',
         'product_name',
         'product_code',
+        'uom',
         'product_sku',
         'product_description',
         'stock_quantity',

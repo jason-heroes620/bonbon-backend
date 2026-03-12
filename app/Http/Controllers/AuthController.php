@@ -51,7 +51,6 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
             'name' => explode('@', $request->email)[0], // Simple name generation
             'role' => 'user',
-            'referral_code' => Str::random(10),
         ]);
 
         event(new Registered($user));
