@@ -6,8 +6,10 @@ use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\EventsController;
 use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PushTokensController;
 use App\Http\Controllers\Api\VendorsController;
 use App\Http\Controllers\Api\VouchersController;
+use App\Http\Controllers\Api\NotificationsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -37,11 +39,19 @@ Route::middleware(['auth:sanctum'])->group(
         Route::get('/getVendor/{vendor_id}', [VendorsController::class, 'vendor']);
         Route::get('/vendor-categories', [VendorsController::class, 'vendorCategories']);
 
+
+        // notifications
+        Route::get('/notifications', [NotificationsController::class, 'notifications']);
+        Route::post('/notifications/mark-all-read', [NotificationsController::class, 'markAsRead']);
+        Route::post('/notifications/read-all', [NotificationsController::class, 'markAsRead']);
+
+
         // Account
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::delete('/account', [AuthController::class, 'destroy']);
         Route::post('/referral-gifts/claim', [AuthController::class, 'claimReferralGift']);
+        Route::post('/push-tokens/register', [PushTokensController::class, 'register']);
 
         // Membership
         Route::get('/memberships', [MembershipController::class, 'membership']);

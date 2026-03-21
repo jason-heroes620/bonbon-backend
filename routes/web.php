@@ -10,6 +10,7 @@ use App\Http\Controllers\EvCategoriesController;
 use App\Http\Controllers\EventsController;
 use App\Http\Controllers\MembershipsController;
 use App\Http\Controllers\MembershipTypesController;
+use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\ProductDiscountsController;
@@ -150,6 +151,15 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/getUserList', [UserController::class, 'getUserList'])->name('users.list');
     Route::get('/users/{user}', [UserController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+
+    Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/all', [NotificationsController::class, 'showAll'])->name('notifications.all');
+    Route::get('/notifications/create', [NotificationsController::class, 'create'])->name('notifications.create');
+    Route::post('/notifications/create', [NotificationsController::class, 'store'])->name('notifications.store');
+    Route::get('/notifications/{notification}', [NotificationsController::class, 'edit'])->name('notifications.edit');
+    Route::put('/notifications/{notification}', [NotificationsController::class, 'update'])->name('notifications.update');
+    Route::post('/notifications/{notification}/send', [NotificationsController::class, 'send'])->name('notifications.send');
+    Route::delete('/notifications/{notification}', [NotificationsController::class, 'destroy'])->name('notifications.destroy');
 
     Route::get('/referrals', [ReferralsController::class, 'index'])->name('referrals.index');
     Route::get('/referrals/all', [ReferralsController::class, 'showAll'])->name('referrals.all');

@@ -131,6 +131,10 @@ const items: {
                 title: "Referrals",
                 url: "/referrals",
             },
+            {
+                title: "Notifications",
+                url: "/notifications",
+            },
         ],
     },
     {
