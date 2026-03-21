@@ -9,7 +9,9 @@ use App\Models\Vendors;
 use App\Models\VendorLocation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class VendorsController extends Controller
@@ -24,7 +26,8 @@ class VendorsController extends Controller
 
     public function showAll(Request $request)
     {
-        $query = Vendors::query();
+        $query = Vendors::query()
+            ->select('vendor_id', 'vendor_name', 'email', 'contact_no', 'first_name', 'last_name', 'profile_picture', 'is_active');
 
         if ($search = $request->has('search')) {
             $query->where(function ($q) use ($search) {
@@ -77,46 +80,73 @@ class VendorsController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $profile_picture = null;
+        $profile_picture_path = null;
+        $validator = Validator::make($request->all(), [
             'vendor_name' => 'required|string|max:150',
             'email' => 'required|string|email|max:200|unique:vendors',
             'contact_no' => 'required|string|max:25',
-            'contact_person' => 'required|string|max:150',
-            'busines_registration_number' => 'required|string|max:100',
+            'first_name' => 'required|string|max:150',
+            'last_name' => 'required|string|max:150',
+            'business_registration_number' => 'required|string|max:100',
             'company_profile' => 'nullable|string',
             "our_services" => 'nullable|string',
+            'website' => 'nullable|string|max:200',
+            'social_medias' => 'nullable',
+            'social_medias.facebook' => 'nullable|string|max:200',
+            'social_medias.instagram' => 'nullable|string|max:200',
+            'social_medias.youtube' => 'nullable|string|max:200',
+            'social_medias.tiktok' => 'nullable|string|max:200',
+            'social_medias.xiaohungshu' => 'nullable|string|max:200',
             'locations' => 'nullable|array',
             'locations.*.location_name' => 'required|string',
             'locations.*.latitude' => 'required|numeric',
             'locations.*.longitude' => 'required|numeric',
         ]);
 
-        $user = User::where('email', $request->email)->first();
-        if ($request->profile_picture !== null) {
-            $profile_picture = $request->profile_picture->store('profile_pictures', 'public');
+        if ($validator->fails()) {
+            throw ValidationException::withMessages($validator->errors()->toArray());
         }
 
-        if (!$user) {
+        if (User::where('email', $request->email)->exists()) {
+            throw ValidationException::withMessages([
+                'email' => 'This email is already registered.',
+            ]);
+        }
+
+        try {
+            if ($request->profile_picture !== null) {
+                $profile_picture = $request->profile_picture->store('profile_pictures', 'public');
+                $profile_picture_path = $profile_picture;
+            }
+
             $user = User::create([
-                'name' => $request->contact_person,
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
                 'email' => $request->email,
                 'password' => bcrypt('password'),
                 'role' => 'vendor',
+                'profile_picture' => $profile_picture_path,
             ]);
-            Log::info('User created', ['user' => $user->user_id]);
-        } else {
-            return redirect()->back()->with('error', 'This email is already registered');
+        } catch (\Exception $e) {
+            Log::error('Error creating user: ' . $e->getMessage());
+            throw ValidationException::withMessages([
+                'email' => 'An error occurred while creating the vendor account.',
+            ]);
         }
 
         $vendor = Vendors::firstOrCreate([
             'vendor_name' => $request->vendor_name,
             'email' => $request->email,
             'contact_no' => $request->contact_no,
-            'contact_person' => $request->contact_person,
-            'business_registration_number' => $request->busines_registration_number,
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+            'business_registration_number' => $request->business_registration_number,
             'company_profile' => $request->company_profile,
             'our_services' => $request->our_services,
-            'profile_picture' => $profile_picture ?? null,
+            'profile_picture' => $profile_picture_path ?? null,
+            'website' => $request->website,
+            'social_medias' => $this->encodeSocialMedias($request->input('social_medias')),
             'is_active' => 'inactive',
             'user_id' => $user->user_id,
         ]);
@@ -129,8 +159,10 @@ class VendorsController extends Controller
                     'address' => $location['address'] ?? null,
                     'latitude' => $location['latitude'],
                     'longitude' => $location['longitude'],
+                    'location' => ['lat' => $location['latitude'], 'lng' => $location['longitude']],
                     'place_id' => $location['place_id'] ?? null,
                     'is_primary' => $location['is_primary'] ?? false,
+                    'contact_no' => $location['contact_no'] ?? null,
                 ]);
             }
         }
@@ -148,16 +180,6 @@ class VendorsController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     */
-    public function show(Request $request)
-    {
-        return Inertia::render('vendors/show', [
-            'vendor' => Vendors::find($request->vendor),
-        ]);
-    }
-
-    /**
      * Show the form for editing the specified resource.
      */
     public function edit(Request $request)
@@ -165,15 +187,22 @@ class VendorsController extends Controller
         $categories = Categories::select('category_id as value', 'category_name as label')
             ->where('is_active', true)->get();
 
-        $vendor = Vendors::with('locations')->find($request->vendor);
+        $vendor = Vendors::with('locations:id,vendor_id,location_name,address,latitude,longitude,place_id,contact_no')->find($request->vendor);
 
         $vendor->categories = VendorCategories::where('vendor_categories.vendor_id', $vendor->vendor_id)
             ->pluck('vendor_categories.category_id')->toArray();
 
-        if ($vendor->profile_picture !== null) {
-            $vendor->profile_picture = asset('storage/' . $vendor->profile_picture);
+        if (is_string($vendor->social_medias) && $vendor->social_medias !== '') {
+            $decoded = json_decode($vendor->social_medias, true);
+            if (is_array($decoded)) {
+                $vendor->social_medias = $decoded;
+            }
         }
 
+        if ($vendor->profile_picture !== null) {
+            $vendor->profile_picture = Storage::url($vendor->profile_picture);
+        }
+        Log::info($vendor);
         return Inertia::render('vendors/edit', [
             'vendor' => $vendor,
             'categories' => $categories,
@@ -189,30 +218,53 @@ class VendorsController extends Controller
             $validator = Validator::make($request->all(), [
                 'vendor_name' => 'required|string|max:150',
                 'contact_no' => 'required|string|max:25',
-                'contact_person' => 'required|string|max:150',
+                'first_name' => 'required|string|max:150',
+                'last_name' => 'required|string|max:150',
                 'business_registration_number' => 'required|string|max:100',
                 'company_profile' => 'nullable|string',
+                "our_services" => 'nullable|string',
+                'website' => 'nullable|string|max:200',
+                'social_medias' => 'nullable',
+                'social_medias.facebook' => 'nullable|string|max:200',
+                'social_medias.instagram' => 'nullable|string|max:200',
+                'social_medias.youtube' => 'nullable|string|max:200',
+                'social_medias.tiktok' => 'nullable|string|max:200',
+                'social_medias.xiaohungshu' => 'nullable|string|max:200',
+                'locations' => 'nullable|array',
+                'locations.*.location_name' => 'required|string',
+                'locations.*.latitude' => 'required|numeric',
+                'locations.*.longitude' => 'required|numeric',
             ]);
+
             if ($validator->fails()) {
                 Log::error('Update vendor validation failed', ['errors' => $validator->errors()->toArray()]);
                 return redirect()->back()->withErrors($validator)->withInput();
             }
-            Log::info('Update before vendor', ['vendor' => $request->all()]);
 
             $updateData = [
                 'vendor_name' => $request->vendor_name,
                 'contact_no' => $request->contact_no,
-                'contact_person' => $request->contact_person,
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
                 'business_registration_number' => $request->business_registration_number,
                 'company_profile' => $request->company_profile,
                 'our_services' => $request->our_services,
+                'website' => $request->website,
+                'is_active' => $request->is_active ?? 'inactive',
             ];
 
             if ($request->hasFile('profile_picture')) {
-                $updateData['profile_picture'] = $request->file("profile_picture")->store('profile_pictures', 'public');
+                $profile_picture = $request->file("profile_picture")->store('profile_pictures', 'public');
+                $updateData['profile_picture'] = $profile_picture;
             }
 
-            Log::info('Update vendor', ['vendor' => $request->all()]);
+            $vendor = Vendors::find($request->vendor);
+            if ($vendor) {
+                $updateData['social_medias'] = $this->mergeSocialMedias($vendor->social_medias, $request->input('social_medias'));
+            } else {
+                $updateData['social_medias'] = $this->encodeSocialMedias($request->input('social_medias'));
+            }
+
             Vendors::where('vendor_id', $request->vendor)->update($updateData);
 
             if ($request->has('locations')) {
@@ -224,8 +276,10 @@ class VendorsController extends Controller
                         'address' => $location['address'] ?? null,
                         'latitude' => $location['latitude'],
                         'longitude' => $location['longitude'],
+                        'location' => ['lat' => $location['latitude'], 'lng' => $location['longitude']],
                         'place_id' => $location['place_id'] ?? null,
                         'is_primary' => $location['is_primary'] ?? false,
+                        'contact_no' => $location['contact_no'] ?? null,
                     ]);
                 }
             }
@@ -240,11 +294,84 @@ class VendorsController extends Controller
                 }
             }
 
-            return redirect()->back();
+            return redirect()->back()->with('success', 'Vendor updated successfully');
         } catch (\Exception $e) {
             Log::error('Update vendor failed', ['error' => $e->getMessage()]);
             return redirect()->back()->with('error', 'Failed to update vendor');
         }
+    }
+
+    private function encodeSocialMedias($value): ?string
+    {
+        $allowedKeys = ['facebook', 'instagram', 'youtube', 'tiktok', 'xiaohungshu'];
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : [];
+        }
+
+        if (!is_array($value)) {
+            $value = [];
+        }
+
+        $result = [];
+        foreach ($allowedKeys as $key) {
+            if (!array_key_exists($key, $value)) {
+                continue;
+            }
+            $v = is_string($value[$key]) ? trim($value[$key]) : '';
+            if ($v === '') {
+                continue;
+            }
+            $result[$key] = $v;
+        }
+
+        if (empty($result)) {
+            return json_encode((object) []);
+        }
+
+        return json_encode($result);
+    }
+
+    private function mergeSocialMedias($existing, $incoming): ?string
+    {
+        $allowedKeys = ['facebook', 'instagram', 'youtube', 'tiktok', 'xiaohungshu'];
+
+        $existingArr = [];
+        if (is_string($existing) && $existing !== '') {
+            $decoded = json_decode($existing, true);
+            $existingArr = is_array($decoded) ? $decoded : [];
+        } elseif (is_array($existing)) {
+            $existingArr = $existing;
+        }
+
+        if (is_string($incoming)) {
+            $decoded = json_decode($incoming, true);
+            $incoming = is_array($decoded) ? $decoded : [];
+        }
+
+        if (!is_array($incoming)) {
+            $incoming = [];
+        }
+
+        foreach ($allowedKeys as $key) {
+            if (!array_key_exists($key, $incoming)) {
+                continue;
+            }
+
+            $v = is_string($incoming[$key]) ? trim($incoming[$key]) : '';
+            if ($v === '') {
+                unset($existingArr[$key]);
+                continue;
+            }
+            $existingArr[$key] = $v;
+        }
+
+        if (empty($existingArr)) {
+            return json_encode((object) []);
+        }
+
+        return json_encode($existingArr);
     }
 
     /**
@@ -264,7 +391,6 @@ class VendorsController extends Controller
      */
     public function getVendorList()
     {
-        Log::info('Get vendor list');
         $vendors = Vendors::select("vendor_id", "vendor_name")
             ->where('is_active', 'active')
             ->orderBy('vendor_name', 'asc')

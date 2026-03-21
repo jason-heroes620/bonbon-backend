@@ -86,6 +86,31 @@ const Form = ({
                             {...register("email")}
                         />
                     </div>
+
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="contact_person">Contact Person</Label>
+                        <Input
+                            type="text"
+                            id="first_name"
+                            maxLength={150}
+                            required
+                            placeholder="First Name"
+                            className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                            {...register("first_name")}
+                        />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="contact_person"> </Label>
+                        <Input
+                            type="text"
+                            id="last_name"
+                            maxLength={150}
+                            required
+                            placeholder="Last Name"
+                            className="border border-[#D1D5DB] rounded-md px-4 py-2 mt-3"
+                            {...register("last_name")}
+                        />
+                    </div>
                     <div className="flex flex-col gap-2">
                         <Label htmlFor="contact_no">Contact Number</Label>
                         <Input
@@ -97,17 +122,7 @@ const Form = ({
                             {...register("contact_no")}
                         />
                     </div>
-                    <div className="flex flex-col gap-2">
-                        <Label htmlFor="contact_person">Contact Person</Label>
-                        <Input
-                            type="text"
-                            id="contact_person"
-                            maxLength={150}
-                            required
-                            className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                            {...register("contact_person")}
-                        />
-                    </div>
+
                     <div className="flex flex-col gap-2">
                         <Label htmlFor="business_registration_number">
                             Business Registration Number
@@ -151,6 +166,84 @@ const Form = ({
                             className="border border-[#D1D5DB] items-center rounded-md"
                         />
                     </div>
+                    <hr className="col-span-2" />
+                    <section className="flex flex-col gap-2 col-span-2 bg-gray-100 px-2 py-4">
+                        <Label>Social Medias</Label>
+                        <div className="flex flex-col gap-4 md:grid md:grid-cols-2 py-4 px-4">
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="website">Website</Label>
+                                <Input
+                                    type="text"
+                                    id="website"
+                                    maxLength={200}
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...register("website")}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="social_medias_facebook">
+                                    Facebook
+                                </Label>
+                                <Input
+                                    type="text"
+                                    id="social_medias_facebook"
+                                    maxLength={200}
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...register("social_medias.facebook")}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="social_medias_instagram">
+                                    Instagram
+                                </Label>
+                                <Input
+                                    type="text"
+                                    id="social_medias_instagram"
+                                    maxLength={200}
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...register("social_medias.instagram")}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="social_medias_youtube">
+                                    YouTube
+                                </Label>
+                                <Input
+                                    type="text"
+                                    id="social_medias_youtube"
+                                    maxLength={200}
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...register("social_medias.youtube")}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="social_medias_tiktok">
+                                    TikTok
+                                </Label>
+                                <Input
+                                    type="text"
+                                    id="social_medias_tiktok"
+                                    maxLength={200}
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...register("social_medias.tiktok")}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="social_medias_xiaohungshu">
+                                    Xiaohongshu
+                                </Label>
+                                <Input
+                                    type="text"
+                                    id="social_medias_xiaohungshu"
+                                    maxLength={200}
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...register("social_medias.xiaohungshu")}
+                                />
+                            </div>
+                        </div>
+                    </section>
+                    <hr className="col-span-2" />
+
                     {mode === "update" && (
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="is_active">Status</Label>

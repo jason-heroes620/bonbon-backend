@@ -18,8 +18,8 @@ class Referrals extends Model
         'referral_date',
         'cycle',
         'referral_status',
-        'qualifying_order_id',
-        'qualfied_at',
+        'qualifying_order_no',
+        'qualified_at',
     ];
 
     public $timestamps = true;

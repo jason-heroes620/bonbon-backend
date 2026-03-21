@@ -17,7 +17,7 @@ class Vouchers extends Model
         'voucher_name',
         'voucher_short_description',
         'voucher_description',
-        'duration',
+        'voucher_value',
         'what_you_get',
         'voucher_code',
         'voucher_discount',
@@ -28,14 +28,23 @@ class Vouchers extends Model
         'voucher_claim_per_user',
         'voucher_image_path',
         'voucher_status',
+        'is_unlimited',
+        'tnc',
+        'how_to_use',
     ];
 
     protected $casts = [
         'voucher_status' => 'boolean',
+        'is_unlimited' => 'boolean',
     ];
 
     public function vendor()
     {
         return $this->belongsTo(Vendors::class, 'vendor_id', 'vendor_id');
+    }
+
+    public function voucher_images()
+    {
+        return $this->hasMany(VoucherImages::class, 'voucher_id', 'voucher_id');
     }
 }

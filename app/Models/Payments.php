@@ -16,7 +16,6 @@ class Payments extends Model
         'payment_description',
         'payment_method',
         'payment_amount',
-        'order_id',
         'transaction_id',
         'ref_no',
         'payment_date',

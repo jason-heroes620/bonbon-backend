@@ -5,12 +5,16 @@ use Inertia\Inertia;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoriesController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DiscountsController;
+use App\Http\Controllers\EvCategoriesController;
+use App\Http\Controllers\EventsController;
 use App\Http\Controllers\MembershipsController;
 use App\Http\Controllers\MembershipTypesController;
 use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\ProductDiscountsController;
 use App\Http\Controllers\ProductsController;
+use App\Http\Controllers\ReferralsController;
 use App\Http\Controllers\TaxesController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendorsController;
@@ -52,6 +56,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/vouchers/{voucher}', [VouchersController::class, 'edit'])->name('vouchers.edit');
     Route::put('/vouchers/{voucher}', [VouchersController::class, 'update'])->name('vouchers.update');
 
+    Route::get('/events', [EventsController::class, 'index'])->name('events.index');
+    Route::get('/events/all', [EventsController::class, 'showAll'])->name('events.all');
+    Route::get('/events/create', [EventsController::class, 'create'])->name('events.create');
+    Route::post('/events/create', [EventsController::class, 'store'])->name('events.store');
+    Route::get('/events/{event}', [EventsController::class, 'edit'])->name('events.edit');
+    Route::put('/events/{event}', [EventsController::class, 'update'])->name('events.update');
+
     Route::get('/products', [ProductsController::class, 'index'])->name('products.index');
     Route::get('/products/all', [ProductsController::class, 'showAll'])->name('products.all');
     Route::get('/products/create', [ProductsController::class, 'create'])->name('products.create');
@@ -59,6 +70,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/products/{product}', [ProductsController::class, 'edit'])->name('products.edit');
     Route::put('/products/{product}', [ProductsController::class, 'update'])->name('products.update');
     Route::delete('/products/{product}', [ProductsController::class, 'destroy'])->name('products.destroy');
+    Route::get('/getProductList', [ProductsController::class, 'getProductList'])->name('products.list');
 
     Route::get('/product-discounts', [ProductDiscountsController::class, 'index'])->name('product_discounts.index');
     Route::get('/product-discounts/all', [ProductDiscountsController::class, 'showAll'])->name('product_discounts.all');
@@ -68,6 +80,14 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/product-discounts/{productDiscount}', [ProductDiscountsController::class, 'update'])->name('product_discounts.update');
     Route::delete('/product-discounts/{productDiscount}', [ProductDiscountsController::class, 'destroy'])->name('product_discounts.destroy');
     Route::get('/product-discounts/products/search', [ProductDiscountsController::class, 'searchProducts'])->name('product_discounts.products.search');
+
+    // Discounts
+    Route::get('/discounts', [DiscountsController::class, 'index'])->name('discounts.index');
+    Route::get('/discounts/all', [DiscountsController::class, 'showAll'])->name('discounts.all');
+    Route::get('/discounts/create', [DiscountsController::class, 'create'])->name('discounts.create');
+    Route::post('/discounts/create', [DiscountsController::class, 'store'])->name('discounts.store');
+    Route::get('/discounts/{discount}', [DiscountsController::class, 'edit'])->name('discounts.edit');
+    Route::put('/discounts/{discount}', [DiscountsController::class, 'update'])->name('discounts.update');
 
     Route::get('/memberships', [MembershipsController::class, 'index'])->name('memberships.index');
     Route::get('/memberships/all', [MembershipsController::class, 'showAll'])->name('memberships.all');
@@ -91,6 +111,16 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/categories/{category}', [CategoriesController::class, 'edit'])->name('categories.edit');
     Route::put('/categories/{category}', [CategoriesController::class, 'update'])->name('categories.update');
     Route::delete('/categories/{category}', [CategoriesController::class, 'destroy'])->name('categories.destroy');
+    Route::get('/getCategoryList', [CategoriesController::class, 'getCategoryList'])->name('categories.list');
+
+    Route::get('/ev-categories', [EvCategoriesController::class, 'index'])->name('ev_categories.index');
+    Route::get('/ev-categories/all', [EvCategoriesController::class, 'showAll'])->name('ev_categories.all');
+    Route::get('/ev-categories/create', [EvCategoriesController::class, 'create'])->name('ev_categories.create');
+    Route::post('/ev-categories/create', [EvCategoriesController::class, 'store'])->name('ev_categories.store');
+    Route::get('/ev-categories/{evCategory}', [EvCategoriesController::class, 'edit'])->name('ev_categories.edit');
+    Route::put('/ev-categories/{evCategory}', [EvCategoriesController::class, 'update'])->name('ev_categories.update');
+    Route::delete('/ev-categories/{evCategory}', [EvCategoriesController::class, 'destroy'])->name('ev_categories.destroy');
+    Route::get('/getEvCategoryList', [EvCategoriesController::class, 'getEvCategoryList'])->name('ev_categories.list');
 
     Route::get('/taxes', [TaxesController::class, 'index'])->name('taxes.index');
     Route::get('/taxes/all', [TaxesController::class, 'showAll'])->name('taxes.all');
@@ -117,6 +147,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/all', [UserController::class, 'showAll'])->name('users.all');
     Route::get('/users/options', [UserController::class, 'options'])->name('users.options');
+    Route::get('/getUserList', [UserController::class, 'getUserList'])->name('users.list');
     Route::get('/users/{user}', [UserController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+
+    Route::get('/referrals', [ReferralsController::class, 'index'])->name('referrals.index');
+    Route::get('/referrals/all', [ReferralsController::class, 'showAll'])->name('referrals.all');
 });

@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('vendor_locations', function (Blueprint $table) {
             $table->id();
             $table->foreignUuid('vendor_id')->constrained('vendors', 'vendor_id')->onDelete('cascade');
+            $table->string('contact_no', 20)->nullable();
             $table->string('location_name');
             $table->string('address')->nullable();
             $table->decimal('latitude', 10, 8);

@@ -12,8 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('google_id')->nullable()->unique();
-            $table->string('apple_id')->nullable()->unique();
+            if (!Schema::hasColumn('users', 'google_id')) {
+                $table->string('google_id')->nullable();
+            }
+
+            if (!Schema::hasColumn('users', 'apple_id')) {
+                $table->string('apple_id')->nullable();
+            }
         });
     }
 

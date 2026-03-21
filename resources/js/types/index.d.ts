@@ -3,9 +3,12 @@ export type Vendor = {
     vendor_name: string;
     email: string;
     contact_no: string;
-    contact_person: string;
+    first_name: string;
+    last_name: string;
     business_registration_number: string;
     company_profile: string;
+    website?: string | null;
+    social_medias?: Record<string, string> | string | null;
     is_active: string;
     profile_picture?: string | null;
     categories?: [
@@ -24,6 +27,7 @@ export type Vendor = {
             viewport?: any;
             raw_place?: any;
             is_primary?: boolean;
+            contact_no?: string;
         },
     ];
 };
@@ -34,7 +38,7 @@ export type Voucher = {
     voucher_name: string;
     voucher_short_description: string;
     voucher_description: string;
-    duration: number;
+    voucher_value: number;
     what_you_get: string;
     voucher_code: string;
     voucher_discount: number;
@@ -47,14 +51,44 @@ export type Voucher = {
     voucher_status: boolean;
 };
 
+export type Discount = {
+    discount_id: string;
+    discount_code: string;
+    user_id?: string | null;
+    discount_name: string;
+    discount_description: string;
+    discount_type: "P" | "F";
+    discount_amount: string;
+    discount_start_date: string;
+    discount_end_date: string;
+    is_active: boolean;
+    applies_to: "all" | "specific";
+    discount_usage_limit: number;
+    is_unlimited: boolean;
+};
+
 export type User = {
     user_id: string;
-    name: string;
+    first_name: string;
+    last_name: string;
     email: string;
     contact_no: string;
     is_active: boolean;
     role: string;
     profile_picture?: string | null;
+};
+
+export type ReferralByUser = {
+    user_id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    total_referrals: number;
+    pending_count: number;
+    qualified_count: number;
+    rewarded_count: number;
+    revoked_count: number;
+    latest_referral_date?: string | null;
 };
 
 export type Membership = {
@@ -127,10 +161,47 @@ export type Tax = {
     is_active: boolean;
 };
 
+export type Event = {
+    event_id: string;
+    event_name: string;
+    event_image_path?: string | null;
+    event_images?: {
+        event_image_id: number;
+        event_image_path: string;
+    }[];
+    categories?: string[];
+    event_start_date: string;
+    event_end_date: string;
+    event_start_time: string;
+    event_end_time: string;
+    event_location: string;
+    event_description: string;
+    location_name: string;
+    location_latitude: string;
+    location_longitude: string;
+    place_id: string;
+    is_published: boolean;
+    is_active: boolean;
+};
+
 export type MembershipType = {
     membership_type_id: string;
     membership_type: string;
     is_active?: boolean;
+};
+
+export type EventCategory = {
+    event_category_id: number;
+    event_id: string;
+    category_id: string;
+    event_name?: string;
+    category_name?: string;
+};
+
+export type EvCategory = {
+    category_id: string;
+    category_name: string;
+    is_active: boolean;
 };
 
 export type OrderItem = {
@@ -153,6 +224,7 @@ export type OrderItem = {
 export type Order = {
     order_id: string;
     user_id: string;
+    email: string;
     order_no: string;
     order_date: string;
     total_price: string;

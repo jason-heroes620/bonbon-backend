@@ -10,6 +10,7 @@ import { Trash2 } from "lucide-react";
 
 type OrderFormValues = {
     user_id: string;
+    email: string;
     order_no: string;
     order_date: string;
     total_price: number;
@@ -49,6 +50,7 @@ export function OrderForm({
     const methods = useForm<OrderFormValues>({
         defaultValues: {
             user_id: order?.user_id ?? "",
+            email: order?.email ?? "",
             order_no: order?.order_no ?? "",
             order_date:
                 order?.order_date?.slice(0, 10) ??
@@ -92,9 +94,14 @@ export function OrderForm({
         shouldUnregister: false,
     });
 
-    const [userQuery, setUserQuery] = useState("");
+    const [userQuery, setUserQuery] = useState(methods.watch("email") ?? "");
     const [userOptions, setUserOptions] = useState<
-        Array<{ user_id: string; name: string; email: string }>
+        Array<{
+            user_id: string;
+            first_name: string;
+            last_name: string;
+            email: string;
+        }>
     >([]);
     const [productQuery, setProductQuery] = useState("");
     const [productOptions, setProductOptions] = useState<
@@ -239,10 +246,12 @@ export function OrderForm({
                                 className="w-full text-left px-3 py-2 hover:bg-gray-100"
                                 onClick={() => {
                                     methods.setValue("user_id", u.user_id);
-                                    setUserQuery(`${u.name} (${u.email})`);
+                                    setUserQuery(
+                                        `${u.first_name} ${u.last_name} (${u.email})`,
+                                    );
                                 }}
                             >
-                                {u.name} ({u.email})
+                                {`${u.first_name} ${u.last_name}`} ({u.email})
                             </button>
                         ))}
                     </div>

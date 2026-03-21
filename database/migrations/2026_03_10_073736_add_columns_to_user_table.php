@@ -12,9 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->boolean('is_active')->default(true);
-            $table->enum('role', ['user', 'vendor', 'admin'])->default('user');
-            $table->string('referral_code', 10)->nullable();
+            if (!Schema::hasColumn('users', 'is_active')) {
+                $table->boolean('is_active')->default(true);
+            }
+
+            if (!Schema::hasColumn('users', 'role')) {
+                $table->string('role')->default('user');
+            }
+
+            if (!Schema::hasColumn('users', 'referral_code')) {
+                $table->string('referral_code', 10)->nullable();
+            }
         });
     }
 

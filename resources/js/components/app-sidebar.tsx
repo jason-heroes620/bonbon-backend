@@ -10,6 +10,7 @@ import {
     Award,
     ChevronDown,
     Receipt,
+    Percent,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
@@ -61,6 +62,16 @@ const items: {
         ],
     },
     {
+        title: "Events",
+        icon: Sparkles,
+        items: [
+            {
+                title: "All Events",
+                url: "/events",
+            },
+        ],
+    },
+    {
         title: "Products",
         icon: Package,
         items: [
@@ -71,6 +82,16 @@ const items: {
             {
                 title: "Product Discounts",
                 url: "/product-discounts",
+            },
+        ],
+    },
+    {
+        title: "Discounts",
+        icon: Percent,
+        items: [
+            {
+                title: "All Discounts",
+                url: "/discounts",
             },
         ],
     },
@@ -122,8 +143,12 @@ const items: {
             },
 
             {
-                title: "Categories",
+                title: "Voucher / Vendor Categories",
                 url: "/categories",
+            },
+            {
+                title: "Event Categories",
+                url: "/ev-categories",
             },
             {
                 title: "Taxes",

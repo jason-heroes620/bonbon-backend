@@ -177,4 +177,26 @@ class ProductsController extends Controller
             'success' => 'Product deleted successfully',
         ]);
     }
+
+    public function getProductList()
+    {
+        $products = Products::query()
+            ->select('product_id', 'product_name', 'product_code', 'product_sku')
+            ->where('is_active', true)
+            ->orderBy('product_name', 'asc')
+            ->get()
+            ->map(function ($p) {
+                $parts = [$p->product_name];
+                $meta = array_values(array_filter([$p->product_code, $p->product_sku]));
+                if (!empty($meta)) {
+                    $parts[] = '(' . implode(' / ', $meta) . ')';
+                }
+                return [
+                    'value' => $p->product_id,
+                    'label' => implode(' ', $parts),
+                ];
+            });
+
+        return response()->json($products);
+    }
 }

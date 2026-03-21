@@ -123,4 +123,14 @@ class CategoriesController extends Controller
             'success' => 'Category deleted successfully',
         ]);
     }
+
+    public function getCategoryList()
+    {
+        $categories = Categories::select('category_id as value', 'category_name as label')
+            ->where('is_active', true)
+            ->orderBy('category_name', 'asc')
+            ->get();
+
+        return response()->json($categories);
+    }
 }

@@ -17,15 +17,46 @@ const Edit = ({
     categories: { value: string; label: string }[];
 }) => {
     const mode = "update";
+    const rawSocialMedias = (vendor as any).social_medias;
+    const parsedSocialMedias = (() => {
+        if (!rawSocialMedias) {
+            return {};
+        }
+        if (typeof rawSocialMedias === "string") {
+            try {
+                const obj = JSON.parse(rawSocialMedias);
+                if (obj && typeof obj === "object") {
+                    return obj;
+                }
+                return {};
+            } catch {
+                return {};
+            }
+        }
+        if (typeof rawSocialMedias === "object") {
+            return rawSocialMedias;
+        }
+        return {};
+    })();
+
     const methods = useForm({
         defaultValues: {
             vendor_name: vendor.vendor_name,
             email: vendor.email,
             contact_no: vendor.contact_no,
-            contact_person: vendor.contact_person,
+            first_name: vendor.first_name,
+            last_name: vendor.last_name,
             business_registration_number: vendor.business_registration_number,
             company_profile: vendor.company_profile,
             our_services: (vendor as any).our_services || "",
+            website: (vendor as any).website || "",
+            social_medias: {
+                facebook: parsedSocialMedias.facebook || "",
+                instagram: parsedSocialMedias.instagram || "",
+                youtube: parsedSocialMedias.youtube || "",
+                tiktok: parsedSocialMedias.tiktok || "",
+                xiaohungshu: parsedSocialMedias.xiaohungshu || "",
+            },
             is_active: vendor.is_active,
             profile_picture: vendor.profile_picture || null,
             categories: vendor.categories || [],

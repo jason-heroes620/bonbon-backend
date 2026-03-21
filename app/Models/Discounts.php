@@ -14,6 +14,7 @@ class Discounts extends Model
 
     protected $fillable = [
         'discount_code',
+        'user_id',
         'discount_name',
         'discount_description',
         'discount_type',
@@ -21,11 +22,14 @@ class Discounts extends Model
         'discount_start_date',
         'discount_end_date',
         'is_active',
+        'applies_to',
         'discount_usage_limit',
+        'is_unlimited',
     ];
     public $timestamps = true;
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_unlimited' => 'boolean',
     ];
 }

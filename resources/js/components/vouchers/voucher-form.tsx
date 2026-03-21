@@ -21,6 +21,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import axios from "axios";
 import Editor from "../editor/editor";
 import { router } from "@inertiajs/react";
@@ -28,9 +29,9 @@ import { router } from "@inertiajs/react";
 const voucherSchema = z.object({
     vendor_id: z.string().uuid("Invalid vendor ID").optional(),
     voucher_name: z.string().min(1, "Voucher name is required").max(200),
-    voucher_short_description: z.string().max(100).optional(),
+    voucher_short_description: z.string().max(50).optional(),
     voucher_description: z.string().optional(),
-    duration: z.string().max(100).optional(),
+    voucher_value: z.string().max(200).optional(),
     what_you_get: z.string().optional(),
     voucher_discount: z.coerce.number().min(0).optional(),
     voucher_type: z.string().max(100).optional(),
@@ -42,8 +43,15 @@ const voucherSchema = z.object({
     }),
     voucher_limit: z.coerce.number().int().min(0).default(0),
     voucher_claim_per_user: z.coerce.number().int().min(1).default(1),
+    categories: z.array(z.string().uuid()).optional(),
     voucher_status: z.boolean().default(false),
     voucher_image: z.any().optional(),
+    voucher_image_portrait: z.any().optional(),
+    voucher_images: z.any().optional(),
+    delete_voucher_image_ids: z.array(z.coerce.number().int()).optional(),
+    tnc: z.string().optional(),
+    how_to_use: z.string().optional(),
+    is_unlimited: z.boolean().default(false),
 });
 
 export type VoucherFormValues = z.infer<typeof voucherSchema>;
@@ -53,6 +61,11 @@ interface VoucherFormProps {
     isLoading?: boolean;
     defaultValues?: Partial<VoucherFormValues>;
     existingImageUrl?: string | null;
+    existingImageUrlPortrait?: string | null;
+    existingVoucherImages?: {
+        voucher_image_id: number;
+        voucher_image_path: string;
+    }[];
 }
 
 export function VoucherForm({
@@ -60,6 +73,7 @@ export function VoucherForm({
     isLoading,
     defaultValues,
     existingImageUrl,
+    existingVoucherImages,
     isEdit = false,
 }: VoucherFormProps & { isEdit?: boolean }) {
     const {
@@ -67,26 +81,68 @@ export function VoucherForm({
         handleSubmit,
         control,
         watch,
+        setValue,
         formState: { errors },
     } = useForm({
         resolver: zodResolver(voucherSchema),
         defaultValues: {
             voucher_limit: 0,
             voucher_claim_per_user: 1,
+            categories: [],
             voucher_status: false,
+            delete_voucher_image_ids: [],
             ...defaultValues,
         },
     });
     const startDate = watch("voucher_start_date");
     const shortDescription = watch("voucher_short_description");
     const selectedImage = watch("voucher_image") as File | undefined;
+    const isUnlimited = watch("is_unlimited");
 
     const [vendors, setVendors] = useState([]);
+    const [categories, setCategories] = useState<
+        { value: string; label: string }[]
+    >([]);
     const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+    const [galleryFiles, setGalleryFiles] = useState<
+        { key: string; file: File; url: string }[]
+    >([]);
+    const [removedExistingImageIds, setRemovedExistingImageIds] = useState<
+        number[]
+    >([]);
+
+    useEffect(() => {
+        if (isUnlimited) {
+            setValue("voucher_limit", 0, {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+        }
+    }, [isUnlimited, setValue]);
+
+    useEffect(() => {
+        setValue(
+            "voucher_images",
+            galleryFiles.map((g) => g.file),
+            { shouldDirty: true },
+        );
+    }, [galleryFiles, setValue]);
+
+    useEffect(() => {
+        return () => {
+            galleryFiles.forEach((g) => URL.revokeObjectURL(g.url));
+        };
+    }, [galleryFiles]);
 
     useEffect(() => {
         axios.get(route("vendors.list")).then((res) => {
             setVendors(res.data);
+        });
+    }, []);
+
+    useEffect(() => {
+        axios.get(route("categories.list")).then((res) => {
+            setCategories(res.data);
         });
     }, []);
 
@@ -178,11 +234,11 @@ export function VoucherForm({
                         id="voucher_short_description"
                         placeholder="Brief summary"
                         {...register("voucher_short_description")}
-                        maxLength={100}
+                        maxLength={50}
                         required
                     />
                     <span className="flex justify-end text-sm text-muted-foreground">
-                        ({shortDescription?.length}/100)
+                        ({shortDescription?.length}/50)
                     </span>
                     {errors.voucher_short_description && (
                         <p className="text-xs text-red-500">
@@ -193,15 +249,15 @@ export function VoucherForm({
 
                 {/* Duration */}
                 <div className="space-y-2">
-                    <Label htmlFor="duration">Duration</Label>
+                    <Label htmlFor="voucher_value">Voucher Value</Label>
                     <Input
-                        id="duration"
-                        placeholder="e.g. 30 mins"
-                        {...register("duration")}
+                        id="voucher_value"
+                        placeholder="RM10 OFF, 50% OFF"
+                        {...register("voucher_value")}
                     />
-                    {errors.duration && (
+                    {errors.voucher_value && (
                         <p className="text-sm text-red-500">
-                            {errors.duration.message}
+                            {errors.voucher_value.message}
                         </p>
                     )}
                 </div>
@@ -312,15 +368,24 @@ export function VoucherForm({
 
                 {/* Limits */}
                 <div className="space-y-2">
-                    <Label htmlFor="voucher_limit">Limit</Label>
+                    <div className="flex justify-between">
+                        <Label htmlFor="voucher_limit">Limit</Label>
+                        <div className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                id="is_unlimited"
+                                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                                {...register("is_unlimited")}
+                            />
+                            <Label htmlFor="is_unlimited">Unlimited</Label>
+                        </div>
+                    </div>
                     <Input
                         type="number"
                         id="voucher_limit"
                         {...register("voucher_limit")}
+                        disabled={Boolean(isUnlimited)}
                     />
-                    <span className="text-xs text-muted-foreground">
-                        Total number of vouchers available. Set 0 for unlimited.
-                    </span>
                     {errors.voucher_limit && (
                         <p className="text-sm text-red-500">
                             {errors.voucher_limit.message}
@@ -341,6 +406,27 @@ export function VoucherForm({
                     {errors.voucher_claim_per_user && (
                         <p className="text-sm text-red-500">
                             {errors.voucher_claim_per_user.message}
+                        </p>
+                    )}
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Categories</Label>
+                    <Controller
+                        name="categories"
+                        control={control}
+                        render={({ field }) => (
+                            <MultiSelect
+                                defaultValue={field.value || []}
+                                options={categories}
+                                onValueChange={field.onChange}
+                                placeholder="Choose categories"
+                            />
+                        )}
+                    />
+                    {errors.categories && (
+                        <p className="text-sm text-red-500">
+                            {String(errors.categories.message)}
                         </p>
                     )}
                 </div>
@@ -421,6 +507,136 @@ export function VoucherForm({
                         {errors.what_you_get.message}
                     </p>
                 )}
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="tnc">T&amp;C</Label>
+                <Editor
+                    placeholder="Terms and conditions..."
+                    control={control}
+                    name="tnc"
+                />
+                {errors.tnc && (
+                    <p className="text-sm text-red-500">
+                        {String(errors.tnc.message)}
+                    </p>
+                )}
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="how_to_use">How To Use</Label>
+                <Editor
+                    placeholder="How to use..."
+                    control={control}
+                    name="how_to_use"
+                />
+                {errors.how_to_use && (
+                    <p className="text-sm text-red-500">
+                        {String(errors.how_to_use.message)}
+                    </p>
+                )}
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="voucher_images">Voucher Images</Label>
+                <Input
+                    id="voucher_images"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length === 0) {
+                            return;
+                        }
+
+                        setGalleryFiles((prev) => [
+                            ...prev,
+                            ...files.map((file) => ({
+                                key: `${file.name}-${file.size}-${file.lastModified}`,
+                                file,
+                                url: URL.createObjectURL(file),
+                            })),
+                        ]);
+
+                        e.target.value = "";
+                    }}
+                />
+
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                    {(existingVoucherImages ?? [])
+                        .filter(
+                            (img) =>
+                                !removedExistingImageIds.includes(
+                                    img.voucher_image_id,
+                                ),
+                        )
+                        .map((img) => (
+                            <div
+                                key={img.voucher_image_id}
+                                className="border rounded-md p-1"
+                            >
+                                <img
+                                    src={img.voucher_image_path}
+                                    alt=""
+                                    className="w-full h-16 object-cover rounded"
+                                />
+                                <Button
+                                    type="button"
+                                    size={"sm"}
+                                    variant="secondary"
+                                    className="w-full mt-1"
+                                    onClick={() => {
+                                        const next = Array.from(
+                                            new Set([
+                                                ...removedExistingImageIds,
+                                                img.voucher_image_id,
+                                            ]),
+                                        );
+                                        setRemovedExistingImageIds(next);
+                                        setValue(
+                                            "delete_voucher_image_ids",
+                                            next,
+                                            { shouldDirty: true },
+                                        );
+                                    }}
+                                >
+                                    Delete
+                                </Button>
+                            </div>
+                        ))}
+
+                    {galleryFiles.map((g) => (
+                        <div key={g.key} className="border rounded-md p-1">
+                            <img
+                                src={g.url}
+                                alt=""
+                                className="w-full h-16 object-cover rounded"
+                            />
+                            <Button
+                                type="button"
+                                size={"sm"}
+                                variant="secondary"
+                                className="w-full mt-1"
+                                onClick={() => {
+                                    setGalleryFiles((prev) => {
+                                        const target = prev.find(
+                                            (p) => p.key === g.key,
+                                        );
+                                        if (target) {
+                                            URL.revokeObjectURL(target.url);
+                                        }
+                                        return prev.filter(
+                                            (p) => p.key !== g.key,
+                                        );
+                                    });
+                                }}
+                            >
+                                Delete
+                            </Button>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Status Checkbox */}

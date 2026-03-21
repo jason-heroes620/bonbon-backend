@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('vendor_categories', function (Blueprint $table) {
-            $table->integer('vendor_category_id')->autoIncrement()->primary();
+            $table->id('vendor_category_id')->autoIncrement();
             $table->uuid('vendor_id');
             $table->uuid('category_id');
             $table->timestamps();

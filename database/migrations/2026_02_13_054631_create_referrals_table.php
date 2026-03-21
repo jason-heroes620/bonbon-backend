@@ -19,8 +19,8 @@ return new class extends Migration
             $table->date('referral_date');
             $table->integer('cycle', 3)->default(1)->unsigned()->autoIncrement(false);
             $table->enum('referral_status', ['pending', 'qualified', 'rewarded', 'revoked'])->default('pending');
-            $table->uuid('qualifying_order_id', 36)->nullable();
-            $table->date('qualfied_at', 36)->nullable();
+            $table->string('qualifying_order_no', 20)->nullable();
+            $table->date('qualified_at', 36)->nullable();
             $table->date('rewarded_at', 36)->nullable();
             $table->date('revoked_at', 36)->nullable();
             $table->timestamps();

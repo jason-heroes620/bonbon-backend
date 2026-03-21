@@ -27,6 +27,8 @@ const loginSchema = z.object({
 
 const registerSchema = z
     .object({
+        first_name: z.string().min(1, "First name is required"),
+        last_name: z.string().min(1, "Last name is required"),
         email: z.email("Invalid email address"),
         password: strongPasswordSchema,
         confirmPassword: z.string(),
@@ -45,6 +47,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [serverError, setServerError] = useState<string | null>(null);
 
@@ -94,6 +97,8 @@ export default function AuthPage() {
         setServerError(null);
         try {
             await axios.post("/register", {
+                first_name: data.first_name,
+                last_name: data.last_name,
                 email: data.email,
                 password: data.password,
                 password_confirmation: data.confirmPassword,
@@ -314,6 +319,32 @@ export default function AuthPage() {
                             >
                                 <div className="space-y-5">
                                     <InputField
+                                        id="register-first-name"
+                                        label="First name"
+                                        type="text"
+                                        placeholder="John"
+                                        registration={registerForm.register(
+                                            "first_name",
+                                        )}
+                                        error={
+                                            registerForm.formState.errors
+                                                .first_name
+                                        }
+                                    />
+                                    <InputField
+                                        id="register-last-name"
+                                        label="Last name"
+                                        type="text"
+                                        placeholder="Doe"
+                                        registration={registerForm.register(
+                                            "last_name",
+                                        )}
+                                        error={
+                                            registerForm.formState.errors
+                                                .last_name
+                                        }
+                                    />
+                                    <InputField
                                         id="register-email"
                                         label="Email address"
                                         type="email"
@@ -406,19 +437,40 @@ export default function AuthPage() {
                                         </div>
                                     </div>
 
-                                    <InputField
-                                        id="confirmPassword"
-                                        label="Confirm Password"
-                                        type="password"
-                                        placeholder="Repeat your password"
-                                        registration={registerForm.register(
-                                            "confirmPassword",
-                                        )}
-                                        error={
-                                            registerForm.formState.errors
-                                                .confirmPassword
-                                        }
-                                    />
+                                    <div className="relative">
+                                        <InputField
+                                            id="confirmPassword"
+                                            label="Confirm Password"
+                                            type={
+                                                showConfirmPassword
+                                                    ? "text"
+                                                    : "password"
+                                            }
+                                            placeholder="Repeat your password"
+                                            registration={registerForm.register(
+                                                "confirmPassword",
+                                            )}
+                                            error={
+                                                registerForm.formState.errors
+                                                    .confirmPassword
+                                            }
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowConfirmPassword(
+                                                    !showConfirmPassword,
+                                                )
+                                            }
+                                            className="absolute top-[34px] right-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                                        >
+                                            {showConfirmPassword ? (
+                                                <EyeOff className="h-5 w-5" />
+                                            ) : (
+                                                <Eye className="h-5 w-5" />
+                                            )}
+                                        </button>
+                                    </div>
 
                                     <div className="flex items-start">
                                         <div className="flex items-center h-5">

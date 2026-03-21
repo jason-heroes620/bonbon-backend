@@ -20,7 +20,8 @@ class UserController extends Controller
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
+                $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             });
         }
@@ -57,21 +58,46 @@ class UserController extends Controller
     {
         $q = (string) $request->input('q', '');
         $users = User::query()
-            ->select('user_id', 'name', 'email')
+            ->select('user_id', 'first_name', 'last_name', 'email')
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
-                    $sub->where('name', 'like', "%{$q}%")
+                    $sub->where('first_name', 'like', "%{$q}%")
+                        ->orWhere('last_name', 'like', "%{$q}%")
                         ->orWhere('email', 'like', "%{$q}%");
                 });
             })
             ->where('role', 'user')
-            ->orderBy('name', 'asc')
+            ->orderBy('first_name', 'asc')
             ->limit(20)
             ->get();
 
         return response()->json([
             'data' => $users,
         ]);
+    }
+
+    public function getUserList()
+    {
+        $users = User::query()
+            ->select('user_id', 'first_name', 'last_name', 'email')
+            ->where('role', 'user')
+            ->where('is_active', true)
+            ->orderBy('first_name', 'asc')
+            ->orderBy('last_name', 'asc')
+            ->get()
+            ->map(function ($u) {
+                $name = trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''));
+                $label = $name !== '' ? $name : ($u->email ?? '');
+                if (!empty($u->email) && $label !== $u->email) {
+                    $label .= ' (' . $u->email . ')';
+                }
+                return [
+                    'value' => $u->user_id,
+                    'label' => $label,
+                ];
+            });
+
+        return response()->json($users);
     }
 
     public function edit(Request $request, User $user)
@@ -84,7 +110,8 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
             'email' => [
                 'sometimes',
                 'required',

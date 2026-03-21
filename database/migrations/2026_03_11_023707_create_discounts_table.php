@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('discounts', function (Blueprint $table) {
             $table->uuid('discount_id')->primary();
             $table->string('discount_code', 10);
+            $table->uuid('user_id')->nullable();
             $table->string('discount_name', 150);
             $table->string('discount_description', 250);
             $table->enum('discount_type', ['P', 'F']);
@@ -21,7 +22,9 @@ return new class extends Migration
             $table->date('discount_start_date');
             $table->date('discount_end_date');
             $table->boolean('is_active')->default(true);
+            $table->enum('applies_to', ['all', 'specific'])->default('all');
             $table->integer('discount_usage_limit', 5)->default(0)->unsigned()->autoIncrement(false);
+            $table->boolean('is_unlimited')->default(false);
             $table->timestamps();
         });
     }

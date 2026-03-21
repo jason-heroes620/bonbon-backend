@@ -38,6 +38,7 @@ const EditVoucher = ({ voucher }: EditVoucherProps) => {
             voucher.voucher_claim_per_user !== null
                 ? Number(voucher.voucher_claim_per_user)
                 : 1,
+        categories: Array.isArray(voucher.categories) ? voucher.categories : [],
         voucher_status: Boolean(voucher.voucher_status),
     };
 
@@ -89,6 +90,12 @@ const EditVoucher = ({ voucher }: EditVoucherProps) => {
                         onSubmit={handleSubmit}
                         defaultValues={defaultValues}
                         existingImageUrl={voucher.voucher_image_path}
+                        existingVoucherImages={
+                            (voucher as any).voucher_images ?? []
+                        }
+                        existingImageUrlPortrait={
+                            voucher.voucher_image_portrait_path
+                        }
                         isEdit={true}
                     />
                 </div>

@@ -14,6 +14,7 @@ interface LocationData {
     viewport?: any;
     raw_place?: any;
     is_primary?: boolean;
+    contact_no?: string;
 }
 
 const LocationInput = ({
@@ -213,6 +214,19 @@ const LocationInput = ({
                     placeholder="Start typing to search for a place..."
                 />
             </div>
+            <div className="mt-2">
+                <Input
+                    type="text"
+                    value={location.contact_no || ""}
+                    onChange={(e) =>
+                        onChange({
+                            ...location,
+                            contact_no: e.target.value,
+                        })
+                    }
+                    placeholder="Contact Number"
+                />
+            </div>
 
             {location.location_name &&
                 location.latitude &&
@@ -231,7 +245,7 @@ const LocationInput = ({
     );
 };
 
-const Location = ({ mode, data, setData }: any) => {
+const Location = ({ data, setData, single = false }: any) => {
     const [mapsReady, setMapsReady] = useState(false);
 
     // Handle both single location (legacy) and locations array
@@ -283,7 +297,7 @@ const Location = ({ mode, data, setData }: any) => {
     const handleAddLocation = () => {
         const newLocations = [
             ...locations,
-            { location_name: "", latitude: 0, longitude: 0 },
+            { location_name: "", latitude: 0, longitude: 0, contact_no: "" },
         ];
         setData("locations", newLocations);
     };
@@ -299,19 +313,15 @@ const Location = ({ mode, data, setData }: any) => {
         setData("locations", newLocations);
     };
 
-    // If no locations, show at least one empty input? Or just the button?
-    // Let's show one if empty so user sees something.
-    useEffect(() => {
-        if (locations.length === 0 && mode !== "view") {
-            // Maybe better not to force it to avoid infinite loop if not handled carefully
-            // But user experience wise, one empty location is good.
-            // For now, let's rely on user clicking "Add Location" or initialize in parent.
-        }
-    }, [locations.length, mode]);
+    const locationsToRender: LocationData[] = single
+        ? locations.length > 0
+            ? [locations[0]]
+            : [{ location_name: "", latitude: 0, longitude: 0, contact_no: "" }]
+        : locations;
 
     return (
         <div className="space-y-6">
-            {locations.map((loc, index) => (
+            {locationsToRender.map((loc, index) => (
                 <div
                     key={index}
                     className="border p-4 rounded-md relative bg-gray-50"
@@ -322,7 +332,7 @@ const Location = ({ mode, data, setData }: any) => {
                             handleUpdateLocation(index, val)
                         }
                         onRemove={
-                            locations.length > 1
+                            !single && locations.length > 1
                                 ? () => handleRemoveLocation(index)
                                 : undefined
                         }
@@ -330,19 +340,21 @@ const Location = ({ mode, data, setData }: any) => {
                     />
                 </div>
             ))}
-            {locations.length === 0 && (
+            {!single && locations.length === 0 && (
                 <div className="text-gray-500 text-sm italic mb-2">
                     No locations added.
                 </div>
             )}
-            <Button
-                type="button"
-                onClick={handleAddLocation}
-                variant="outline"
-                className="w-full"
-            >
-                <Plus className="mr-2 h-4 w-4" /> Add Location
-            </Button>
+            {!single && (
+                <Button
+                    type="button"
+                    onClick={handleAddLocation}
+                    variant="outline"
+                    className="w-full"
+                >
+                    <Plus className="mr-2 h-4 w-4" /> Add Location
+                </Button>
+            )}
         </div>
     );
 };

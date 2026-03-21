@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('voucher_name', 200);
             $table->string('voucher_short_description', 100)->nullable();
             $table->text('voucher_description')->nullable();
-            $table->string('duration', 100)->nullable();
+            $table->string('voucher_value', 200)->nullable();
             $table->text('what_you_get')->nullable();
             $table->string('voucher_code');
             $table->decimal('voucher_discount', 8, 2)->nullable();
@@ -28,6 +28,9 @@ return new class extends Migration
             $table->integer('voucher_claim_per_user')->default(1);
             $table->string('voucher_image_path')->nullable();
             $table->boolean('voucher_status')->default(false);
+            $table->boolean('is_unlimited')->default(false);
+            $table->text('tnc')->nullable();
+            $table->text('how_to_use')->nullable();
             $table->timestamps();
         });
     }

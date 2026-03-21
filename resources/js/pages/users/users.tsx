@@ -10,7 +10,8 @@ export const columns: ColumnDef<User>[] = [
     {
         accessorKey: "name",
         header: "Name",
-        cell: ({ row }) => row.original.name,
+        cell: ({ row }) =>
+            `${row.original.first_name} ${row.original.last_name}`,
     },
     {
         accessorKey: "email",

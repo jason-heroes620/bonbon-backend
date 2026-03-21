@@ -16,7 +16,7 @@ const Profile = ({ mode }: { mode: "create" | "update" }) => {
                 <div className="flex flex-col gap-2">
                     <Label htmlFor="company_profile">Company Profile</Label>
                     <Editor
-                        placeholder="Full details..."
+                        placeholder="Company Profile..."
                         control={control}
                         name="company_profile"
                         defaultValue={getValues("company_profile")}
@@ -25,7 +25,7 @@ const Profile = ({ mode }: { mode: "create" | "update" }) => {
                 <div className="flex flex-col gap-2">
                     <Label htmlFor="our_services">Our Services</Label>
                     <Editor
-                        placeholder="Full details..."
+                        placeholder="Our Services..."
                         control={control}
                         name="our_services"
                         defaultValue={getValues("our_services")}

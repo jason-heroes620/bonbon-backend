@@ -25,7 +25,8 @@ export const columns: ColumnDef<Vendor>[] = [
     {
         accessorKey: "contact_person",
         header: "Contact Person",
-        cell: ({ row }) => row.original.contact_person,
+        cell: ({ row }) =>
+            row.original.first_name + " " + row.original.last_name,
     },
     {
         accessorKey: "is_active",

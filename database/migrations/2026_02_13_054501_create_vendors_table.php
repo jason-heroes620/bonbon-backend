@@ -17,11 +17,14 @@ return new class extends Migration
             $table->uuid('user_id');
             $table->string('email', 200)->unique();
             $table->string('contact_no', 25);
-            $table->string('contact_person', 150);
+            $table->string('first_name', 150);
+            $table->string('last_name', 150);
             $table->string('business_registration_number', 100);
             $table->text('company_profile')->nullable();
             $table->text('our_services')->nullable();
             $table->string('profile_picture')->nullable();
+            $table->string('website', 200)->nullable();
+            $table->json('social_medias')->nullable();
             $table->enum('is_active', ['active', 'inactive'])->default('inactive');
             $table->timestamps();
         });

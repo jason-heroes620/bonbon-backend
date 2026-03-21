@@ -1,0 +1,200 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Categories;
+use App\Models\VendorLocation;
+use App\Models\Vendors;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+
+class VendorsController extends Controller
+{
+    public function vendors(Request $request)
+    {
+        $validated = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'search' => ['nullable', 'string', 'max:150'],
+            'max_distance_km' => ['nullable', 'numeric', 'min:0'],
+            'categories' => ['nullable'],
+        ]);
+
+        $latitude = (float) $validated['latitude'];
+        $longitude = (float) $validated['longitude'];
+        $perPage = (int) ($validated['per_page'] ?? 10);
+        $search = isset($validated['search']) ? trim((string) $validated['search']) : null;
+        $maxDistanceKm = isset($validated['max_distance_km']) ? (float) $validated['max_distance_km'] : null;
+
+        $categoryIds = $request->input('categories');
+        if (is_string($categoryIds)) {
+            $categoryIds = array_filter(array_map('trim', explode(',', $categoryIds)));
+        } elseif (!is_array($categoryIds)) {
+            $categoryIds = [];
+        } else {
+            $categoryIds = array_filter(array_map('strval', $categoryIds));
+        }
+
+        $vendors = VendorLocation::query()
+            ->join('vendors', 'vendors.vendor_id', '=', 'vendor_locations.vendor_id')
+            ->where('vendors.is_active', 'active')
+            ->select([
+                'vendors.vendor_id',
+                'vendor_locations.id as vendor_location_id',
+                'vendor_locations.vendor_id',
+                'vendors.vendor_name',
+                'vendors.profile_picture',
+                'vendor_locations.location_name',
+                'vendor_locations.address',
+                'vendor_locations.latitude',
+                'vendor_locations.longitude',
+            ])
+            ->selectRaw(
+                '(6371 * acos(cos(radians(?)) * cos(radians(vendor_locations.latitude)) * cos(radians(vendor_locations.longitude) - radians(?)) + sin(radians(?)) * sin(radians(vendor_locations.latitude)))) as distance_km',
+                [$latitude, $longitude, $latitude]
+            )
+            ->when(!empty($categoryIds), function ($q) use ($categoryIds) {
+                $q->whereExists(function ($sq) use ($categoryIds) {
+                    $sq->selectRaw('1')
+                        ->from('vendor_categories')
+                        ->whereColumn('vendor_categories.vendor_id', 'vendor_locations.vendor_id')
+                        ->whereIn('vendor_categories.category_id', $categoryIds);
+                });
+            })
+            ->when(!empty($search), function ($q) use ($search) {
+                $q->where(function ($sq) use ($search) {
+                    $sq->where('vendors.vendor_name', 'like', "%{$search}%")
+                        ->orWhere('vendor_locations.location_name', 'like', "%{$search}%")
+                        ->orWhere('vendor_locations.address', 'like', "%{$search}%");
+                });
+            })
+            ->when($maxDistanceKm !== null, function ($q) use ($maxDistanceKm) {
+                $q->havingRaw('distance_km <= ?', [$maxDistanceKm]);
+            })
+            ->orderBy('distance_km', 'asc')
+            ->orderBy('vendor_locations.id', 'desc')
+            ->paginate($perPage);
+
+        $items = collect($vendors->items())->map(function ($row) {
+            [$city, $state] = $this->extractCityState(
+                (string) ($row->address ?? ''),
+                (string) ($row->location_name ?? '')
+            );
+
+            return [
+                'vendor_id' => $row->vendor_id,
+                'vendor_name' => $row->vendor_name,
+                'profile_picture' => Storage::url($row->profile_picture),
+                'city' => $city,
+                'state' => $state,
+                'longitude' => $row->longitude !== null ? (float) $row->longitude : null,
+                'latitude' => $row->latitude !== null ? (float) $row->latitude : null,
+                'distance_km' => $row->distance_km !== null ? (float) $row->distance_km : null,
+            ];
+        })->all();
+
+        return response()->json([
+            'data' => empty($items) ? [] : $items,
+            'meta' => [
+                'current_page' => $vendors->currentPage(),
+                'last_page' => $vendors->lastPage(),
+                'per_page' => $vendors->perPage(),
+                'total' => $vendors->total(),
+                'from' => $vendors->firstItem(),
+                'to' => $vendors->lastItem(),
+                'next_page_url' => $vendors->nextPageUrl(),
+                'prev_page_url' => $vendors->previousPageUrl(),
+            ],
+        ]);
+    }
+
+    private function extractCityState(string $address, string $fallbackCity): array
+    {
+        $address = trim($address);
+        if ($address === '') {
+            $fallbackCity = trim($fallbackCity);
+            return [$fallbackCity !== '' ? $fallbackCity : null, null];
+        }
+
+        $parts = array_values(array_filter(array_map('trim', explode(',', $address)), fn($p) => $p !== ''));
+        if (count($parts) === 1) {
+            return [$parts[0], null];
+        }
+
+        $state = $parts[count($parts) - 2] ?? null;
+        $city = $parts[count($parts) - 4] ?? null;
+        return [$city, $state];
+    }
+
+    public function vendor(Request $request, string $vendor_id)
+    {
+        $validated = $request->validate([
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+        ]);
+
+        $latitude = isset($validated['latitude']) ? (float) $validated['latitude'] : null;
+        $longitude = isset($validated['longitude']) ? (float) $validated['longitude'] : null;
+
+        $vendor = Vendors::query()
+            ->where('vendor_id', $vendor_id)
+            ->where('is_active', 'active')
+            ->first();
+
+        if (!$vendor) {
+            return response()->json(['message' => 'Vendor not found.'], 404);
+        }
+
+        $profilePictureUrl = null;
+        if (!empty($vendor->profile_picture)) {
+            $profilePictureUrl = str_starts_with($vendor->profile_picture, '/storage/')
+                ? $vendor->profile_picture
+                : Storage::url($vendor->profile_picture);
+        }
+
+        $locationsQuery = VendorLocation::query()
+            ->where('vendor_id', $vendor->vendor_id)
+            ->where('longitude',  $longitude)
+            ->where('latitude', $latitude)
+            ->select([
+                'id',
+                'vendor_id',
+                'location_name',
+                'address',
+                'latitude',
+                'longitude',
+                'place_id',
+                'is_primary',
+                'contact_no',
+            ]);
+
+        $location = $locationsQuery
+            ->orderBy('is_primary', 'desc')
+            ->first();
+
+        return response()->json([
+            'data' => [
+                'vendor' => $vendor,
+                'profile_picture_url' => $profilePictureUrl,
+                'location' => $location,
+            ],
+        ]);
+    }
+
+    public function vendorCategories(Request $request)
+    {
+        $vendorCategories = Categories::query()
+            ->select([
+                'category_id',
+                'category_name',
+            ])
+            ->get();
+
+        return response()->json([
+            'data' => $vendorCategories,
+        ]);
+    }
+}

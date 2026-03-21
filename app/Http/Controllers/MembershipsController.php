@@ -73,6 +73,7 @@ class MembershipsController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'membership_code' => ['required', 'string', 'max:100', 'unique:memberships,membership_code'],
             'membership_name' => ['required', 'string', 'max:100'],
             'membership_description' => ['nullable', 'string', 'max:255'],
             'membership_type_id' => ['required', 'uuid', 'exists:membership_types,membership_type_id'],

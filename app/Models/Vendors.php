@@ -18,10 +18,13 @@ class Vendors extends Model
         'user_id',
         'email',
         'contact_no',
-        'contact_person',
+        'first_name',
+        'last_name',
         'business_registration_number',
         'company_profile',
         'profile_picture',
+        'website',
+        'social_medias',
         'is_active',
     ];
 

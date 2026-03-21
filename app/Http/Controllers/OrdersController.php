@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\OrderItems;
 use App\Models\Orders;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -58,7 +60,7 @@ class OrdersController extends Controller
     {
         $validated = $request->validate([
             'user_id' => ['required', 'uuid'],
-            'order_no' => ['required', 'string', 'max:20'],
+            'order_no' => ['nullable', 'string', 'max:20'],
             'order_date' => ['required', 'date'],
             'total_price' => ['required', 'numeric', 'min:0'],
             'total_tax' => ['required', 'numeric', 'min:0'],
@@ -83,12 +85,13 @@ class OrdersController extends Controller
             'order_items.*.total_price' => ['required_with:order_items', 'numeric', 'min:0'],
         ]);
 
+        $validated['order_no'] = $validated['order_no'] ?? $this->generateOrderNo();
         $order = Orders::create($validated);
 
         if (!empty($validated['order_items'])) {
             foreach ($validated['order_items'] as $item) {
                 OrderItems::create([
-                    'order_id' => $order->getKey(),
+                    'order_id' => $order->order_id,
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
                     'uom' => $item['uom'] ?? null,
@@ -107,9 +110,11 @@ class OrdersController extends Controller
 
     public function edit(Orders $order)
     {
+
         $order->load([
             'orderItems.product:product_id,product_name,uom',
         ]);
+        $order->email = User::where('user_id', $order->user_id)->pluck('email')->first();
         return Inertia::render('orders/edit', [
             'order' => $order,
         ]);
@@ -119,7 +124,7 @@ class OrdersController extends Controller
     {
         $validated = $request->validate([
             'user_id' => ['required', 'uuid'],
-            'order_no' => ['required', 'string', 'max:20'],
+            'order_no' => ['nullable', 'string', 'max:20'],
             'order_date' => ['required', 'date'],
             'total_price' => ['required', 'numeric', 'min:0'],
             'total_tax' => ['required', 'numeric', 'min:0'],
@@ -150,7 +155,7 @@ class OrdersController extends Controller
         if (!empty($validated['order_items'])) {
             foreach ($validated['order_items'] as $item) {
                 OrderItems::create([
-                    'order_id' => $order->getKey(),
+                    'order_id' => $order->order_id,
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
                     'uom' => $item['uom'] ?? null,
@@ -165,5 +170,11 @@ class OrdersController extends Controller
         return redirect()->route('orders.index')->with([
             'success' => 'Order updated successfully',
         ]);
+    }
+
+    private function generateOrderNo()
+    {
+        $orderNo = date('Ymd') . '-' . strtoupper(Str::random(6));
+        return $orderNo;
     }
 }

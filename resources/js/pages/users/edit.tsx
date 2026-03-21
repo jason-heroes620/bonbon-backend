@@ -17,8 +17,10 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 type UserEditFormValues = {
-    name: string;
+    first_name: string;
+    last_name: string;
     email?: string;
+    contact_no?: string;
     role: "user" | "vendor" | "admin";
     is_active: boolean;
 };
@@ -32,8 +34,10 @@ const roleOptions: { value: UserEditFormValues["role"]; label: string }[] = [
 const Edit = ({ user }: { user: User }) => {
     const methods = useForm<UserEditFormValues>({
         defaultValues: {
-            name: user.name ?? "",
+            first_name: user.first_name ?? "",
+            last_name: user.last_name ?? "",
             email: user.email ?? "",
+            contact_no: user.contact_no ?? "",
             role: (user.role as UserEditFormValues["role"]) ?? "user",
             is_active: Boolean(user.is_active),
         },
@@ -92,14 +96,25 @@ const Edit = ({ user }: { user: User }) => {
                     >
                         <div className="flex flex-col md:grid md:grid-cols-2 gap-4">
                             <div className="flex flex-col gap-2">
-                                <Label htmlFor="name">Name</Label>
+                                <Label htmlFor="name">First Name</Label>
                                 <Input
                                     type="text"
                                     id="name"
                                     required
                                     maxLength={255}
                                     className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                                    {...methods.register("name")}
+                                    {...methods.register("first_name")}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="last_name">Last Name</Label>
+                                <Input
+                                    type="text"
+                                    id="last_name"
+                                    required
+                                    maxLength={255}
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...methods.register("last_name")}
                                 />
                             </div>
                             <div className="flex flex-col gap-2">
@@ -112,7 +127,16 @@ const Edit = ({ user }: { user: User }) => {
                                     {...methods.register("email")}
                                 />
                             </div>
-
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="contact_no">Contact No</Label>
+                                <Input
+                                    type="text"
+                                    id="contact_no"
+                                    maxLength={255}
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...methods.register("contact_no")}
+                                />
+                            </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="role">Role</Label>
                                 <Controller
