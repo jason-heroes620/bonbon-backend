@@ -27,6 +27,14 @@ class AuthController extends Controller
         ]);
 
         if (Auth::attempt($credentials, $request->filled('remember'))) {
+
+            // check if user role is admin or vendor
+            if (Auth::user()->role !== 'admin' && Auth::user()->role !== 'vendor') {
+                throw ValidationException::withMessages([
+                    'email' => __('auth.failed. Only admin and vendor roles are allowed.'),
+                ]);
+            }
+
             $request->session()->regenerate();
 
             // return response()->json(['message' => 'Login successful', 'user' => Auth::user()]);

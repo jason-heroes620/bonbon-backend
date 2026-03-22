@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\UserInterestList;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -71,5 +72,25 @@ class ExampleTest extends TestCase
             'user_id' => $user->user_id,
             'is_active' => 1,
         ]);
+    }
+
+    public function test_user_interest_list_register_is_idempotent(): void
+    {
+        $response1 = $this->postJson('/api/user-interest-list/register', [
+            'email' => 'TEST@EXAMPLE.COM',
+        ]);
+        $response1->assertOk();
+        $this->assertDatabaseHas('user_interest_lists', [
+            'email' => 'test@example.com',
+        ]);
+
+        $countAfterFirst = UserInterestList::query()->count();
+
+        $response2 = $this->postJson('/api/user-interest-list/register', [
+            'email' => 'test@example.com',
+        ]);
+        $response2->assertOk();
+
+        $this->assertSame($countAfterFirst, UserInterestList::query()->count());
     }
 }

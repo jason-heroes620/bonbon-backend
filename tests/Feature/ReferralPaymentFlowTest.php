@@ -124,6 +124,7 @@ class ReferralPaymentFlowTest extends TestCase
             'first_name' => 'Dummy',
             'last_name' => 'User',
             'email' => 'dummy@example.com',
+            'contact_no' => '0123456789',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'referral_code' => '123456',

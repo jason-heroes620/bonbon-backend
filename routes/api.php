@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\PushTokensController;
 use App\Http\Controllers\Api\VendorsController;
 use App\Http\Controllers\Api\VouchersController;
 use App\Http\Controllers\Api\NotificationsController;
+use App\Http\Controllers\Api\UserInterestListController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -79,3 +80,9 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10
 
 Route::post('/auth/google', [SocialAuthController::class, 'google']);
 Route::post('/auth/apple', [SocialAuthController::class, 'apple']);
+
+// User Interest List
+Route::post('/user-interest-list/register', [UserInterestListController::class, 'registerInterestList'])
+    ->middleware('throttle:5, 60');
+
+Route::get('/user-interest-list/count', [UserInterestListController::class, 'getListCount']);

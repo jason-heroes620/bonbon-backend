@@ -77,6 +77,7 @@ class AuthController extends Controller
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'contact_no' => ['required', 'string', 'max:20'],
             'password' => ['required', 'string', 'min:8', 'max:255'],
             'password_confirmation' => ['required', 'string', 'min:8', 'max:255', 'same:password'],
             'referral_code' => ['nullable', 'string', 'max:255'],
@@ -105,6 +106,7 @@ class AuthController extends Controller
             'first_name' => $request['first_name'],
             'last_name' => $request['last_name'],
             'email' => $request['email'],
+            'contact_no' => $request['contact_no'],
             'password' => Hash::make($request['password']),
             'role' => 'user',
         ]);
