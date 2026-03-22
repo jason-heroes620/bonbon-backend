@@ -32,7 +32,7 @@ Route::get('/', function () {
 });
 
 Route::get('/update-config', function () {
-    Artisan::call('config:cache');
+    Artisan::call('config:clear');
 });
 
 Route::get('/storage-link', function () {
