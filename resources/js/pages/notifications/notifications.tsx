@@ -5,6 +5,8 @@ import { DataTable } from "@/components/datatable/data-table";
 import { router } from "@inertiajs/react";
 import { Pencil, Plus, Send } from "lucide-react";
 import { format } from "date-fns";
+import { useState } from "react";
+import { toast } from "sonner";
 
 type NotificationRow = {
     notification_id: string;
@@ -15,7 +17,7 @@ type NotificationRow = {
     created_at?: string | null;
 };
 
-export const columns: ColumnDef<NotificationRow>[] = [
+const buildColumns = (onSent: () => void): ColumnDef<NotificationRow>[] => [
     {
         accessorKey: "title",
         header: "Title",
@@ -69,6 +71,21 @@ export const columns: ColumnDef<NotificationRow>[] = [
                                     "notifications.send",
                                     row.original.notification_id,
                                 ),
+                                {},
+                                {
+                                    preserveScroll: true,
+                                    onSuccess: () => {
+                                        toast.success(
+                                            "Notification sent successfully.",
+                                        );
+                                        onSent();
+                                    },
+                                    onError: () => {
+                                        toast.error(
+                                            "Failed to send notification.",
+                                        );
+                                    },
+                                },
                             )
                         }
                     >
@@ -81,6 +98,9 @@ export const columns: ColumnDef<NotificationRow>[] = [
 ];
 
 const Notifications = () => {
+    const [tableKey, setTableKey] = useState(0);
+    const columns = buildColumns(() => setTableKey((k) => k + 1));
+
     return (
         <AppLayout>
             <div className="flex px-4 py-2 w-full">
@@ -105,6 +125,7 @@ const Notifications = () => {
                     </div>
                     <div className="mt-4">
                         <DataTable
+                            key={tableKey}
                             columns={columns}
                             endpoint="/notifications/all"
                             options={{

@@ -159,12 +159,16 @@ class NotificationsController extends Controller
     public function send(Request $request, Notifications $notification)
     {
         if ($notification->status === 'sent') {
-            return redirect()->route('notifications.index');
+            return redirect()
+                ->route('notifications.index')
+                ->with('success', 'Notification has already been sent.');
         }
 
         $this->sendNotification($notification);
 
-        return redirect()->route('notifications.index');
+        return redirect()
+            ->route('notifications.index')
+            ->with('success', 'Notification sent successfully.');
     }
 
     private function coerceNotificationData($raw)
@@ -197,38 +201,52 @@ class NotificationsController extends Controller
             $tokenQuery->where('user_id', $notification->user_id);
         }
 
-        $userIds = $notification->audience === 'user' && $notification->user_id
-            ? [$notification->user_id]
-            : UserPushTokens::query()->distinct()->pluck('user_id')->filter()->values()->all();
-
         $now = now();
-        $dbRows = [];
-        foreach ($userIds as $userId) {
-            $payload = [
-                'title' => $notification->title,
-                'body' => $notification->body ?? '',
-            ];
+        $payload = [
+            'title' => $notification->title,
+            'body' => $notification->body ?? '',
+        ];
 
-            if (is_array($notification->data) && !empty($notification->data)) {
-                $payload['data'] = $notification->data;
-            }
+        if (is_array($notification->data) && !empty($notification->data)) {
+            $payload['data'] = $notification->data;
+        }
 
-            $dbRows[] = [
-                'id' => (string) Str::uuid(),
+        if ($notification->audience === 'user' && $notification->user_id) {
+            DB::table('notifications')->insert([
+                'notification_id' => (string) Str::uuid(),
                 'type' => 'expo_push',
                 'notifiable_type' => User::class,
-                'notifiable_id' => $userId,
+                'notifiable_id' => $notification->user_id,
                 'data' => json_encode($payload),
                 'read_at' => null,
                 'created_at' => $now,
                 'updated_at' => $now,
-            ];
-        }
+            ]);
+        } else {
+            User::query()
+                ->select('user_id')
+                ->where('role', 'user')
+                ->where('is_active', true)
+                ->orderBy('user_id')
+                ->chunk(500, function ($users) use ($payload, $now) {
+                    $rows = [];
+                    foreach ($users as $user) {
+                        $rows[] = [
+                            'notification_id' => (string) Str::uuid(),
+                            'type' => 'expo_push',
+                            'notifiable_type' => User::class,
+                            'notifiable_id' => $user->user_id,
+                            'data' => json_encode($payload),
+                            'read_at' => null,
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    }
 
-        foreach (array_chunk($dbRows, 500) as $chunk) {
-            if (!empty($chunk)) {
-                DB::table('notifications')->insert($chunk);
-            }
+                    if (!empty($rows)) {
+                        DB::table('notifications')->insert($rows);
+                    }
+                });
         }
 
         $tokens = $tokenQuery->pluck('expo_push_token')->filter()->values()->all();

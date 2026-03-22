@@ -18,6 +18,7 @@ use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\ReferralsController;
 use App\Http\Controllers\TaxesController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserInterestListController;
 use App\Http\Controllers\VendorsController;
 use App\Http\Controllers\VouchersController;
 use Illuminate\Support\Facades\Auth;
@@ -154,6 +155,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/getUserList', [UserController::class, 'getUserList'])->name('users.list');
     Route::get('/users/{user}', [UserController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+
+    Route::get('/user-interest-list', [UserInterestListController::class, 'index'])->name('user_interest_list.index');
+    Route::get('/user-interest-list/all', [UserInterestListController::class, 'showAll'])->name('user_interest_list.all');
 
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/all', [NotificationsController::class, 'showAll'])->name('notifications.all');

@@ -128,6 +128,10 @@ const items: {
                 url: "/users",
             },
             {
+                title: "User Interest List",
+                url: "/user-interest-list",
+            },
+            {
                 title: "Referrals",
                 url: "/referrals",
             },

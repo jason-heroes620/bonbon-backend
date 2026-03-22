@@ -23,7 +23,7 @@ class NotificationsController extends Controller
 
         $items = collect($notifications->items())
             ->map(fn($n) => [
-                'id' => $n->id,
+                'notification_id' => $n->notification_id,
                 'type' => $n->type,
                 'data' => $n->data,
                 'read_at' => $n->read_at,
@@ -57,7 +57,7 @@ class NotificationsController extends Controller
 
         $query = $user->notifications()->whereNull('read_at');
         if (is_array($ids) && !empty($ids)) {
-            $query->whereIn('id', $ids);
+            $query->whereIn('notification_id', $ids);
         }
 
         $updated = $query->update(['read_at' => now()]);
