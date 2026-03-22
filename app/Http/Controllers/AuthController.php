@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\UserPushTokens;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
@@ -125,5 +127,53 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login')->with('success', 'Logged out successfully');
+    }
+
+    public function deleteAccount()
+    {
+        return \Inertia\Inertia::render('delete-account', [
+            'retention_period_days' => 30,
+            'financial_retention_years' => 7,
+        ]);
+    }
+
+    public function requestAccountDeletion(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $user = User::query()
+            ->where('email', $validated['email'])
+            ->where('role', 'user')
+            ->first();
+
+        if (!$user || !$user->is_active) {
+            throw ValidationException::withMessages([
+                'email' => ['Account not found or inactive.'],
+            ]);
+        }
+
+        $storedPassword = (string) ($user->password ?? '');
+        $passwordMatches = Hash::check($validated['password'], $storedPassword)
+            || hash_equals($storedPassword, $validated['password']);
+
+        if (!$passwordMatches) {
+            throw ValidationException::withMessages([
+                'password' => ['The provided password is incorrect.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($user) {
+            $user->tokens()->delete();
+            UserPushTokens::query()->where('user_id', $user->user_id)->delete();
+            $user->update(['is_active' => false]);
+        });
+
+        return redirect('/delete-account')->with(
+            'success',
+            'Your account deletion request has been received. Your account has been deactivated.',
+        );
     }
 }

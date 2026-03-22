@@ -29,6 +29,9 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
+Route::get('/delete-account', [AuthController::class, 'deleteAccount'])->name('delete-account');
+Route::post('/delete-account', [AuthController::class, 'requestAccountDeletion'])->name('delete-account.request');
+
 Route::get('/login', function () {
     return Inertia::render('login');
 })->name('login');
