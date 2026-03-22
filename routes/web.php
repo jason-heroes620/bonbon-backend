@@ -21,6 +21,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserInterestListController;
 use App\Http\Controllers\VendorsController;
 use App\Http\Controllers\VouchersController;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 
 Route::get('/', function () {
@@ -28,6 +29,14 @@ Route::get('/', function () {
         return redirect()->route('login');
     }
     return redirect()->route('dashboard');
+});
+
+Route::get('/update-config', function () {
+    Artisan::call('config:cache');
+});
+
+Route::get('/storage-link', function () {
+    Artisan::call('storage:link');
 });
 
 Route::get('/delete-account', [AuthController::class, 'deleteAccount'])->name('delete-account');
