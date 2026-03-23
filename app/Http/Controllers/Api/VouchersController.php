@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserVouchers;
+use App\Models\Vendors;
 use App\Models\Vouchers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class VouchersController extends Controller
 {
@@ -82,6 +84,11 @@ class VouchersController extends Controller
             ->where('voucher_id', $voucher_id)
             ->where('voucher_status', true)
             ->first();
+        $voucher->vendor = Vendors::query()
+            ->select(['vendor_name', 'profile_picture'])
+            ->where('vendor_id', $voucher->vendor_id)
+            ->first();
+        $voucher->profile_picture = Storage::url($voucher->profile_picture);
         $voucherImages = $voucher->voucher_images ?? [];
         if (!$voucher) {
             return response()->json(['message' => 'Voucher not found.'], 404);
@@ -126,7 +133,11 @@ class VouchersController extends Controller
             ->where('voucher_id', $voucher_id)
             ->where('voucher_status', true)
             ->first();
-
+        $voucher->vendor = Vendors::query()
+            ->select(['vendor_name', 'profile_picture'])
+            ->where('vendor_id', $voucher->vendor_id)
+            ->first();
+        $voucher->profile_picture = Storage::url($voucher->profile_picture);
         if (!$voucher) {
             return response()->json(['message' => 'Voucher not found.'], 404);
         }
