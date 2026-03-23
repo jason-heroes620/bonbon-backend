@@ -34,6 +34,6 @@ class VendorLocation extends Model
 
     public function setLocationAttribute($value)
     {
-        $this->attributes['location'] = DB::raw("ST_PointFromText('POINT({$value['lng']} {$value['lat']})', 4326)");
+        $this->attributes['location'] = DB::raw("ST_PointFromText('POINT({$value['longitude']} {$value['latitude']})', 4326)");
     }
 }
