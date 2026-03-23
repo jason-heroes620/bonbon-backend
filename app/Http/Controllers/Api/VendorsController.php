@@ -20,29 +20,7 @@ class VendorsController extends Controller
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
             'search' => ['nullable', 'string', 'max:150'],
-            'max_distance_km' => [
-                'nullable',
-                function ($attribute, $value, $fail) {
-                    if ($value === null || $value === '') {
-                        return;
-                    }
-
-                    if (is_string($value) && strtolower(trim($value)) === 'all') {
-                        return;
-                    }
-
-                    if (!is_numeric($value)) {
-                        $fail('The max distance must be a number or "all".');
-                        return;
-                    }
-
-                    if ((float) $value < 0) {
-                        $fail('The max distance must be at least 0.');
-                    }
-                },
-            ],
-            'all' => ['nullable', 'boolean'],
-            'distance' => ['nullable', 'string', 'max:20'],
+            'max_distance_km' => ['nullable', 'numeric', 'min:0'],
             'categories' => ['nullable'],
         ]);
 
@@ -50,22 +28,7 @@ class VendorsController extends Controller
         $longitude = (float) $validated['longitude'];
         $perPage = (int) ($validated['per_page'] ?? 10);
         $search = isset($validated['search']) ? trim((string) $validated['search']) : null;
-
-        $allDistances = (bool) ($validated['all'] ?? false);
-        if (!$allDistances) {
-            $distanceFlag = strtolower(trim((string) ($validated['distance'] ?? '')));
-            $allDistances = $distanceFlag === 'all';
-        }
-
-        $maxDistanceKm = null;
-        if (!$allDistances) {
-            $rawMaxDistance = $validated['max_distance_km'] ?? null;
-            if (is_string($rawMaxDistance) && strtolower(trim($rawMaxDistance)) === 'all') {
-                $allDistances = true;
-            } elseif (is_numeric($rawMaxDistance)) {
-                $maxDistanceKm = (float) $rawMaxDistance;
-            }
-        }
+        $maxDistanceKm = isset($validated['max_distance_km']) ? (float) $validated['max_distance_km'] : null;
 
         $categoryIds = $request->input('categories');
         if (is_string($categoryIds)) {
@@ -74,17 +37,6 @@ class VendorsController extends Controller
             $categoryIds = [];
         } else {
             $categoryIds = array_filter(array_map('strval', $categoryIds));
-        }
-
-        $driver = DB::getDriverName();
-        $useSpatialDistance = $driver !== 'sqlite';
-
-        if ($useSpatialDistance) {
-            $distanceExpression = '(ST_Distance_Sphere(POINT(?, ?), vendor_locations.location) / 1000)';
-            $distanceBindings = [$longitude, $latitude];
-        } else {
-            $distanceExpression = '(6371 * acos(cos(radians(?)) * cos(radians(vendor_locations.latitude)) * cos(radians(vendor_locations.longitude) - radians(?)) + sin(radians(?)) * sin(radians(vendor_locations.latitude))))';
-            $distanceBindings = [$latitude, $longitude, $latitude];
         }
 
         $vendors = VendorLocation::query()
@@ -101,7 +53,10 @@ class VendorsController extends Controller
                 'vendor_locations.latitude',
                 'vendor_locations.longitude',
             ])
-            ->selectRaw("{$distanceExpression} as distance_km", $distanceBindings)
+            ->selectRaw(
+                '(6371 * acos(cos(radians(?)) * cos(radians(vendor_locations.latitude)) * cos(radians(vendor_locations.longitude) - radians(?)) + sin(radians(?)) * sin(radians(vendor_locations.latitude)))) as distance_km',
+                [$latitude, $longitude, $latitude]
+            )
             ->when(!empty($categoryIds), function ($q) use ($categoryIds) {
                 $q->whereExists(function ($sq) use ($categoryIds) {
                     $sq->selectRaw('1')
@@ -117,14 +72,8 @@ class VendorsController extends Controller
                         ->orWhere('vendor_locations.address', 'like', "%{$search}%");
                 });
             })
-            ->when($maxDistanceKm !== null, function ($q) use ($maxDistanceKm, $latitude, $longitude, $useSpatialDistance, $distanceExpression, $distanceBindings) {
-                $this->applyBoundingBox($q, $latitude, $longitude, $maxDistanceKm);
-
-                if ($useSpatialDistance) {
-                    $q->whereRaw("{$distanceExpression} <= ?", array_merge($distanceBindings, [$maxDistanceKm]));
-                } else {
-                    $q->havingRaw('distance_km <= ?', [$maxDistanceKm]);
-                }
+            ->when($maxDistanceKm !== null, function ($q) use ($maxDistanceKm) {
+                $q->havingRaw('distance_km <= ?', [$maxDistanceKm]);
             })
             ->orderBy('distance_km', 'asc')
             ->orderBy('vendor_locations.id', 'desc')
