@@ -77,7 +77,11 @@ class ExampleTest extends TestCase
     public function test_user_interest_list_register_is_idempotent(): void
     {
         $response1 = $this->postJson('/api/user-interest-list/register', [
+            'first_name' => 'Test',
+            'last_name' => 'User',
             'email' => 'TEST@EXAMPLE.COM',
+            'contact_no' => '0123456789',
+            'referral_code' => null,
         ]);
         $response1->assertOk();
         $this->assertDatabaseHas('user_interest_lists', [
@@ -87,7 +91,11 @@ class ExampleTest extends TestCase
         $countAfterFirst = UserInterestList::query()->count();
 
         $response2 = $this->postJson('/api/user-interest-list/register', [
+            'first_name' => 'Test',
+            'last_name' => 'User',
             'email' => 'test@example.com',
+            'contact_no' => '0123456789',
+            'referral_code' => null,
         ]);
         $response2->assertOk();
 

@@ -13,7 +13,11 @@ return new class extends Migration
     {
         Schema::create('user_interest_lists', function (Blueprint $table) {
             $table->uuid('user_interest_list_id')->primary();
+            $table->string('first_name');
+            $table->string('last_name');
             $table->string('email')->unique();
+            $table->string('contact_no');
+            $table->string('referral_code')->nullable();
             $table->timestamps();
         });
     }

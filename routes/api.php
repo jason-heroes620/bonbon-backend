@@ -82,6 +82,7 @@ Route::post('/auth/google', [SocialAuthController::class, 'google']);
 Route::post('/auth/apple', [SocialAuthController::class, 'apple']);
 
 // User Interest List
+// Route::post('/user-interest-list/register', [UserInterestListController::class, 'registerInterestList']);
 Route::post('/user-interest-list/register', [UserInterestListController::class, 'registerInterestList'])
     ->middleware('throttle:5, 60');
 

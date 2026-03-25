@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://merchant.bonbon.com.my'],
+    'allowed_origins' => ['https://*.bonbon.com.my', 'https://bonbon.com.my'],
 
     'allowed_origins_patterns' => [],
 

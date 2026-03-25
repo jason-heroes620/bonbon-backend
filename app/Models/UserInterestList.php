@@ -13,7 +13,11 @@ class UserInterestList extends Model
     protected $primaryKey = 'user_interest_list_id';
 
     protected $fillable = [
+        'first_name',
+        'last_name',
         'email',
+        'contact_no',
+        'referral_code',
     ];
 
     public $timestamps = true;
