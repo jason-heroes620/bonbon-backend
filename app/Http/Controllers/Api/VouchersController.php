@@ -36,7 +36,14 @@ class VouchersController extends Controller
         $search = is_string($search) ? trim($search) : null;
 
         $vouchers = Vouchers::query()
-            ->select(['voucher_id', 'voucher_name', 'voucher_short_description', 'voucher_image_path'])
+            ->leftJoin('vendors', 'vouchers.vendor_id', '=', 'vendors.vendor_id')
+            ->select([
+                'vouchers.voucher_id',
+                'vouchers.voucher_name',
+                'vouchers.voucher_short_description',
+                'vouchers.voucher_image_path',
+                'vendors.vendor_name as vendor_name',
+            ])
             ->where('voucher_status', true)
             ->when($userId, function ($q) use ($userId) {
                 $q->whereNotIn('voucher_id', function ($sq) use ($userId) {
