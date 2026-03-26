@@ -20,7 +20,7 @@ class VendorsController extends Controller
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
             'search' => ['nullable', 'string', 'max:150'],
-            'max_distance_km' => ['nullable', 'numeric', 'min:0'],
+            'distance_km' => ['nullable', 'numeric', 'min:0'],
             'categories' => ['nullable'],
         ]);
 
@@ -28,7 +28,7 @@ class VendorsController extends Controller
         $longitude = (float) $validated['longitude'];
         $perPage = (int) ($validated['per_page'] ?? 10);
         $search = isset($validated['search']) ? trim((string) $validated['search']) : null;
-        $maxDistanceKm = isset($validated['max_distance_km']) ? (float) $validated['max_distance_km'] : null;
+        $distanceKm = isset($validated['distance_km']) ? (float) $validated['distance_km'] : null;
 
         $categoryIds = $request->input('categories');
         if (is_string($categoryIds)) {
@@ -72,8 +72,8 @@ class VendorsController extends Controller
                         ->orWhere('vendor_locations.address', 'like', "%{$search}%");
                 });
             })
-            ->when($maxDistanceKm !== null, function ($q) use ($maxDistanceKm) {
-                $q->havingRaw('distance_km <= ?', [$maxDistanceKm]);
+            ->when($distanceKm !== null, function ($q) use ($distanceKm) {
+                $q->havingRaw('distance_km <= ?', [$distanceKm]);
             })
             ->orderBy('distance_km', 'asc')
             ->orderBy('vendor_locations.id', 'desc')
