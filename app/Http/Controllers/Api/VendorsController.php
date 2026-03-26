@@ -20,7 +20,24 @@ class VendorsController extends Controller
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
             'search' => ['nullable', 'string', 'max:150'],
-            'distance_km' => ['nullable'],
+            'distance_km' => ['nullable', function (string $attribute, mixed $value, \Closure $fail) {
+                if ($value === null || $value === '') {
+                    return;
+                }
+
+                if (is_string($value) && strtolower($value) === 'all') {
+                    return;
+                }
+
+                if (!is_numeric($value)) {
+                    $fail('The ' . $attribute . ' must be a number or all.');
+                    return;
+                }
+
+                if ((float) $value < 0) {
+                    $fail('The ' . $attribute . ' must be at least 0.');
+                }
+            }],
             'categories' => ['nullable'],
         ]);
 
@@ -52,7 +69,6 @@ class VendorsController extends Controller
             ->select([
                 'vendors.vendor_id',
                 'vendor_locations.id as vendor_location_id',
-                'vendor_locations.vendor_id',
                 'vendors.vendor_name',
                 'vendors.profile_picture',
                 'vendor_locations.location_name',
