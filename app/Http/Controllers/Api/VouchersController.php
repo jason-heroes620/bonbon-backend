@@ -120,7 +120,7 @@ class VouchersController extends Controller
                 'vouchers.voucher_image_path',
                 'vendors.vendor_name as vendor_name',
             ])
-            ->where('user_id', $request->user()->user_id)
+            ->where('user_vouchers.user_id', $request->user()->user_id)
             ->where('is_valid', true)
             ->orderBy('user_vouchers.created_at', 'desc')
             ->paginate($perPage);
