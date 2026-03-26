@@ -501,9 +501,6 @@ export function OrderForm({
                                         case "discount":
                                             item.discount = Number(v);
                                             break;
-                                        case "uom":
-                                            item.uom = String(v);
-                                            break;
                                         default:
                                             break;
                                     }
