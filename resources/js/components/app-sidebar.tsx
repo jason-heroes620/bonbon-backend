@@ -200,8 +200,12 @@ export function AppSidebar() {
         <Sidebar>
             <SidebarHeader>
                 <div className="flex items-center gap-2 px-2 py-1">
-                    <div className="bg-indigo-600 p-1 rounded-md text-white">
-                        <Sparkles className="size-4" />
+                    <div className="bg-[#F90606] p-1 rounded-md text-white">
+                        <img
+                            src="/bonbon-logo.png"
+                            alt="Bonbon"
+                            className="w-8 h-8"
+                        />
                     </div>
                     <span className="font-semibold text-lg">Bonbon</span>
                 </div>

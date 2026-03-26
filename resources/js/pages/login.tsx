@@ -141,13 +141,13 @@ export default function AuthPage() {
     return (
         <div className="min-h-screen flex bg-gray-50">
             {/* Left Panel - Branding */}
-            <div className="hidden lg:flex lg:w-1/2 relative bg-indigo-600 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-700 opacity-90" />
+            <div className="hidden lg:flex lg:w-1/2 relative bg-[#F90606] overflow-hidden">
+                <div className="absolute inset-0 bg-[#F90606] opacity-90" />
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80')] bg-cover bg-center mix-blend-overlay" />
                 <div className="relative w-full flex flex-col justify-between p-12 text-white">
                     <div className="flex items-center space-x-2">
                         <div className="bg-white/10 p-2 rounded-lg backdrop-blur-sm">
-                            <Sparkles className="w-6 h-6" />
+                            <img src="/bonbon-logo.png" alt="" width={40} />
                         </div>
                         <span className="text-xl font-bold tracking-wider">
                             BONBON
@@ -159,16 +159,16 @@ export default function AuthPage() {
                                 ? "Welcome back to your workspace."
                                 : "Start your journey with us."}
                         </h1>
-                        <p className="text-indigo-100 text-lg">
+                        <p className="text-white text-lg">
                             Experience the sweet taste of productivity. Manage
                             your projects, collaborate with your team, and
                             achieve your goals with Bonbon.
                         </p>
                     </div>
-                    <div className="flex items-center space-x-4 text-sm text-indigo-200">
-                        <span>© 2024 Bonbon Inc.</span>
-                        <span>•</span>
-                        <a
+                    <div className="flex items-center space-x-4 text-sm text-white">
+                        <span>© {new Date().getFullYear()} Bonbon.</span>
+                        {/* <span>•</span> */}
+                        {/* <a
                             href="#"
                             className="hover:text-white transition-colors"
                         >
@@ -180,7 +180,7 @@ export default function AuthPage() {
                             className="hover:text-white transition-colors"
                         >
                             Terms of Service
-                        </a>
+                        </a> */}
                     </div>
                 </div>
             </div>
@@ -194,7 +194,7 @@ export default function AuthPage() {
                                 ? "Sign in to account"
                                 : "Create an account"}
                         </h2>
-                        <p className="mt-2 text-sm text-gray-600">
+                        <p className="mt-2 text-sm text-[#F90606]">
                             {isLogin
                                 ? "Don't have an account? "
                                 : "Already have an account? "}
@@ -291,7 +291,7 @@ export default function AuthPage() {
 
                                     <div className="text-sm">
                                         <a
-                                            href="#"
+                                            href="/forgot-password"
                                             className="font-medium text-indigo-600 hover:text-indigo-500"
                                         >
                                             Forgot your password?
@@ -302,7 +302,7 @@ export default function AuthPage() {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#F90606] hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isLoading ? "Signing in..." : "Sign in"}
                                     {!isLoading && (
@@ -525,7 +525,7 @@ export default function AuthPage() {
                             </form>
                         )}
 
-                        <div className="mt-8 relative">
+                        {/* <div className="mt-8 relative">
                             <div className="absolute inset-0 flex items-center">
                                 <div className="w-full border-t border-gray-200" />
                             </div>
@@ -545,7 +545,7 @@ export default function AuthPage() {
                                 icon="https://www.svgrepo.com/show/503173/apple-logo.svg"
                                 label="Apple"
                             />
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </div>

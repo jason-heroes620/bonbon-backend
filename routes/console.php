@@ -89,6 +89,10 @@ Artisan::command('test:register-interest-list', function () {
         $responseWithout = $kernel->handle($requestWithout);
         $kernel->terminate($requestWithout, $responseWithout);
 
+        if ($responseWithout->getStatusCode() !== 200) {
+            $this->error('Failed: ' . $responseWithout->getContent());
+        }
+
         $assert($responseWithout->getStatusCode() === 200, 'Expected 200 for registerInterestList without referral code.');
         $assert(UserInterestList::query()->where('email', $emailWithout)->exists(), 'Expected interest list record to be created.');
         $assert(User::query()->where('email', $emailWithout)->doesntExist(), 'Expected no user to be created without referral code.');
@@ -160,8 +164,8 @@ Artisan::command('test:register-interest-list', function () {
         $responseInvalid = $kernel->handle($requestInvalid);
         $kernel->terminate($requestInvalid, $responseInvalid);
 
-        $assert($responseInvalid->getStatusCode() === 200, 'Expected 200 for registerInterestList with invalid referral code.');
-        $assert(UserInterestList::query()->where('email', $emailInvalid)->exists(), 'Expected interest list record to be created (invalid referral code still registers interest).');
+        $assert($responseInvalid->getStatusCode() === 400, 'Expected 400 for registerInterestList with invalid referral code.');
+        $assert(UserInterestList::query()->where('email', $emailInvalid)->doesntExist(), 'Expected interest list record not to be created for invalid referral code.');
         $assert(User::query()->where('email', $emailInvalid)->doesntExist(), 'Expected no user to be created for invalid referral code.');
         $assert(User::query()->count() === $usersCountBase + 1, 'Expected users count not to increase for invalid referral code.');
         $assert(
@@ -169,7 +173,7 @@ Artisan::command('test:register-interest-list', function () {
             'Expected memberships count not to increase for invalid referral code.',
         );
         $assert(Referrals::query()->count() === $referralsCountBase + 1, 'Expected referrals count not to increase for invalid referral code.');
-        $assert(UserInterestList::query()->count() === $interestListCountBase + 3, 'Expected interest list count to increase by 3 across scenarios.');
+        $assert(UserInterestList::query()->count() === $interestListCountBase + 2, 'Expected interest list count to increase by 2 across scenarios.');
 
         $this->info('PASS: registerInterestList flow (without code, with valid code, with invalid code).');
     } finally {

@@ -14,6 +14,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class AuthController extends Controller
 {
@@ -104,7 +105,11 @@ class AuthController extends Controller
         $request->validate([
             'token' => 'required',
             'email' => 'required|email',
-            'password' => 'required|min:8|confirmed',
+            'password' => [
+                'required',
+                'confirmed',
+                PasswordRule::min(8)->mixedCase()->numbers()->symbols(),
+            ],
         ]);
 
         // Here we will attempt to reset the user's password. If it is successful we

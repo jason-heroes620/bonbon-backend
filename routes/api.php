@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\VendorsController;
 use App\Http\Controllers\Api\VouchersController;
 use App\Http\Controllers\Api\NotificationsController;
 use App\Http\Controllers\Api\UserInterestListController;
+use App\Http\Controllers\Api\UserPetsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -72,6 +73,13 @@ Route::middleware(['auth:sanctum'])->group(
 
         // discount
         Route::post('/discounts/validate', [DiscountController::class, 'validateDiscount']);
+
+        // User Pets
+        Route::get('/user-pets', [UserPetsController::class, 'index']);
+        Route::get('/user-pets/{id}', [UserPetsController::class, 'show']);
+        Route::post('/user-pets', [UserPetsController::class, 'store']);
+        Route::put('/user-pets/{id}', [UserPetsController::class, 'update']);
+        Route::delete('/user-pets/{id}', [UserPetsController::class, 'destroy']);
     }
 );
 

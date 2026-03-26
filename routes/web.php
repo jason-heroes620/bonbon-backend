@@ -49,7 +49,16 @@ Route::get('/login', function () {
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::get('/forgot-password', function () {
+    return Inertia::render('ForgotPassword');
+})->name('password.request');
 Route::post('/forgot-password', [AuthController::class, 'resetPasswordLink'])->name('password.email');
+Route::get('/reset-password/{token}', function (string $token) {
+    return Inertia::render('ResetPassword', [
+        'token' => $token,
+        'email' => request()->query('email'),
+    ]);
+})->name('password.reset');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 
 Route::middleware(['auth'])->group(function () {
