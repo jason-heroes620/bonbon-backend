@@ -20,7 +20,7 @@ class VendorsController extends Controller
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
             'search' => ['nullable', 'string', 'max:150'],
-            'distance_km' => ['nullable', 'numeric', 'min:0'],
+            'distance_km' => ['nullable'],
             'categories' => ['nullable'],
         ]);
 
@@ -28,7 +28,11 @@ class VendorsController extends Controller
         $longitude = (float) $validated['longitude'];
         $perPage = (int) ($validated['per_page'] ?? 10);
         $search = isset($validated['search']) ? trim((string) $validated['search']) : null;
-        $distanceKm = isset($validated['distance_km']) ? (float) $validated['distance_km'] : null;
+
+        $distanceKm = null;
+        if (array_key_exists('distance_km', $validated) && $validated['distance_km'] !== null && strtolower((string)$validated['distance_km']) !== 'all') {
+            $distanceKm = (float) $validated['distance_km'];
+        }
 
         $categoryIds = $request->input('categories');
         if (is_string($categoryIds)) {
@@ -42,6 +46,9 @@ class VendorsController extends Controller
         $vendors = VendorLocation::query()
             ->join('vendors', 'vendors.vendor_id', '=', 'vendor_locations.vendor_id')
             ->where('vendors.is_active', 'active')
+            ->when($distanceKm !== null, function ($q) use ($latitude, $longitude, $distanceKm) {
+                $this->applyBoundingBox($q, $latitude, $longitude, $distanceKm);
+            })
             ->select([
                 'vendors.vendor_id',
                 'vendor_locations.id as vendor_location_id',
