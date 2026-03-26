@@ -112,7 +112,14 @@ class VouchersController extends Controller
         $perPage = 10;
         $vouchers = UserVouchers::query()
             ->leftJoin('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
-            ->select(['vouchers.voucher_id', 'vouchers.voucher_name', 'vouchers.voucher_short_description', 'vouchers.voucher_image_path'])
+            ->leftJoin('vendors', 'vouchers.vendor_id', '=', 'vendors.vendor_id')
+            ->select([
+                'vouchers.voucher_id',
+                'vouchers.voucher_name',
+                'vouchers.voucher_short_description',
+                'vouchers.voucher_image_path',
+                'vendors.vendor_name as vendor_name',
+            ])
             ->where('user_id', $request->user()->user_id)
             ->where('is_valid', true)
             ->orderBy('user_vouchers.created_at', 'desc')
