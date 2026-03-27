@@ -72,6 +72,34 @@ class AuthController extends Controller
         ]);
     }
 
+    public function merchantLogin(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+            'device_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $user = User::query()
+            ->where('email', $validated['email'])
+            ->where('role', 'vendor')
+            ->first();
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        $deviceName = $validated['device_name'] ?? 'api';
+        $token = $user->createToken($deviceName)->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user,
+        ]);
+    }
+
     public function register(Request $request)
     {
         $validated = Validator::make($request->all(), [

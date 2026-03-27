@@ -25,13 +25,14 @@ Route::middleware(['auth:sanctum'])->group(
         Route::get('/events', [EventsController::class, 'events']);
         Route::get('/events/{event_id}', [EventsController::class, 'event']);
 
-
         // Vouchers
         Route::get('/vouchers', [VouchersController::class, 'vouchers']);
         Route::get('/vouchers/{voucher_id}', [VouchersController::class, 'voucher']);
         Route::post('/vouchers/{voucher_id}/claim', [VouchersController::class, 'claim']);
         Route::get('/vouchers/{voucher_id}/history', [VouchersController::class, 'history']);
         Route::get('/vouchers/{voucher_id}/check-validity', [VouchersController::class, 'checkIfVoucherIsValid']);
+
+        Route::get('/merchant-vouchers', [VouchersController::class, 'merchantVouchers']);
 
         // My Vouchers
         Route::get('/my-vouchers', [VouchersController::class, 'myVouchers']);
@@ -41,12 +42,10 @@ Route::middleware(['auth:sanctum'])->group(
         Route::get('/getVendor/{vendor_id}', [VendorsController::class, 'vendor']);
         Route::get('/vendor-categories', [VendorsController::class, 'vendorCategories']);
 
-
         // notifications
         Route::get('/notifications', [NotificationsController::class, 'notifications']);
         Route::post('/notifications/mark-all-read', [NotificationsController::class, 'markAsRead']);
         Route::post('/notifications/read-all', [NotificationsController::class, 'markAsRead']);
-
 
         // Account
         Route::get('/me', [AuthController::class, 'me']);
@@ -65,9 +64,9 @@ Route::middleware(['auth:sanctum'])->group(
             $status = $request->Status; // 1 = Success, 0 = Fail
 
             if ($status == "1") {
-                return redirect("bonbonc://payment-success?refNo=" . $request->RefNo);
+                return redirect("bonbon://payment-success?refNo=" . $request->RefNo);
             } else {
-                return redirect("bonbonc://payment-failed?refNo=" . $request->RefNo);
+                return redirect("bonbon://payment-failed?refNo=" . $request->RefNo);
             }
         });
 
@@ -80,11 +79,19 @@ Route::middleware(['auth:sanctum'])->group(
         Route::post('/user-pets', [UserPetsController::class, 'store']);
         Route::put('/user-pets/{id}', [UserPetsController::class, 'update']);
         Route::delete('/user-pets/{id}', [UserPetsController::class, 'destroy']);
+
+        // Vendor Profile
+        Route::get('/merchant/profile', [VendorsController::class, 'merchantProfile']);
+
+        // Vendor Vouchers Redeem
+        Route::get('/user-vouchers/{voucher_id}/{user_id}', [VouchersController::class, 'userVoucher']);
+        Route::post('/user-vouchers/{voucher_id}/{user_id}/redeem', [VouchersController::class, 'redeem']);
     }
 );
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/merchant-login', [AuthController::class, 'merchantLogin'])->middleware('throttle:10,1');
 
 Route::post('/auth/google', [SocialAuthController::class, 'google']);
 Route::post('/auth/apple', [SocialAuthController::class, 'apple']);

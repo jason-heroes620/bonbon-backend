@@ -256,4 +256,21 @@ class VendorsController extends Controller
             'data' => $vendorCategories,
         ]);
     }
+
+    public function merchantProfile(Request $request)
+    {
+        $vendor = Vendors::query()
+            ->where('user_id', $request->user()?->user_id)
+            ->where('is_active', 'active')
+            ->first();
+
+        if (!$vendor) {
+            return response()->json(['message' => 'Vendor not found.'], 404);
+        }
+        Log::info('Merchant profile');
+        Log::info($vendor);
+        return response()->json(
+            $vendor,
+        );
+    }
 }
