@@ -260,6 +260,7 @@ class VendorsController extends Controller
     public function merchantProfile(Request $request)
     {
         $vendor = Vendors::query()
+            ->select('vendor_name', 'contact_no')
             ->where('user_id', $request->user()?->user_id)
             ->where('is_active', 'active')
             ->first();
