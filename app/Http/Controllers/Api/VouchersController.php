@@ -320,17 +320,11 @@ class VouchersController extends Controller
         $recentRedemptions = UserVoucherClaims::query()
             ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id')
             ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
-            ->leftJoin('users', 'user_vouchers.user_id', '=', 'users.user_id')
             ->where('vouchers.vendor_id', $vendorId)
             ->where('user_voucher_claims.created_at', '>=', $since)
             ->orderByDesc('user_voucher_claims.created_at')
             ->get([
-                'user_voucher_claims.user_voucher_claim_id',
-                'user_voucher_claims.user_voucher_id',
-                'user_vouchers.voucher_id',
                 'vouchers.voucher_name',
-                'user_vouchers.user_id',
-                'users.email as user_email',
                 'user_voucher_claims.claimed_at as created_at',
             ]);
 
