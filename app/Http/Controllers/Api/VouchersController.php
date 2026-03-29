@@ -460,8 +460,6 @@ class VouchersController extends Controller
             ->where('user_vouchers.voucher_id', $voucher_id)
             ->where('user_vouchers.user_id', $user_id)
             ->count();
-        Log::info('User claim count: ' . $userClaimCount);
-        Log::info('Claim limit: ' . $claimLimit);
 
         if ($userClaimCount === $claimLimit) {
             Log::info('User has reached reached claim claim limit.');
