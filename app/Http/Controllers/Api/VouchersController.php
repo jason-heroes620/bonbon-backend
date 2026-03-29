@@ -268,7 +268,6 @@ class VouchersController extends Controller
     private function getVendorId(Request $request)
     {
         $userId = $request->user()?->user_id;
-        Log::info('Merchant vouchers api request', $request->all());
         if (!$userId) {
             return null;
         }
