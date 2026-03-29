@@ -414,8 +414,6 @@ class VouchersController extends Controller
         $voucherStatus = 'redeemed';
         if ($expired) {
             $voucherStatus = 'expired';
-        } elseif ($redeemedCount === 0) {
-            $voucherStatus = 'not_redeemed';
         } elseif ($availableToRedeem > 0) {
             $voucherStatus = 'redeem';
         }
