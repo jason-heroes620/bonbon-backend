@@ -43,4 +43,7 @@ return [
         'key' => env('MERCHANT_KEY'),
         'code' => env('MERCHANT_CODE'),
     ],
+    'monday' => [
+        'token' => env('MONDAY_TOKEN'),
+    ],
 ];

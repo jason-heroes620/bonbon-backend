@@ -16,7 +16,8 @@ return new class extends Migration
             $table->string('first_name');
             $table->string('last_name');
             $table->string('email')->unique();
-            $table->string('contact_no');
+            $table->string('contact_no', 20);
+            $table->string('pet_type', 50);
             $table->string('referral_code')->nullable();
             $table->timestamps();
         });

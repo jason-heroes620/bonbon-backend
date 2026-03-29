@@ -12,7 +12,12 @@ use App\Models\UserMemberships;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Jobs\SendFoundingMemberQueuedEmail;
+use DateTime;
 use DateTimeImmutable;
+use DateTimeZone;
+use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class UserInterestListController extends Controller
 {
@@ -23,6 +28,7 @@ class UserInterestListController extends Controller
             'last_name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255'],
             'contact_no' => ['required', 'string', 'max:20'],
+            'pet_type' => ['nullable', 'string', 'max:50'],
             'referral_code' => ['nullable', 'string', 'max:10'],
         ]);
 
@@ -80,21 +86,6 @@ class UserInterestListController extends Controller
             return false;
         }
 
-        // if referral code is provided, check if it exists referral_codes table 
-        if (isset($validated['referral_code']) && $validated['referral_code'] !== '') {
-            $referralRecord = ReferralCodes::query()
-                ->where('referral_code', $validated['referral_code'])
-                ->where('is_active', true)
-                ->where(function ($q) {
-                    $q->whereNull('code_expiry_date')->orWhere('code_expiry_date', '>=', now()->toDateString());
-                })
-                ->first();
-
-            if (!$referralRecord) {
-                return false;
-            }
-        }
-
         try {
             $record = UserInterestList::query()->firstOrCreate([
                 'email' => $validated['email'],
@@ -102,8 +93,11 @@ class UserInterestListController extends Controller
                 'first_name' => $validated['first_name'],
                 'last_name' => $validated['last_name'],
                 'contact_no' => $validated['contact_no'],
+                'pet_type' => $validated['pet_type'],
                 'referral_code' => $validated['referral_code'],
             ]);
+
+            $this->mondayBoardEntry($validated);
 
             $privateLaunchDate = new DateTimeImmutable("2026-04-20");
             SendFoundingMemberQueuedEmail::dispatch(
@@ -112,20 +106,7 @@ class UserInterestListController extends Controller
                 $privateLaunchDate->format('d M Y')
             )->delay(now()->addMinute());
 
-            if (!isset($referralRecord)) {
-                return false;
-            }
-
-            $referrer = User::query()->find($referralRecord->user_id);
-            if (!$referrer) {
-                return false;
-            }
-
-            if (strtolower((string) $referrer->email) === strtolower((string) $validated['email'])) {
-                return false;
-            }
-
-            DB::transaction(function () use ($validated, $referrer) {
+            DB::transaction(function () use ($validated) {
                 $newUser = User::query()->firstOrCreate([
                     'email' => $validated['email'],
                 ], [
@@ -154,14 +135,35 @@ class UserInterestListController extends Controller
                     ]);
                 }
 
-                Referrals::query()->firstOrCreate([
-                    'user_id' => $referrer->user_id,
-                    'referee_id' => $newUser->user_id,
-                ], [
-                    'referral_code' => $validated['referral_code'],
-                    'referral_date' => now()->toDateString(),
-                    'referral_status' => 'pending',
-                ]);
+                // if referral code is provided, check if it exists referral_codes table 
+                if (isset($validated['referral_code']) && $validated['referral_code'] !== '') {
+                    $referralRecord = ReferralCodes::query()
+                        ->where('referral_code', $validated['referral_code'])
+                        ->where('is_active', true)
+                        ->where(function ($q) {
+                            $q->whereNull('code_expiry_date')->orWhere('code_expiry_date', '>=', now()->toDateString());
+                        })
+                        ->first();
+
+                    if ($referralRecord) {
+                        $referrer = User::query()->find($referralRecord->user_id);
+                        if (!$referrer) {
+                            return false;
+                        }
+
+                        if (strtolower((string) $referrer->email) === strtolower((string) $validated['email'])) {
+                            return false;
+                        }
+                        Referrals::query()->firstOrCreate([
+                            'user_id' => $referrer->user_id,
+                            'referee_id' => $newUser->user_id,
+                        ], [
+                            'referral_code' => $validated['referral_code'],
+                            'referral_date' => now()->toDateString(),
+                            'referral_status' => 'pending',
+                        ]);
+                    }
+                }
             });
             return true;
         } catch (\Exception $e) {
@@ -169,5 +171,43 @@ class UserInterestListController extends Controller
             logger()->error('Error while processing referral code: ' . $e->getMessage());
         }
         return false;
+    }
+
+    private function mondayBoardEntry($validated)
+    {
+        $token = config('services.monday.token');
+        $apiUrl = 'https://api.monday.com/v2';
+
+        $query = 'mutation ($item_name:String!, $columnVals: JSON!){ create_item (board_id: 18405155227, group_id: "topics", item_name: $item_name, column_values: $columnVals) { id } }';
+        $date = new DateTime();
+        $date->setTimezone(new DateTimeZone('UTC'));
+
+        $vals = [
+            "item_name" => $validated['first_name'],
+            "columnVals" => json_encode(
+                [
+                    "long_text6y0no4si" => $validated['last_name'],
+                    "phonexp82ux3l" => $validated['contact_no'],
+                    "long_textpq35txo1" => $validated['email'],
+                    "long_textt9jnajch" => $validated['referral_code'],
+                    "text_mm1xfht6" => $validated['pet_type'],
+                ]
+            )
+        ];
+
+        try {
+            $guzzleClient = new Client(array('headers' => array('Content-Type' => 'application/json', 'Authorization' => $token)));
+            $responseContent = $guzzleClient->post($apiUrl, ['body' =>  json_encode(['query' => $query, 'variables' => $vals])]);
+            Log::info($query);
+            Log::info($vals);
+            $data = json_decode($responseContent->getBody()->getContents());
+            if (isset($data->error_message)) {
+                Log::error($data->error_message);
+            } else {
+                Log::info($responseContent->getBody());
+            }
+        } catch (Throwable $ex) {
+            Log::error($ex);
+        }
     }
 }

@@ -17,6 +17,7 @@ class UserInterestList extends Model
         'last_name',
         'email',
         'contact_no',
+        'pet_type',
         'referral_code',
     ];
 
