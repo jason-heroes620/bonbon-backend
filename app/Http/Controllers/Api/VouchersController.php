@@ -331,8 +331,7 @@ class VouchersController extends Controller
                 'vouchers.voucher_name',
                 'user_vouchers.user_id',
                 'users.email as user_email',
-                'user_voucher_claims.claimed_at',
-                'user_voucher_claims.created_at as redeemed_created_at',
+                'user_voucher_claims.claimed_at as created_at',
             ]);
 
         return response()->json([
