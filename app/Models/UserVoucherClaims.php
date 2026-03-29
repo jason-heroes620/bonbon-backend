@@ -13,5 +13,5 @@ class UserVoucherClaims extends Model
 
     public $timestamps = true;
 
-    protected $hidden = ['created_at', 'updated_at'];
+    protected $hidden = ['updated_at'];
 }
