@@ -446,6 +446,11 @@ class VouchersController extends Controller
         ]);
 
         // check if user has enough claim limit
+        $voucher = Vouchers::query()->where('voucher_id', $voucher_id)->first();
+        if (!$voucher) {
+            return response()->json(['message' => 'Voucher not found.'], 404);
+        }
+
         $claimLimit = (int) ($voucher->voucher_claim_per_user ?? 0);
         if ($claimLimit <= 0) {
             $claimLimit = 1;
