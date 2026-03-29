@@ -444,5 +444,22 @@ class VouchersController extends Controller
             'user_voucher_id' => $userVoucher->user_voucher_id,
             'claimed_at' => now(),
         ]);
+
+        // check if user has enough claim limit
+        $claimLimit = (int) ($voucher->voucher_claim_per_user ?? 0);
+        if ($claimLimit <= 0) {
+            $claimLimit = 1;
+        }
+        $userClaimCount = UserVoucherClaims::query()
+            ->leftJoin('user_vouchers', 'user_voucher_claims.user_voucher_id', '=', 'user_vouchers.user_voucher_id')
+            ->where('user_vouchers.voucher_id', $voucher_id)
+            ->where('user_vouchers.user_id', $user_id)
+            ->count();
+
+        if ($userClaimCount === $claimLimit) {
+            UserVouchers::query()->where('user_id', $user_id)
+                ->where('voucher_id', $voucher_id)
+                ->update(['is_valid' => false]);
+        }
     }
 }
