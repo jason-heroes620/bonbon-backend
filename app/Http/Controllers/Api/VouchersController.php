@@ -206,7 +206,7 @@ class VouchersController extends Controller
     {
         try {
             // voucher claim count
-            $userClaimCount = UserVouchers::query()
+            $userClaimCount = UserVoucherClaims::query()
                 ->where('voucher_id', $voucher_id)
                 ->where('user_id', $request->user()->user_id)
                 ->count();
@@ -227,8 +227,9 @@ class VouchersController extends Controller
                 }
             } else {
                 // voucher is not unlimited, get total voucher claim count
-                $totalVoucherClaim = UserVouchers::query()
-                    ->where('voucher_id', $voucher_id)
+                $totalVoucherClaim = UserVoucherClaims::query()
+                    ->leftJoin('user_vouchers', 'user_voucher_claims.user_voucher_id', '=', 'user_vouchers.user_voucher_id')
+                    ->where('user_vouchers.voucher_id', $voucher_id)
                     ->count();
 
                 if ($totalVoucherClaim < $voucher->voucher_limit && $userClaimCount < $voucher->voucher_claim_per_user) {
