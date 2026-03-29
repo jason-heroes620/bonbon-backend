@@ -325,7 +325,7 @@ class VouchersController extends Controller
             ->orderByDesc('user_voucher_claims.created_at')
             ->get([
                 'vouchers.voucher_name',
-                'user_voucher_claims.claimed_at as created_at',
+                'user_voucher_claims.created_at',
             ]);
 
         return response()->json([
