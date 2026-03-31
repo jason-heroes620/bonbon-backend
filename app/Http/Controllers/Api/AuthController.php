@@ -277,6 +277,7 @@ class AuthController extends Controller
         }
 
         $user->tokens()->delete();
+        Log::info('User logged out successfully.');
 
         return response()->json([
             'message' => 'Logged out successfully.',

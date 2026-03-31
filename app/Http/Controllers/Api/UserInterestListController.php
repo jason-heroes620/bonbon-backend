@@ -99,7 +99,7 @@ class UserInterestListController extends Controller
 
             $this->mondayBoardEntry($validated);
 
-            $privateLaunchDate = new DateTimeImmutable("2026-04-20");
+            $privateLaunchDate = new DateTimeImmutable("2026-04-16");
             SendFoundingMemberQueuedEmail::dispatch(
                 $validated['email'],
                 trim($validated['first_name'] . ' ' . $validated['last_name']),
