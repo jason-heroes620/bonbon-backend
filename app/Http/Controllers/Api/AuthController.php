@@ -43,7 +43,7 @@ class AuthController extends Controller
 
         if (isset($user->is_active) && !$user->is_active) {
             return response()->json([
-                'message' => 'Account is inactive or not found.',
+                'message' => 'Account is inactive. Please verify your email.',
             ], 403);
         }
 
@@ -137,10 +137,11 @@ class AuthController extends Controller
             'email' => $request['email'],
             'contact_no' => $request['contact_no'],
             'password' => Hash::make($request['password']),
+            'is_active' => false,
             'role' => 'user',
         ]);
 
-        $token = $user->createToken('api')->plainTextToken;
+        $user->sendEmailVerificationNotification();
 
         // create free membership for user
         $membership = Memberships::where('membership_code', 'MEMFREE')->first();
@@ -186,8 +187,7 @@ class AuthController extends Controller
         [$user->referral_gifts_earned, $user->referral_gifts_claimed] = $this->getUserReferralGiftCounts($user->user_id);
 
         return response()->json([
-            'token' => $token,
-            'token_type' => 'Bearer',
+            'message' => 'Registration successful. Please verify your email to activate your account.',
             'user' => $user,
         ]);
     }

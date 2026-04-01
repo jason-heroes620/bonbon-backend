@@ -193,4 +193,61 @@ class AuthController extends Controller
             'Your account deletion request has been received. Your account has been deactivated.',
         );
     }
+
+    public function verifyEmail(Request $request, string $id, string $hash)
+    {
+        $wantsJson = $request->expectsJson();
+
+        if (!$request->hasValidSignature()) {
+            $message = 'Invalid or expired verification link.';
+            if ($wantsJson) {
+                return response()->json(['message' => $message], 400);
+            }
+
+            return response()->make($message, 400);
+        }
+
+        $user = User::query()->find($id);
+        if (!$user) {
+            $message = 'User not found.';
+            if ($wantsJson) {
+                return response()->json(['message' => $message], 404);
+            }
+
+            return response()->make($message, 404);
+        }
+
+        $expected = sha1($user->getEmailForVerification());
+        if (!hash_equals($expected, $hash)) {
+            $message = 'Invalid verification link.';
+            if ($wantsJson) {
+                return response()->json(['message' => $message], 400);
+            }
+
+            return response()->make($message, 400);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            if (!$user->is_active) {
+                $user->update(['is_active' => true]);
+            }
+
+            $message = 'Email already verified. Your account is active.';
+            if ($wantsJson) {
+                return response()->json(['message' => $message]);
+            }
+
+            return response()->make($message);
+        }
+
+        $user->markEmailAsVerified();
+        $user->forceFill(['is_active' => true])->save();
+
+        $message = 'Email verified successfully. Your account is now active.';
+        if ($wantsJson) {
+            return response()->json(['message' => $message]);
+        }
+
+        return response()->make($message);
+    }
 }
