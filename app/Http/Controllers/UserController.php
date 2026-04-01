@@ -289,4 +289,19 @@ class UserController extends Controller
             'success' => 'User updated successfully',
         ]);
     }
+
+    public function resendVerificationEmail(Request $request, User $user)
+    {
+        if ($user->hasVerifiedEmail()) {
+            return redirect()->back()->withErrors([
+                'email' => 'Email is already verified.',
+            ]);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return redirect()->back()->with([
+            'success' => 'Verification email sent successfully.',
+        ]);
+    }
 }

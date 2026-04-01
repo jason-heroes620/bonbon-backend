@@ -93,7 +93,7 @@ class UserInterestListController extends Controller
                 'first_name' => $validated['first_name'],
                 'last_name' => $validated['last_name'],
                 'contact_no' => $validated['contact_no'],
-                'pet_type' => $validated['pet_type'],
+                'pet_type' => $validated['pet_type'] ?? 'Unknown',
                 'referral_code' => $validated['referral_code'],
             ]);
 
@@ -106,65 +106,6 @@ class UserInterestListController extends Controller
                 $privateLaunchDate->format('d M Y')
             )->delay(now()->addMinute());
 
-            DB::transaction(function () use ($validated) {
-                $newUser = User::query()->firstOrCreate([
-                    'email' => $validated['email'],
-                ], [
-                    'first_name' => $validated['first_name'],
-                    'last_name' => $validated['last_name'],
-                    'contact_no' => $validated['contact_no'],
-                    'password' => bcrypt($validated['email']),
-                    'role' => 'user',
-                    'is_active' => false,
-                ]);
-
-                $freeMembershipId = Memberships::query()
-                    ->whereRaw('LOWER(membership_type) = ?', ['free'])
-                    ->value('membership_id');
-
-                if ($freeMembershipId) {
-                    UserMemberships::query()->firstOrCreate([
-                        'user_id' => $newUser->user_id,
-                    ], [
-                        'membership_id' => $freeMembershipId,
-                        'membership_start_date' => now()->toDateString(),
-                        'membership_end_date' => now()->addYear()->toDateString(),
-                        'membership_status' => 'active',
-                        'inactive_reason' => null,
-                        'auto_renew' => false,
-                    ]);
-                }
-
-                // if referral code is provided, check if it exists referral_codes table 
-                if (isset($validated['referral_code']) && $validated['referral_code'] !== '') {
-                    $referralRecord = ReferralCodes::query()
-                        ->where('referral_code', $validated['referral_code'])
-                        ->where('is_active', true)
-                        ->where(function ($q) {
-                            $q->whereNull('code_expiry_date')->orWhere('code_expiry_date', '>=', now()->toDateString());
-                        })
-                        ->first();
-
-                    if ($referralRecord) {
-                        $referrer = User::query()->find($referralRecord->user_id);
-                        if (!$referrer) {
-                            return false;
-                        }
-
-                        if (strtolower((string) $referrer->email) === strtolower((string) $validated['email'])) {
-                            return false;
-                        }
-                        Referrals::query()->firstOrCreate([
-                            'user_id' => $referrer->user_id,
-                            'referee_id' => $newUser->user_id,
-                        ], [
-                            'referral_code' => $validated['referral_code'],
-                            'referral_date' => now()->toDateString(),
-                            'referral_status' => 'pending',
-                        ]);
-                    }
-                }
-            });
             return true;
         } catch (\Exception $e) {
             // log error
@@ -190,7 +131,7 @@ class UserInterestListController extends Controller
                     "phonexp82ux3l" => $validated['contact_no'],
                     "long_textpq35txo1" => $validated['email'],
                     "long_textt9jnajch" => $validated['referral_code'],
-                    "text_mm1xfht6" => $validated['pet_type'],
+                    "text_mm1xfht6" => $validated['pet_type'] ?? null,
                 ]
             )
         ];

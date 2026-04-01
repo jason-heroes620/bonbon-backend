@@ -8,6 +8,7 @@ use App\Models\MembershipTypes;
 use App\Models\ReferralCodes;
 use App\Models\Referrals;
 use App\Models\User;
+use App\Models\UserInterestList;
 use App\Models\UserReferralGifts;
 use App\Models\UserMemberships;
 use Illuminate\Http\Request;
@@ -102,7 +103,7 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        $validated = Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
@@ -111,19 +112,21 @@ class AuthController extends Controller
             'password_confirmation' => ['required', 'string', 'min:8', 'max:255', 'same:password'],
             'referral_code' => ['nullable', 'string', 'max:255'],
         ]);
-        if ($validated->fails()) {
+        if ($validator->fails()) {
 
             return response()->json([
                 'message' => 'Validation failed.',
-                'error' => $validated->errors(),
+                'error' => $validator->errors(),
             ], 422);
         }
+
+        $validated = $validator->validated();
 
         $referralCode = null;
 
         // check if referral code is valid
-        if ($request->input('referral_code')) {
-            $referralCode = ReferralCodes::where('referral_code', $request->input('referral_code'))->first();
+        if (!empty($validated['referral_code'])) {
+            $referralCode = ReferralCodes::where('referral_code', $validated['referral_code'])->first();
             if (!$referralCode) {
                 throw ValidationException::withMessages([
                     'referral_code' => ['The provided referral code is invalid.'],
@@ -132,11 +135,11 @@ class AuthController extends Controller
         }
 
         $user = User::create([
-            'first_name' => $request['first_name'],
-            'last_name' => $request['last_name'],
-            'email' => $request['email'],
-            'contact_no' => $request['contact_no'],
-            'password' => Hash::make($request['password']),
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
+            'email' => $validated['email'],
+            'contact_no' => $validated['contact_no'],
+            'password' => Hash::make($validated['password']),
             'is_active' => false,
             'role' => 'user',
         ]);
@@ -183,6 +186,38 @@ class AuthController extends Controller
             ]);
         }
 
+        DB::transaction(function () use ($validated, $user) {
+            $email = strtolower(trim((string) $validated['email']));
+
+            $interest = UserInterestList::query()
+                ->where('email', $email)
+                ->first();
+
+            $interestReferralCode = $interest?->referral_code;
+            if (!$interest || !$interestReferralCode) {
+                return;
+            }
+
+            $owner = ReferralCodes::query()
+                ->where('referral_code', $interestReferralCode)
+                ->value('user_id');
+
+            if (!$owner) {
+                return;
+            }
+
+            Referrals::query()->firstOrCreate([
+                'user_id' => $owner,
+                'referee_id' => $user->user_id,
+            ], [
+                'referral_code' => $interestReferralCode,
+                'referral_date' => now()->toDateString(),
+                'referral_status' => 'pending',
+            ]);
+        });
+
+
+        // end 
         $user->membership = $this->getUserMembership($user->user_id);
         [$user->referral_gifts_earned, $user->referral_gifts_claimed] = $this->getUserReferralGiftCounts($user->user_id);
 

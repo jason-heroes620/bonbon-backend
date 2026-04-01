@@ -21,7 +21,7 @@
     <div class="container">
         <div class="card">
             <div class="logo-wrap">
-                <img class="logo" src="{{ asset('bonbon-logo.png') }}" alt="BonBon" />
+                <img class="logo" src="{{ url('/bonbon-logo.png') }}" alt="BonBon" />
             </div>
             <p class="title">Hi {{ $name }}! 🐾 You're officially in the BonBon founding member queue!</p>
             <p class="p">Here's what to expect:</p>
@@ -33,7 +33,7 @@
             </ul>
             <p class="p">⚠️ Important: When creating your BonBon account in the app, use this exact email: <span class="strong">{{ $registeredEmail }}</span>. This is how your founding price is verified.</p>
             <p class="p">Keep an eye on your WhatsApp — your link is coming soon 🚀</p>
-            <p class="p">BonBon App · bonbon.com.my</p>
+            <p class="p">BonBon App · <a href="https://www.bonbon.com.my/" target="_blank">BonBon</a></p>
         </div>
         <p class="footer">If you did not request this, you can ignore this email.</p>
     </div>

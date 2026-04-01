@@ -65,12 +65,14 @@ const membershipStatusOptions: {
 ];
 
 type Props = {
-    user: User & { referral_code?: string | null };
+    user: User & { referral_code?: string | null; email_verified_at?: string | null };
     memberships: MembershipOption[];
     userMembership?: UserMembership | null;
 };
 
 const Edit = ({ user, memberships, userMembership }: Props) => {
+    const isEmailVerified = Boolean(user.email_verified_at);
+
     const methods = useForm<UserEditFormValues>({
         defaultValues: {
             first_name: user.first_name ?? "",
@@ -147,6 +149,25 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
         );
     };
 
+    const handleResendVerificationEmail = () => {
+        router.post(
+            route("users.resend_verification", user.user_id),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success("Verification email sent");
+                },
+                onError: (errors: Record<string, string>) => {
+                    const message =
+                        errors.email ??
+                        "Failed to send verification email. Please try again.";
+                    toast.error(message);
+                },
+            },
+        );
+    };
+
     return (
         <AppLayout>
             <Head title="Edit User" />
@@ -207,6 +228,23 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
                                     className="border border-[#D1D5DB] rounded-md px-4 py-2"
                                     {...methods.register("email")}
                                 />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label>Email verification</Label>
+                                <div className="flex items-center justify-between gap-3 border border-[#D1D5DB] rounded-md px-4 py-2 bg-white">
+                                    <div className="text-sm">
+                                        {isEmailVerified ? "Verified" : "Not verified"}
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        size={"sm"}
+                                        variant="outline"
+                                        disabled={isEmailVerified}
+                                        onClick={handleResendVerificationEmail}
+                                    >
+                                        Resend
+                                    </Button>
+                                </div>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="contact_no">Contact No</Label>

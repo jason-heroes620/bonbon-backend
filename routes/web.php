@@ -175,6 +175,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/getUserList', [UserController::class, 'getUserList'])->name('users.list');
     Route::get('/users/{user}', [UserController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::post('/users/{user}/resend-verification', [UserController::class, 'resendVerificationEmail'])->name('users.resend_verification');
 
     Route::get('/user-interest-list', [UserInterestListController::class, 'index'])->name('user_interest_list.index');
     Route::get('/user-interest-list/all', [UserInterestListController::class, 'showAll'])->name('user_interest_list.all');
