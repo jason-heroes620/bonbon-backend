@@ -63,11 +63,12 @@ Route::middleware(['auth:sanctum'])->group(
         Route::post('/payments/frontend-callback', function (Request $request) {
             $status = $request->Status; // 1 = Success, 0 = Fail
 
-            if ($status == "1") {
-                return redirect("bonbon://payment-success?refNo=" . $request->RefNo);
-            } else {
-                return redirect("bonbon://payment-failed?refNo=" . $request->RefNo);
-            }
+            // if ($status == "1") {
+            //     return redirect("bonbon://payment-success?refNo=" . $request->RefNo);
+            // } else {
+            //     return redirect("bonbon://payment-failed?refNo=" . $request->RefNo);
+            // }
+            return redirect()->away('https://bonbon.com.my/payment/result');
         });
 
         // discount

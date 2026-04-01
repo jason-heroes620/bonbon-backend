@@ -117,6 +117,8 @@ class PaymentController extends Controller
             'userEmail'    => $request->user()->email,
             'responseUrl'  => url('/api/payments/frontend-callback'),
             'backendUrl'   => url('/api/payments/backend-callback'),
+            // 'responseUrl'  => 'https://generically-mediatorial-sharen.ngrok-free.dev/api/payments/frontend-callback',
+            // 'backendUrl'   => 'https://generically-mediatorial-sharen.ngrok-free.dev/api/payments/backend-callback',
         ]);
     }
 

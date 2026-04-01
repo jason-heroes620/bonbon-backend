@@ -13,6 +13,7 @@ class MembershipController extends Controller
     //
     public function membership(Request $request)
     {
+        Log::info('membership');
         $today = now()->toDateString();
         $user = $request->user();
         if (!$user) {
