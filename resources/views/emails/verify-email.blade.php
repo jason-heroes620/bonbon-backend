@@ -7,7 +7,7 @@
     </head>
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #111827;">
         <div style="text-align: center; margin-bottom: 18px;">
-            <img src="{{ asset('images/bonbon-logo.png') }}" alt="BonBon" style="max-width: 150px; height: auto;" />
+            <img src="{{ url('/bonbon-logo.png') }}" alt="BonBon" style="max-width: 150px; height: auto;" />
         </div>
         <h2 style="margin: 0 0 12px 0; font-size: 20px;">Verify your email</h2>
         <p style="margin: 0 0 16px 0; line-height: 1.5;">
