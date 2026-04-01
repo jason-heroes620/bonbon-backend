@@ -63,19 +63,19 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'min:8'],
         ]);
 
-        $user = User::create([
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
-            'role' => 'vendor',
-        ]);
+        // $user = User::create([
+        //     'email' => $request->email,
+        //     'password' => Hash::make($request->password),
+        //     'first_name' => $request->first_name,
+        //     'last_name' => $request->last_name,
+        //     'role' => 'vendor',
+        // ]);
 
-        event(new Registered($user));
+        // event(new Registered($user));
 
-        Auth::login($user);
+        // Auth::login($user);
 
-        return response()->json(['message' => 'Registration successful', 'user' => $user]);
+        return response()->json(['message' => 'Registration is not open at the moment'], 400);
     }
 
     /**
