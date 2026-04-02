@@ -99,9 +99,9 @@ class VendorsController extends Controller
             'social_medias.tiktok' => 'nullable|string|max:200',
             'social_medias.xiaohungshu' => 'nullable|string|max:200',
             'locations' => 'nullable|array',
-            'locations.*.location_name' => 'required|string',
-            'locations.*.latitude' => 'required|numeric',
-            'locations.*.longitude' => 'required|numeric',
+            'locations.*.location_name' => 'nullable|string',
+            'locations.*.latitude' => 'nullable|numeric',
+            'locations.*.longitude' => 'nullable|numeric',
         ]);
 
         if ($validator->fails()) {
