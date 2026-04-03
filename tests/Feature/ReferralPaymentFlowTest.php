@@ -184,7 +184,7 @@ class ReferralPaymentFlowTest extends TestCase
         $amount = '10.00';
         $currency = 'MYR';
         $status = '1';
-        $signature = base64_encode(hex2bin(hash('sha1', $merchantKey . $merchantCode . $paymentId . $refNo . '1000' . $currency . $status)));
+        $signature = base64_encode(hash('sha1', $merchantKey . $merchantCode . $paymentId . $refNo . '1000' . $currency . $status, true));
 
         $callbackResponse = $this->post('/api/payments/backend-callback', [
             'MerchantCode' => $merchantCode,
@@ -195,7 +195,7 @@ class ReferralPaymentFlowTest extends TestCase
             'Status' => $status,
             'Signature' => $signature,
             'TransId' => 'TEST-TRANS-1',
-            'TransDate' => now()->format('Y-m-d H:i:s'),
+            'TranDate' => now()->format('Y-m-d H:i:s'),
             'S_bankname' => 'Test Bank',
             'CCName' => 'Test Card',
             'CCNo' => '4111111111111111',
