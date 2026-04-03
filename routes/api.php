@@ -108,3 +108,7 @@ Route::post('/payments/frontend-callback', function (Request $request) {
     return view('payment_redirect', ['appUrl' => $appUrl]);
     // return redirect()->away('https://bonbon.com.my/payment/result');
 });
+
+Route::get('/payments/result', function () {
+    return view('payment_redirect', ['appUrl' => 'bonbon://payment-success/123-45']);
+});
