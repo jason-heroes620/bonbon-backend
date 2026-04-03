@@ -155,8 +155,11 @@ class PaymentController extends Controller
                     Log::info($request->all());
 
                     $referralCode = $this->generateReferralCode();
+                    $user = Orders::query()
+                        ->where('order_no', $request->RefNo)
+                        ->first();
                     ReferralCodes::create([
-                        'user_id' => $request->user()->user_id,
+                        'user_id' => $user->user_id,
                         'campaign_name' => 'Default',
                         'referral_code' => $referralCode,
                         'code_effective_date' => now()->toDateString(),
@@ -168,7 +171,6 @@ class PaymentController extends Controller
                     Log::info('Referral code created');
                     Log::info($referralCode);
 
-                    $user = $request->user();
                     $user->update([
                         'referral_code' => $referralCode,
                     ]);
@@ -186,7 +188,7 @@ class PaymentController extends Controller
                     Log::info($membership);
                     if ($membership) {
                         UserMemberships::query()
-                            ->where('user_id', $order->user_id)
+                            ->where('user_id', $user->user_id)
                             ->update([
                                 'membership_id' => $membership->membership_id,
                             ]);
@@ -196,7 +198,7 @@ class PaymentController extends Controller
 
                         // check referee_id, if exists, update referral_status and qualifies order_id
                         $referral = Referrals::query()
-                            ->where('referee_id', $request->user()->user_id)
+                            ->where('referee_id', $user->user_id)
                             ->where('referral_status', 'pending')
                             ->first();
 
@@ -246,6 +248,7 @@ class PaymentController extends Controller
                 }
             }
         } catch (\Exception $e) {
+            Log::error($e->getMessage());
             return response("FAILED")->header('Content-Type', 'text/plain');
         }
 
