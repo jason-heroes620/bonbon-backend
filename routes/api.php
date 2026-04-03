@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\NotificationsController;
 use App\Http\Controllers\Api\UserInterestListController;
 use App\Http\Controllers\Api\UserPetsController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/user', function (Request $request) {
@@ -97,11 +98,13 @@ Route::get('/user-interest-list/count', [UserInterestListController::class, 'get
 Route::post('/payments/backend-callback', [PaymentController::class, 'backendCallback']);
 Route::post('/payments/frontend-callback', function (Request $request) {
     $status = $request->Status; // 1 = Success, 0 = Fail
+    $userAgent = $request->header('User-Agent');
+    Log::info('User-Agent: ' . $userAgent);
+    $appUrl = ($status == "1")
+        ? "bonbon://payment-success?refNo=" . $request->RefNo
+        : "bonbon://payment-failed?refNo=" . $request->RefNo;
 
-    if ($status == "1") {
-        return redirect()->away("intent://payment-success?refNo=" . $request->RefNo . "#Intent;scheme=bonbon;end");
-    } else {
-        return redirect()->away("intent://payment-failed?refNo=" . $request->RefNo . "#Intent;scheme=bonbon;end");
-    }
+    // Return a view instead of a redirect
+    return view('payment_redirect', ['appUrl' => $appUrl]);
     // return redirect()->away('https://bonbon.com.my/payment/result');
 });
