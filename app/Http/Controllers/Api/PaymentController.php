@@ -135,17 +135,22 @@ class PaymentController extends Controller
                             'order_status' => 'completed',
                         ]);
 
-                    Payments::create([
-                        'order_no' => $request->RefNo,
-                        'ref_no' => $request->RefNo,
-                        'transaction_id' => $request->TransId,
-                        'payment_amount' => (float) $request->Amount,
-                        'payment_date' => $request->TranDate,
-                        'issuing_bank' => $request->S_bankname,
-                        'cc_name' => $request->CCName,
-                        'cc_number' => $request->CCNo,
-                        'payment_status' => $request->Status,
-                    ]);
+                    Payments::firstOrCreate(
+                        [
+                            'order_no' => $request->RefNo,
+                        ],
+                        [
+                            'order_no' => $request->RefNo,
+                            'ref_no' => $request->RefNo,
+                            'transaction_id' => $request->TransId,
+                            'payment_amount' => (float) $request->Amount,
+                            'payment_date' => $request->TranDate,
+                            'issuing_bank' => $request->S_bankname,
+                            'cc_name' => $request->CCName,
+                            'cc_number' => $request->CCNo,
+                            'payment_status' => $request->Status,
+                        ]
+                    );
                     Log::info('Payment created');
                     Log::info($request->all());
 
@@ -160,6 +165,8 @@ class PaymentController extends Controller
                         'max_usage' => 0,
                         'is_active' => true,
                     ]);
+                    Log::info('Referral code created');
+                    Log::info($referralCode);
 
                     $user = $request->user();
                     $user->update([
@@ -167,63 +174,69 @@ class PaymentController extends Controller
                     ]);
 
                     // update user membership to the membership id matching in product_code in order_items table
-                    $product_code = OrderItems::query()
-                        ->where('order_id', $request->RefNo)
-                        ->first()
-                        ->product_code;
+                    $order = OrderItems::query()
+                        ->leftJoin('orders', 'order_items.order_id', '=', 'orders.order_id')
+                        ->where('orders.order_no', $request->RefNo)
+                        ->first();
+
                     $membership = Memberships::query()
-                        ->where('membership_code', $product_code)
+                        ->where('membership_code', $order->product_code)
                         ->first();
 
                     if ($membership) {
-                        $user->update([
-                            'membership_id' => $membership->membership_id,
-                        ]);
-                    }
+                        UserMemberships::query()
+                            ->where('user_id', $order->user_id)
+                            ->update([
+                                'membership_id' => $membership->membership_id,
+                            ]);
 
-                    // check referee_id, if exists, update referral_status and qualifies order_id
-                    $referral = Referrals::query()
-                        ->where('referee_id', $request->user()->user_id)
-                        ->where('referral_status', 'pending')
-                        ->first();
+                        Log::info('User membership updated');
+                        Log::info($membership);
 
-                    if ($referral) {
-                        $referral->update([
-                            'referral_status' => 'qualified',
-                            'qualified_at' => now()->toDateString(),
-                            'qualifying_order_no' => $request->RefNo,
-                        ]);
+                        // check referee_id, if exists, update referral_status and qualifies order_id
+                        $referral = Referrals::query()
+                            ->where('referee_id', $request->user()->user_id)
+                            ->where('referral_status', 'pending')
+                            ->first();
 
-                        $referrerUserId = $referral->user_id;
-                        $referrerMembershipType = $this->getUserMembershipType($referrerUserId);
-                        $isUnlimitedReferrer = in_array(
-                            strtoupper((string) $referrerMembershipType),
-                            ['KOL', 'FOBB'],
-                            true
-                        );
+                        if ($referral) {
+                            $referral->update([
+                                'referral_status' => 'qualified',
+                                'qualified_at' => now()->toDateString(),
+                                'qualifying_order_no' => $request->RefNo,
+                            ]);
 
-                        $qualifiedCount = Referrals::query()
-                            ->where('user_id', $referrerUserId)
-                            ->whereIn('referral_status', ['qualified', 'rewarded'])
-                            ->count();
+                            $referrerUserId = $referral->user_id;
+                            $referrerMembershipType = $this->getUserMembershipType($referrerUserId);
+                            $isUnlimitedReferrer = in_array(
+                                strtoupper((string) $referrerMembershipType),
+                                ['KOL', 'FOBB'],
+                                true
+                            );
 
-                        $targetGiftsEarned = intdiv($qualifiedCount, 5);
-                        if (!$isUnlimitedReferrer) {
-                            $targetGiftsEarned = min($targetGiftsEarned, 2);
-                        }
+                            $qualifiedCount = Referrals::query()
+                                ->where('user_id', $referrerUserId)
+                                ->whereIn('referral_status', ['qualified', 'rewarded'])
+                                ->count();
 
-                        $currentGiftsEarned = (int) UserReferralGifts::query()
-                            ->where('user_id', $referrerUserId)
-                            ->count();
+                            $targetGiftsEarned = intdiv($qualifiedCount, 5);
+                            if (!$isUnlimitedReferrer) {
+                                $targetGiftsEarned = min($targetGiftsEarned, 2);
+                            }
 
-                        if ($targetGiftsEarned > $currentGiftsEarned) {
-                            $delta = $targetGiftsEarned - $currentGiftsEarned;
-                            for ($i = 0; $i < $delta; $i++) {
-                                UserReferralGifts::create([
-                                    'user_id' => $referrerUserId,
-                                    'earned_at' => now(),
-                                    'claimed_at' => null,
-                                ]);
+                            $currentGiftsEarned = (int) UserReferralGifts::query()
+                                ->where('user_id', $referrerUserId)
+                                ->count();
+
+                            if ($targetGiftsEarned > $currentGiftsEarned) {
+                                $delta = $targetGiftsEarned - $currentGiftsEarned;
+                                for ($i = 0; $i < $delta; $i++) {
+                                    UserReferralGifts::create([
+                                        'user_id' => $referrerUserId,
+                                        'earned_at' => now(),
+                                        'claimed_at' => null,
+                                    ]);
+                                }
                             }
                         }
                     }
@@ -279,5 +292,30 @@ class PaymentController extends Controller
             ->join('memberships', 'memberships.membership_id', '=', 'user_memberships.membership_id')
             ->where('user_memberships.membership_status', 'active')
             ->value('memberships.membership_type');
+    }
+
+    public function orderDetail(Request $request, $refNo)
+    {
+        $order = Orders::query()
+            ->select('total_payment', 'total_discount')
+            ->where('order_no', $refNo)
+            ->first();
+        $order->payment = Payments::query()
+            ->select('payment_method', 'created_at', 'transaction_id')
+            ->where('order_no', $order->order_no)
+            ->where('payment_status', 1)
+            ->first();
+
+        $order->products = OrderItems::query()
+            ->leftJoin('products', 'order_items.product_id', '=', 'products.product_id')
+            ->select('products.product_name', 'order_items.quantity')
+            ->where('order_id', $order->order_id)
+            ->get();
+
+        if (!$order) {
+            return response()->json(['error' => 'Order not found'], 404);
+        }
+
+        return response()->json($order);
     }
 }

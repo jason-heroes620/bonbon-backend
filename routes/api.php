@@ -58,9 +58,11 @@ Route::middleware(['auth:sanctum'])->group(
         // Membership
         Route::get('/memberships', [MembershipController::class, 'membership']);
 
+        // Order Detail
+        Route::get('/orders/{refNo}', [PaymentController::class, 'orderDetail']);
+
         // Payment
         Route::post('/payments/create', [PaymentController::class, 'createPayment']);
-
 
         // discount
         Route::post('/discounts/validate', [DiscountController::class, 'validateDiscount']);
@@ -106,9 +108,11 @@ Route::post('/payments/frontend-callback', function (Request $request) {
 
     // Return a view instead of a redirect
     return view('payment_redirect', ['appUrl' => $appUrl]);
-    // return redirect()->away('https://bonbon.com.my/payment/result');
 });
 
 Route::get('/payments/result', function () {
     return view('payment_redirect', ['appUrl' => 'bonbon://payment-success/123-45']);
 });
+
+
+Route::get('/orders/{refNo}', [PaymentController::class, 'orderDetail']);
