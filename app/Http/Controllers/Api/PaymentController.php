@@ -195,15 +195,12 @@ class PaymentController extends Controller
                         'is_active' => true,
                     ]);
 
-                    User::query()->update([
-                        'user_id' => $user->user_id,
-                    ], [
+                    User::where('user_id', $user->user_id)->update([
                         'referral_code' => $referralCode,
                     ]);
                 }
 
-                UserMemberships::query()
-                    ->where('user_id', $user->user_id)
+                UserMemberships::where('user_id', $user->user_id)
                     ->update([
                         'membership_id' => $membership->membership_id,
                     ]);
