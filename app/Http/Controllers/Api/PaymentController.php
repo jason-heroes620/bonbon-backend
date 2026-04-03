@@ -199,11 +199,20 @@ class PaymentController extends Controller
                         'referral_code' => $referralCode,
                     ]);
                 }
-
+                // update user membership to inactive before creating new one
                 UserMemberships::where('user_id', $user->user_id)
+                    ->where('membership_status', 'active')
                     ->update([
-                        'membership_id' => $membership->membership_id,
+                        'membership_status' => 'inactive',
+                        'membership_end_date' => now()->subDay(1)->toDateString(),
                     ]);
+                UserMemberships::create([
+                    'user_id' => $user->user_id,
+                    'membership_id' => $membership->membership_id,
+                    'membership_status' => 'active',
+                    'membership_start_date' => now()->toDateString(),
+                    'membership_end_date' => now()->addYear()->subDay(1)->toDateString(),
+                ]);
 
                 $referral = Referrals::query()
                     ->where('referee_id', $user->user_id)
