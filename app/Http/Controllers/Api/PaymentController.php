@@ -182,7 +182,8 @@ class PaymentController extends Controller
                     $membership = Memberships::query()
                         ->where('membership_code', $order->product_code)
                         ->first();
-
+                    Log::info('Membership found');
+                    Log::info($membership);
                     if ($membership) {
                         UserMemberships::query()
                             ->where('user_id', $order->user_id)
