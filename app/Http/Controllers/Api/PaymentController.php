@@ -7,6 +7,7 @@ use App\Models\Memberships;
 use App\Models\OrderItems;
 use App\Models\Orders;
 use App\Models\Payments;
+use App\Models\Products;
 use App\Models\ReferralCodes;
 use App\Models\Referrals;
 use App\Models\User;
@@ -154,91 +155,98 @@ class PaymentController extends Controller
                     Log::info('Payment created');
                     Log::info($request->all());
 
-                    $referralCode = $this->generateReferralCode();
-                    $user = Orders::query()
-                        ->where('order_no', $request->RefNo)
-                        ->first();
-                    ReferralCodes::create([
-                        'user_id' => $user->user_id,
-                        'campaign_name' => 'Default',
-                        'referral_code' => $referralCode,
-                        'code_effective_date' => now()->toDateString(),
-                        'code_expiry_date' => now()->addYear()->toDateString(),
-                        'usage_count' => 0,
-                        'max_usage' => 0,
-                        'is_active' => true,
-                    ]);
-                    Log::info('Referral code created');
-                    Log::info($referralCode);
-
-                    $user->update([
-                        'referral_code' => $referralCode,
-                    ]);
 
                     // update user membership to the membership id matching in product_code in order_items table
-                    $order = OrderItems::query()
-                        ->leftJoin('orders', 'order_items.order_id', '=', 'orders.order_id')
+                    $order = Orders::query()
+                        ->leftJoin('order_items', 'order_items.order_id', '=', 'orders.order_id')
                         ->where('orders.order_no', $request->RefNo)
-                        ->first();
+                        ->get();
 
-                    $membership = Memberships::query()
-                        ->where('membership_code', $order->product_code)
-                        ->first();
-                    Log::info('Membership found');
-                    Log::info($membership);
-                    if ($membership) {
-                        UserMemberships::query()
-                            ->where('user_id', $user->user_id)
-                            ->update([
-                                'membership_id' => $membership->membership_id,
-                            ]);
+                    foreach ($order as $item) {
+                        // search for product code in product then match membership_code'
+                        $product = Products::query()
+                            ->where('product_id', $item->product_id)
+                            ->first();
+                        if (!$product) {
+                            continue;
+                        }
 
-                        Log::info('User membership updated');
-                        Log::info($membership);
-
-                        // check referee_id, if exists, update referral_status and qualifies order_id
-                        $referral = Referrals::query()
-                            ->where('referee_id', $user->user_id)
-                            ->where('referral_status', 'pending')
+                        $membership = Memberships::query()
+                            ->where('membership_code', $item->product_code)
                             ->first();
 
-                        if ($referral) {
-                            $referral->update([
-                                'referral_status' => 'qualified',
-                                'qualified_at' => now()->toDateString(),
-                                'qualifying_order_no' => $request->RefNo,
+                        // if products is of type membership
+                        if ($membership) {
+                            $referralCode = $this->generateReferralCode();
+                            ReferralCodes::create([
+                                'user_id' => $order->user_id,
+                                'campaign_name' => 'Default',
+                                'referral_code' => $referralCode,
+                                'code_effective_date' => now()->toDateString(),
+                                'code_expiry_date' => now()->addYear()->toDateString(),
+                                'usage_count' => 0,
+                                'max_usage' => 0,
+                                'is_active' => true,
                             ]);
+                            Log::info('Referral code created');
+                            Log::info($referralCode);
 
-                            $referrerUserId = $referral->user_id;
-                            $referrerMembershipType = $this->getUserMembershipType($referrerUserId);
-                            $isUnlimitedReferrer = in_array(
-                                strtoupper((string) $referrerMembershipType),
-                                ['KOL', 'FOBB'],
-                                true
-                            );
+                            User::where('user_id', $order->user_id)->first()->update([
+                                'referral_code' => $referralCode,
+                            ]);
+                            UserMemberships::query()
+                                ->where('user_id', $order->user_id)
+                                ->update([
+                                    'membership_id' => $membership->membership_id,
+                                ]);
 
-                            $qualifiedCount = Referrals::query()
-                                ->where('user_id', $referrerUserId)
-                                ->whereIn('referral_status', ['qualified', 'rewarded'])
-                                ->count();
+                            Log::info('User membership updated');
+                            Log::info($membership);
 
-                            $targetGiftsEarned = intdiv($qualifiedCount, 5);
-                            if (!$isUnlimitedReferrer) {
-                                $targetGiftsEarned = min($targetGiftsEarned, 2);
-                            }
+                            // check referee_id, if exists, update referral_status and qualifies order_id
+                            $referral = Referrals::query()
+                                ->where('referee_id', $order->user_id)
+                                ->where('referral_status', 'pending')
+                                ->first();
 
-                            $currentGiftsEarned = (int) UserReferralGifts::query()
-                                ->where('user_id', $referrerUserId)
-                                ->count();
+                            if ($referral) {
+                                $referral->update([
+                                    'referral_status' => 'qualified',
+                                    'qualified_at' => now()->toDateString(),
+                                    'qualifying_order_no' => $request->RefNo,
+                                ]);
 
-                            if ($targetGiftsEarned > $currentGiftsEarned) {
-                                $delta = $targetGiftsEarned - $currentGiftsEarned;
-                                for ($i = 0; $i < $delta; $i++) {
-                                    UserReferralGifts::create([
-                                        'user_id' => $referrerUserId,
-                                        'earned_at' => now(),
-                                        'claimed_at' => null,
-                                    ]);
+                                $referrerUserId = $referral->user_id;
+                                $referrerMembershipType = $this->getUserMembershipType($referrerUserId);
+                                $isUnlimitedReferrer = in_array(
+                                    strtoupper((string) $referrerMembershipType),
+                                    ['KOL', 'FOBB'],
+                                    true
+                                );
+
+                                $qualifiedCount = Referrals::query()
+                                    ->where('user_id', $referrerUserId)
+                                    ->whereIn('referral_status', ['qualified', 'rewarded'])
+                                    ->count();
+
+                                $targetGiftsEarned = intdiv($qualifiedCount, 5);
+                                if (!$isUnlimitedReferrer) {
+                                    $targetGiftsEarned = min($targetGiftsEarned, 2);
+                                }
+
+                                $currentGiftsEarned = (int) UserReferralGifts::query()
+                                    ->where('user_id', $referrerUserId)
+                                    ->count();
+
+                                if ($targetGiftsEarned > $currentGiftsEarned) {
+                                    $delta = $targetGiftsEarned - $currentGiftsEarned;
+                                    for ($i = 0; $i < $delta; $i++) {
+                                        UserReferralGifts::create([
+                                            'user_id' => $referrerUserId,
+                                            'earned_at' => now(),
+                                            'claimed_at' => null,
+                                        ]);
+                                    }
                                 }
                             }
                         }
