@@ -99,9 +99,9 @@ Route::post('/payments/frontend-callback', function (Request $request) {
     $status = $request->Status; // 1 = Success, 0 = Fail
 
     if ($status == "1") {
-        return redirect()->away("bonbon://payment-success?refNo=" . $request->RefNo);
+        return redirect()->away("intent://payment-success?refNo=" . $request->RefNo . "#Intent;scheme=bonbon;end");
     } else {
-        return redirect()->away("bonbon://payment-failed?refNo=" . $request->RefNo);
+        return redirect()->away("intent://payment-failed?refNo=" . $request->RefNo . "#Intent;scheme=bonbon;end");
     }
     // return redirect()->away('https://bonbon.com.my/payment/result');
 });
