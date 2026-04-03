@@ -297,12 +297,12 @@ class PaymentController extends Controller
     public function orderDetail(Request $request, $refNo)
     {
         $order = Orders::query()
-            ->select('total_payment', 'total_discount')
+            ->select('total_payment', 'total_discount', 'order_id')
             ->where('order_no', $refNo)
             ->first();
         $order->payment = Payments::query()
             ->select('payment_method', 'created_at', 'transaction_id')
-            ->where('order_no', $order->order_no)
+            ->where('order_no', $refNo)
             ->where('payment_status', 1)
             ->first();
 
