@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\VouchersController;
 use App\Http\Controllers\Api\NotificationsController;
 use App\Http\Controllers\Api\UserInterestListController;
 use App\Http\Controllers\Api\UserPetsController;
+use App\Http\Controllers\Api\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -73,6 +74,9 @@ Route::middleware(['auth:sanctum'])->group(
         Route::post('/user-pets', [UserPetsController::class, 'store']);
         Route::put('/user-pets/{id}', [UserPetsController::class, 'update']);
         Route::delete('/user-pets/{id}', [UserPetsController::class, 'destroy']);
+
+        // user
+        Route::get('/user/{user_id}', [UserController::class, 'show']);
 
         // Vendor Profile
         Route::get('/merchant/profile', [VendorsController::class, 'merchantProfile']);
