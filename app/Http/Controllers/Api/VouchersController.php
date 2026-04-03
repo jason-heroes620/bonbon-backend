@@ -124,6 +124,7 @@ class VouchersController extends Controller
             ])
             ->where('user_vouchers.user_id', $request->user()->user_id)
             ->where('is_valid', true)
+            ->where('voucher_status', true)
             ->orderBy('user_vouchers.created_at', 'desc')
             ->paginate($perPage);
 
