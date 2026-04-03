@@ -59,17 +59,7 @@ Route::middleware(['auth:sanctum'])->group(
 
         // Payment
         Route::post('/payments/create', [PaymentController::class, 'createPayment']);
-        Route::post('/payments/backend-callback', [PaymentController::class, 'backendCallback']);
-        Route::post('/payments/frontend-callback', function (Request $request) {
-            $status = $request->Status; // 1 = Success, 0 = Fail
 
-            if ($status == "1") {
-                return redirect()->away("bonbon://payment-success?refNo=" . $request->RefNo);
-            } else {
-                return redirect()->away("bonbon://payment-failed?refNo=" . $request->RefNo);
-            }
-            // return redirect()->away('https://bonbon.com.my/payment/result');
-        });
 
         // discount
         Route::post('/discounts/validate', [DiscountController::class, 'validateDiscount']);
@@ -103,3 +93,15 @@ Route::post('/user-interest-list/register', [UserInterestListController::class, 
     ->middleware('throttle:5, 60');
 
 Route::get('/user-interest-list/count', [UserInterestListController::class, 'getListCount']);
+
+Route::post('/payments/backend-callback', [PaymentController::class, 'backendCallback']);
+Route::post('/payments/frontend-callback', function (Request $request) {
+    $status = $request->Status; // 1 = Success, 0 = Fail
+
+    if ($status == "1") {
+        return redirect()->away("bonbon://payment-success?refNo=" . $request->RefNo);
+    } else {
+        return redirect()->away("bonbon://payment-failed?refNo=" . $request->RefNo);
+    }
+    // return redirect()->away('https://bonbon.com.my/payment/result');
+});
