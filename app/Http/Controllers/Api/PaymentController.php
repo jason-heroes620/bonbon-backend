@@ -183,8 +183,9 @@ class PaymentController extends Controller
 
                 if (empty($user->referral_code)) {
                     $referralCode = $this->generateReferralCode();
-                    ReferralCodes::create([
+                    ReferralCodes::firstOrCreate([
                         'user_id' => $user->user_id,
+                    ], [
                         'campaign_name' => 'Default',
                         'referral_code' => $referralCode,
                         'code_effective_date' => now()->toDateString(),
@@ -194,7 +195,9 @@ class PaymentController extends Controller
                         'is_active' => true,
                     ]);
 
-                    $user->update([
+                    User::query()->update([
+                        'user_id' => $user->user_id,
+                    ], [
                         'referral_code' => $referralCode,
                     ]);
                 }
