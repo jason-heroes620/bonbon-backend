@@ -101,8 +101,8 @@ Route::post('/payments/frontend-callback', function (Request $request) {
     $userAgent = $request->header('User-Agent');
     Log::info('User-Agent: ' . $userAgent);
     $appUrl = ($status == "1")
-        ? "bonbon://payment-success?refNo=" . urlencode($request->RefNo)
-        : "bonbon://payment-failed?refNo=" . urlencode($request->RefNo);
+        ? "bonbon://payment-success/" . urlencode($request->RefNo)
+        : "bonbon://payment-failed/" . urlencode($request->RefNo);
 
     // Return a view instead of a redirect
     return view('payment_redirect', ['appUrl' => $appUrl]);

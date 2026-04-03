@@ -138,7 +138,7 @@ class PaymentController extends Controller
                     'ref_no' => $request->RefNo,
                     'transaction_id' => $request->TransId,
                     'payment_amount' => (float) $request->Amount,
-                    'payment_date' => $request->TransDate,
+                    'payment_date' => $request->TranDate,
                     'issuing_bank' => $request->S_bankname,
                     'cc_name' => $request->CCName,
                     'cc_number' => $request->CCNo,
