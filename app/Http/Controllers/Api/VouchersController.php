@@ -215,12 +215,31 @@ class VouchersController extends Controller
 
             $voucher = Vouchers::query()
                 ->where('voucher_id', $voucher_id)
-                ->select('is_unlimited', 'voucher_limit', 'voucher_claim_per_user')
+                ->select('is_unlimited', 'voucher_limit', 'voucher_claim_per_user', 'voucher_claim_period', 'voucher_claim_per_period')
                 ->first();
+
+            $periodValid = true;
+            if (!empty($voucher->voucher_claim_period) && !empty($voucher->voucher_claim_per_period)) {
+                $start = null;
+                if ($voucher->voucher_claim_period === 'week') {
+                    $start = now()->startOfWeek();
+                } elseif ($voucher->voucher_claim_period === 'month') {
+                    $start = now()->startOfMonth();
+                }
+                if ($start) {
+                    $userPeriodRedeemCount = UserVoucherClaims::query()
+                        ->leftJoin('user_vouchers', 'user_voucher_claims.user_voucher_id', '=', 'user_vouchers.user_voucher_id')
+                        ->where('user_vouchers.voucher_id', $voucher_id)
+                        ->where('user_vouchers.user_id', $request->user()->user_id)
+                        ->where('user_voucher_claims.created_at', '>=', $start)
+                        ->count();
+                    $periodValid = $userPeriodRedeemCount < (int) $voucher->voucher_claim_per_period;
+                }
+            }
 
             // if unlimited and user claim count is less than voucher limit, return true
             if ($voucher->is_unlimited) {
-                if ($userRedeemCount < $voucher->voucher_claim_per_user) {
+                if ($userRedeemCount < $voucher->voucher_claim_per_user && $periodValid) {
                     return response()->json([
                         'data' => [
                             'is_valid' => true,
@@ -234,7 +253,7 @@ class VouchersController extends Controller
                     ->where('user_vouchers.voucher_id', $voucher_id)
                     ->count();
 
-                if ($totalVoucherRedeemCount < $voucher->voucher_limit && $userRedeemCount < $voucher->voucher_claim_per_user) {
+                if ($totalVoucherRedeemCount < $voucher->voucher_limit && $userRedeemCount < $voucher->voucher_claim_per_user && $periodValid) {
                     return response()->json([
                         'data' => [
                             'is_valid' => true,
@@ -259,11 +278,6 @@ class VouchersController extends Controller
             );
             return response()->json(['message' => 'Error checking voucher validity.'], 500);
         }
-        // return response()->json([
-        //     'data' => [
-        //         'is_valid' => false,
-        //     ],
-        // ]);
     }
 
     private function getVendorId(Request $request)

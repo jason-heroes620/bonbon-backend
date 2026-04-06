@@ -47,6 +47,8 @@ export type Voucher = {
     voucher_expiry_date: string;
     voucher_limit: number;
     voucher_claim_per_user: number;
+    voucher_claim_period?: "week" | "month" | null;
+    voucher_claim_per_period?: number | null;
     voucher_image_path?: string | null;
     voucher_status: boolean;
 };

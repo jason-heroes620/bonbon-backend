@@ -30,7 +30,7 @@ import {
 import { Link, usePage } from "@inertiajs/react";
 import { cn } from "@/lib/utils";
 
-const items: {
+const allItems: {
     title: string;
     url?: string;
     icon: ComponentType<any>;
@@ -169,6 +169,39 @@ const items: {
 export function AppSidebar() {
     const page = usePage();
     const currentPath = (page.url ?? "/").split("?")[0];
+    const role = (page.props as any)?.auth?.user?.role as string | undefined;
+
+    const items = useMemo(() => {
+        if (role === "vendor") {
+            return allItems
+                .filter((item) =>
+                    ["Dashboard", "Vendors", "Vouchers"].includes(item.title),
+                )
+                .map((item) => {
+                    if (item.title === "Vendors" && item.items?.length) {
+                        return {
+                            ...item,
+                            items: item.items.map((sub) => ({
+                                ...sub,
+                                title: "My Vendors",
+                            })),
+                        };
+                    }
+                    if (item.title === "Vouchers" && item.items?.length) {
+                        return {
+                            ...item,
+                            items: item.items.map((sub) => ({
+                                ...sub,
+                                title: "My Vouchers",
+                            })),
+                        };
+                    }
+                    return item;
+                });
+        }
+
+        return allItems;
+    }, [role]);
 
     const isActiveUrl = (url: string) => {
         if (currentPath === url) return true;
@@ -186,7 +219,7 @@ export function AppSidebar() {
             }
         }
         return null;
-    }, [currentPath]);
+    }, [currentPath, items]);
 
     const [openGroupTitle, setOpenGroupTitle] = useState<string | null>(
         activeGroupTitle,

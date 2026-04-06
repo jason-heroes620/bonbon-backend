@@ -29,7 +29,12 @@ class VendorsController extends Controller
         $query = Vendors::query()
             ->select('vendor_id', 'vendor_name', 'email', 'contact_no', 'first_name', 'last_name', 'profile_picture', 'is_active');
 
-        if ($search = $request->has('search')) {
+        $user = $request->user();
+        if ($user && $user->role === 'vendor') {
+            $query->where('user_id', $user->user_id);
+        }
+
+        if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('vendor_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
@@ -68,6 +73,11 @@ class VendorsController extends Controller
      */
     public function create()
     {
+        $user = request()->user();
+        if ($user && $user->role === 'vendor') {
+            abort(403);
+        }
+
         $categories = Categories::select('category_id as value', 'category_name as label')
             ->where('is_active', true)->get();
         return Inertia::render('vendors/create', [
@@ -80,11 +90,16 @@ class VendorsController extends Controller
      */
     public function store(Request $request)
     {
+        $user = $request->user();
+        if ($user && $user->role === 'vendor') {
+            abort(403);
+        }
+
         $profile_picture = null;
         $profile_picture_path = null;
         $validator = Validator::make($request->all(), [
             'vendor_name' => 'required|string|max:150',
-            'email' => 'required|string|email|max:200|unique:vendors',
+            'email' => 'required|string|email|max:200',
             'contact_no' => 'required|string|max:25',
             'first_name' => 'required|string|max:150',
             'last_name' => 'required|string|max:150',
@@ -108,11 +123,11 @@ class VendorsController extends Controller
             throw ValidationException::withMessages($validator->errors()->toArray());
         }
 
-        if (User::where('email', $request->email)->exists()) {
-            throw ValidationException::withMessages([
-                'email' => 'This email is already registered.',
-            ]);
-        }
+        // if (User::where('email', $request->email)->exists()) {
+        //     throw ValidationException::withMessages([
+        //         'email' => 'This email is already registered.',
+        //     ]);
+        // }
 
         try {
             if ($request->profile_picture !== null) {
@@ -190,6 +205,14 @@ class VendorsController extends Controller
             ->where('is_active', true)->get();
 
         $vendor = Vendors::with('locations:id,vendor_id,location_name,address,latitude,longitude,place_id,contact_no')->find($request->vendor);
+        if (!$vendor) {
+            abort(404);
+        }
+
+        $user = $request->user();
+        if ($user && $user->role === 'vendor' && (string) $vendor->user_id !== (string) $user->user_id) {
+            abort(403);
+        }
 
         $vendor->categories = VendorCategories::where('vendor_categories.vendor_id', $vendor->vendor_id)
             ->pluck('vendor_categories.category_id')->toArray();
@@ -217,6 +240,16 @@ class VendorsController extends Controller
     public function update(Request $request)
     {
         try {
+            $vendor = Vendors::find($request->vendor);
+            if (!$vendor) {
+                abort(404);
+            }
+
+            $user = $request->user();
+            if ($user && $user->role === 'vendor' && (string) $vendor->user_id !== (string) $user->user_id) {
+                abort(403);
+            }
+
             $validator = Validator::make($request->all(), [
                 'vendor_name' => 'required|string|max:150',
                 'contact_no' => 'required|string|max:25',
@@ -260,7 +293,6 @@ class VendorsController extends Controller
                 $updateData['profile_picture'] = $profile_picture;
             }
 
-            $vendor = Vendors::find($request->vendor);
             if ($vendor) {
                 $updateData['social_medias'] = $this->mergeSocialMedias($vendor->social_medias, $request->input('social_medias'));
             } else {
@@ -393,10 +425,16 @@ class VendorsController extends Controller
      */
     public function getVendorList()
     {
-        $vendors = Vendors::select("vendor_id", "vendor_name")
+        $user = request()->user();
+        $vendorsQuery = Vendors::select("vendor_id", "vendor_name")
             ->where('is_active', 'active')
-            ->orderBy('vendor_name', 'asc')
-            ->get();
+            ->orderBy('vendor_name', 'asc');
+
+        if ($user && $user->role === 'vendor') {
+            $vendorsQuery->where('user_id', $user->user_id);
+        }
+
+        $vendors = $vendorsQuery->get();
         return response()->json($vendors);
     }
 }

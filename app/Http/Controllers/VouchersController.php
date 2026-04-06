@@ -25,6 +25,11 @@ class VouchersController extends Controller
         $query->join('vendors', 'vouchers.vendor_id', '=', 'vendors.vendor_id')
             ->select('vouchers.*', 'vendors.vendor_name');
 
+        $user = $request->user();
+        if ($user && $user->role === 'vendor') {
+            $query->where('vendors.user_id', $user->user_id);
+        }
+
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('voucher_name', 'like', "%{$search}%")
@@ -83,6 +88,8 @@ class VouchersController extends Controller
             'voucher_expiry_date' => 'required|date',
             'voucher_limit' => 'nullable|integer|min:0',
             'voucher_claim_per_user' => 'nullable|integer|min:1',
+            'voucher_claim_period' => 'nullable|string|in:week,month',
+            'voucher_claim_per_period' => 'nullable|integer|min:1',
             'categories' => 'required|array',
             'categories.*' => 'uuid|exists:categories,category_id',
             'voucher_status' => 'nullable|boolean',
@@ -93,6 +100,17 @@ class VouchersController extends Controller
             'tnc' => 'nullable|string',
             'how_to_use' => 'nullable|string',
         ]);
+
+        $user = $request->user();
+        if ($user && $user->role === 'vendor') {
+            $ownsVendor = \App\Models\Vendors::query()
+                ->where('vendor_id', $validated['vendor_id'])
+                ->where('user_id', $user->user_id)
+                ->exists();
+            if (!$ownsVendor) {
+                abort(403);
+            }
+        }
 
         if (empty($validated['voucher_code'])) {
             $validated['voucher_code'] = $this->generateVoucherCode();
@@ -138,6 +156,17 @@ class VouchersController extends Controller
 
     public function edit(Vouchers $voucher)
     {
+        $user = request()->user();
+        if ($user && $user->role === 'vendor') {
+            $ownsVoucher = \App\Models\Vendors::query()
+                ->where('vendor_id', $voucher->vendor_id)
+                ->where('user_id', $user->user_id)
+                ->exists();
+            if (!$ownsVoucher) {
+                abort(403);
+            }
+        }
+
         $voucherImages = VoucherImages::query()
             ->where('voucher_id', $voucher->voucher_id)
             ->orderBy('created_at', 'desc')
@@ -172,6 +201,8 @@ class VouchersController extends Controller
             'voucher_expiry_date' => 'required|date',
             'voucher_limit' => 'nullable|integer|min:0',
             'voucher_claim_per_user' => 'nullable|integer|min:1',
+            'voucher_claim_period' => 'nullable|string|in:week,month',
+            'voucher_claim_per_period' => 'nullable|integer|min:1',
             'categories' => 'required|array',
             'categories.*' => 'uuid|exists:categories,category_id',
             'voucher_status' => 'nullable|boolean',
@@ -184,6 +215,17 @@ class VouchersController extends Controller
             'tnc' => 'nullable|string',
             'how_to_use' => 'nullable|string',
         ]);
+
+        $user = $request->user();
+        if ($user && $user->role === 'vendor') {
+            $ownsVendor = \App\Models\Vendors::query()
+                ->where('vendor_id', $validated['vendor_id'])
+                ->where('user_id', $user->user_id)
+                ->exists();
+            if (!$ownsVendor) {
+                abort(403);
+            }
+        }
 
         $validated['voucher_start_date'] = date('Y-m-d', strtotime($validated['voucher_start_date']));
         $validated['voucher_expiry_date'] = date('Y-m-d', strtotime($validated['voucher_expiry_date']));

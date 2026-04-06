@@ -26,33 +26,56 @@ import axios from "axios";
 import Editor from "../editor/editor";
 import { router } from "@inertiajs/react";
 
-const voucherSchema = z.object({
-    vendor_id: z.string().uuid("Invalid vendor ID").optional(),
-    voucher_name: z.string().min(1, "Voucher name is required").max(200),
-    voucher_short_description: z.string().max(50).optional(),
-    voucher_description: z.string().optional(),
-    voucher_value: z.string().max(200).optional(),
-    what_you_get: z.string().optional(),
-    voucher_discount: z.coerce.number().min(0).optional(),
-    voucher_type: z.string().max(100).optional(),
-    voucher_start_date: z.date({
-        message: "Start date is required.",
-    }),
-    voucher_expiry_date: z.date({
-        message: "Expiry date is required.",
-    }),
-    voucher_limit: z.coerce.number().int().min(0).default(0),
-    voucher_claim_per_user: z.coerce.number().int().min(1).default(1),
-    categories: z.array(z.string().uuid()).optional(),
-    voucher_status: z.boolean().default(false),
-    voucher_image: z.any().optional(),
-    voucher_image_portrait: z.any().optional(),
-    voucher_images: z.any().optional(),
-    delete_voucher_image_ids: z.array(z.coerce.number().int()).optional(),
-    tnc: z.string().optional(),
-    how_to_use: z.string().optional(),
-    is_unlimited: z.boolean().default(false),
-});
+const voucherSchema = z
+    .object({
+        vendor_id: z.string().uuid("Invalid vendor ID").optional(),
+        voucher_name: z.string().min(1, "Voucher name is required").max(200),
+        voucher_short_description: z.string().max(50).optional(),
+        voucher_description: z.string().optional(),
+        voucher_value: z.string().max(200).optional(),
+        what_you_get: z.string().optional(),
+        voucher_discount: z.coerce.number().min(0).optional(),
+        voucher_type: z.string().max(100).optional(),
+        voucher_start_date: z.date({
+            message: "Start date is required.",
+        }),
+        voucher_expiry_date: z.date({
+            message: "Expiry date is required.",
+        }),
+        voucher_limit: z.coerce.number().int().min(0).default(0),
+        voucher_claim_per_user: z.coerce.number().int().min(1).default(1),
+        voucher_claim_period: z
+            .preprocess(
+                (v) => (v === "" || v === null ? undefined : v),
+                z.enum(["week", "month"]).optional(),
+            )
+            .optional(),
+        voucher_claim_per_period: z
+            .preprocess(
+                (v) => (v === "" || v === null ? undefined : v),
+                z.coerce.number().int().min(1).optional(),
+            )
+            .optional(),
+        categories: z.array(z.string().uuid()).optional(),
+        voucher_status: z.boolean().default(false),
+        voucher_image: z.any().optional(),
+        voucher_image_portrait: z.any().optional(),
+        voucher_images: z.any().optional(),
+        delete_voucher_image_ids: z.array(z.coerce.number().int()).optional(),
+        tnc: z.string().optional(),
+        how_to_use: z.string().optional(),
+        is_unlimited: z.boolean().default(false),
+    })
+    .superRefine((values, ctx) => {
+        if (values.voucher_claim_period && !values.voucher_claim_per_period) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message:
+                    "Claim per period is required when claim period is set.",
+                path: ["voucher_claim_per_period"],
+            });
+        }
+    });
 
 export type VoucherFormValues = z.infer<typeof voucherSchema>;
 
@@ -98,6 +121,7 @@ export function VoucherForm({
     const shortDescription = watch("voucher_short_description");
     const selectedImage = watch("voucher_image") as File | undefined;
     const isUnlimited = watch("is_unlimited");
+    const claimPeriod = watch("voucher_claim_period");
 
     const [vendors, setVendors] = useState([]);
     const [categories, setCategories] = useState<
@@ -119,6 +143,15 @@ export function VoucherForm({
             });
         }
     }, [isUnlimited, setValue]);
+
+    useEffect(() => {
+        if (!claimPeriod) {
+            setValue("voucher_claim_per_period", undefined, {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+        }
+    }, [claimPeriod, setValue]);
 
     useEffect(() => {
         setValue(
@@ -164,7 +197,17 @@ export function VoucherForm({
 
     return (
         <form
-            onSubmit={handleSubmit(onSubmit, (errors) => console.error(errors))}
+            onSubmit={handleSubmit(
+                (values) => {
+                    const payload: any = { ...values };
+                    if (!payload.voucher_claim_period) {
+                        delete payload.voucher_claim_period;
+                        delete payload.voucher_claim_per_period;
+                    }
+                    onSubmit(payload);
+                },
+                (errors) => console.error(errors),
+            )}
             className="space-y-6 bg-white p-6 rounded-lg shadow-sm border"
         >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -406,6 +449,62 @@ export function VoucherForm({
                     {errors.voucher_claim_per_user && (
                         <p className="text-sm text-red-500">
                             {errors.voucher_claim_per_user.message}
+                        </p>
+                    )}
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="voucher_claim_period">Claim Period</Label>
+                    <Controller
+                        control={control}
+                        name="voucher_claim_period"
+                        render={({ field }) => (
+                            <Select
+                                onValueChange={(v) =>
+                                    field.onChange(v === "none" ? "" : v)
+                                }
+                                value={
+                                    (field.value as string | undefined) ?? ""
+                                }
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="No period limit" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">
+                                        No period limit
+                                    </SelectItem>
+                                    <SelectItem value="week">
+                                        Per week
+                                    </SelectItem>
+                                    <SelectItem value="month">
+                                        Per month
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                    {errors.voucher_claim_period && (
+                        <p className="text-sm text-red-500">
+                            {String(errors.voucher_claim_period.message)}
+                        </p>
+                    )}
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="voucher_claim_per_period">
+                        Claims Per Period
+                    </Label>
+                    <Input
+                        type="number"
+                        id="voucher_claim_per_period"
+                        {...register("voucher_claim_per_period")}
+                        min={1}
+                        disabled={!claimPeriod}
+                    />
+                    {errors.voucher_claim_per_period && (
+                        <p className="text-sm text-red-500">
+                            {String(errors.voucher_claim_per_period.message)}
                         </p>
                     )}
                 </div>

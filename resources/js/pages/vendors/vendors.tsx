@@ -5,6 +5,7 @@ import { DataTable } from "@/components/datatable/data-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Vendor } from "@/types";
 import { Pencil, Plus } from "lucide-react";
+import { usePage } from "@inertiajs/react";
 
 export const columns: ColumnDef<Vendor>[] = [
     {
@@ -55,6 +56,10 @@ export const columns: ColumnDef<Vendor>[] = [
 ];
 
 const Vendors = () => {
+    const page = usePage();
+    const role = (page.props as any)?.auth?.user?.role as string | undefined;
+    const canCreate = role === "admin";
+
     return (
         <AppLayout>
             <div className="flex px-4 py-2 w-full">
@@ -66,15 +71,17 @@ const Vendors = () => {
                             </h2>
                         </div>
                         <div>
-                            <Button
-                                variant="default"
-                                onClick={() =>
-                                    router.visit(route("vendors.create"))
-                                }
-                            >
-                                <Plus className="mr" size={20} />
-                                Vendor
-                            </Button>
+                            {canCreate ? (
+                                <Button
+                                    variant="default"
+                                    onClick={() =>
+                                        router.visit(route("vendors.create"))
+                                    }
+                                >
+                                    <Plus className="mr" size={20} />
+                                    Vendor
+                                </Button>
+                            ) : null}
                         </div>
                     </div>
                     <div className="mt-4">

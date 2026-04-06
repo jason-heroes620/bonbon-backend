@@ -42,18 +42,28 @@ class UserInterestListController extends Controller
             ], 400);
         }
 
-        $checking = $this->startReferralProcedure([
+        $record = UserInterestList::query()->where('email', $email)->first();
+        if ($record) {
+            return response()->json([
+                'data' => [
+                    'success' => 'success',
+                    'message' => 'Interest list already registered.',
+                ],
+            ], 200);
+        }
+
+        $success = $this->startReferralProcedure([
             ...$validated,
             'email' => $email,
         ]);
 
-        if (!$checking) {
+        if (!$success) {
             return response()->json([
                 'data' => [
                     'error' => 'error',
-                    'message' => 'Email is already registered or referral code not found',
-                ]
-            ], 400);
+                    'message' => 'Failed to register interest list.',
+                ],
+            ], 500);
         }
 
         return response()->json([
@@ -75,17 +85,6 @@ class UserInterestListController extends Controller
 
     public function startReferralProcedure(array $validated)
     {
-        // check if email exist in user_interest_list table and user table
-        $user = User::query()->where('email', $validated['email'])->first();
-        if ($user) {
-            return false;
-        }
-
-        $record = UserInterestList::query()->where('email', $validated['email'])->first();
-        if ($record) {
-            return false;
-        }
-
         try {
             $record = UserInterestList::query()->firstOrCreate([
                 'email' => $validated['email'],

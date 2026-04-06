@@ -38,6 +38,12 @@ const EditVoucher = ({ voucher }: EditVoucherProps) => {
             voucher.voucher_claim_per_user !== null
                 ? Number(voucher.voucher_claim_per_user)
                 : 1,
+        voucher_claim_period: voucher.voucher_claim_period || undefined,
+        voucher_claim_per_period:
+            voucher.voucher_claim_per_period !== null &&
+            voucher.voucher_claim_per_period !== undefined
+                ? Number(voucher.voucher_claim_per_period)
+                : undefined,
         categories: Array.isArray(voucher.categories) ? voucher.categories : [],
         voucher_status: Boolean(voucher.voucher_status),
     };

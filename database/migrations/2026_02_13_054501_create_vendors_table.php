@@ -15,7 +15,7 @@ return new class extends Migration
             $table->uuid('vendor_id')->primary();
             $table->string('vendor_name', 150);
             $table->uuid('user_id');
-            $table->string('email', 200)->unique();
+            $table->string('email', 200);
             $table->string('contact_no', 25);
             $table->string('first_name', 150);
             $table->string('last_name', 150);
