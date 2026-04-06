@@ -26,6 +26,8 @@ class Vouchers extends Model
         'voucher_expiry_date',
         'voucher_limit',
         'voucher_claim_per_user',
+        'voucher_claim_period',
+        'voucher_claim_per_period',
         'voucher_image_path',
         'voucher_status',
         'is_unlimited',
