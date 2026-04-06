@@ -114,9 +114,9 @@ Route::post('/payments/frontend-callback', function (Request $request) {
     return view('payment_redirect', ['appUrl' => $appUrl]);
 });
 
-Route::get('/payments/result', function () {
-    return view('payment_redirect', ['appUrl' => 'bonbon://payment-success/123-45']);
-});
+// Route::get('/payments/result', function () {
+//     return view('payment_redirect', ['appUrl' => 'bonbon://payment-success/123-45']);
+// });
 
 
 Route::get('/orders/{refNo}', [PaymentController::class, 'orderDetail']);

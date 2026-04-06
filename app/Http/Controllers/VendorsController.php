@@ -120,10 +120,11 @@ class VendorsController extends Controller
                 $profile_picture_path = $profile_picture;
             }
 
-            $user = User::create([
+            $user = User::firstOrCreate([
+                'email' => $request->email,
+            ], [
                 'first_name' => $request->first_name,
                 'last_name' => $request->last_name,
-                'email' => $request->email,
                 'password' => bcrypt('password'),
                 'role' => 'vendor',
                 'profile_picture' => $profile_picture_path,
@@ -136,7 +137,8 @@ class VendorsController extends Controller
         }
 
         $vendor = Vendors::firstOrCreate([
-            'vendor_name' => $request->vendor_name,
+            'vendor_name' => $request->vendor_name
+        ], [
             'email' => $request->email,
             'contact_no' => $request->contact_no,
             'first_name' => $request->first_name,
