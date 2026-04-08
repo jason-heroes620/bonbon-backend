@@ -415,13 +415,37 @@ class VouchersController extends Controller
             $claimLimit = 1;
         }
 
+        $periodLimit = null;
+        $periodRedeemedCount = null;
+        $canRedeemInPeriod = true;
+        if (!empty($voucher->voucher_claim_period) && !empty($voucher->voucher_claim_per_period)) {
+            $start = null;
+            if ($voucher->voucher_claim_period === 'week') {
+                $start = now()->startOfWeek();
+            } elseif ($voucher->voucher_claim_period === 'month') {
+                $start = now()->startOfMonth();
+            }
+
+            if ($start) {
+                $periodLimit = (int) $voucher->voucher_claim_per_period;
+                $periodRedeemedCount = (int) UserVoucherClaims::query()
+                    ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id')
+                    ->where('user_vouchers.voucher_id', $voucher_id)
+                    ->where('user_vouchers.user_id', $user_id)
+                    ->where('user_voucher_claims.created_at', '>=', $start)
+                    ->count();
+
+                $canRedeemInPeriod = $periodRedeemedCount < $periodLimit;
+            }
+        }
+
         $expired = (string) $voucher->voucher_expiry_date < (string) now()->toDateString();
         $availableToRedeem = $claimLimit - $redeemedCount;
 
         $voucherStatus = 'redeemed';
         if ($expired) {
             $voucherStatus = 'expired';
-        } elseif ($availableToRedeem > 0) {
+        } elseif ($availableToRedeem > 0 && $canRedeemInPeriod) {
             $voucherStatus = 'redeem';
         }
 
@@ -432,6 +456,8 @@ class VouchersController extends Controller
                 'user' => $user,
                 'claim_limit' => $claimLimit,
                 'redemption_count' => $redeemedCount,
+                'period_claim_limit' => $periodLimit,
+                'period_redemption_count' => $periodRedeemedCount,
                 'redemption_history' => $redemptionHistory,
             ],
         ]);
