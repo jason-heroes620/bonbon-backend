@@ -98,7 +98,8 @@ export function VoucherForm({
     existingImageUrl,
     existingVoucherImages,
     isEdit = false,
-}: VoucherFormProps & { isEdit?: boolean }) {
+    canEdit = false,
+}: VoucherFormProps & { isEdit?: boolean; canEdit?: boolean }) {
     const {
         register,
         handleSubmit,
@@ -761,7 +762,7 @@ export function VoucherForm({
                 <Button
                     size={"sm"}
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || !canEdit}
                     className="w-full md:w-auto"
                 >
                     {isLoading && (

@@ -1,4 +1,4 @@
-import { Head, router } from "@inertiajs/react";
+import { Head, router, usePage } from "@inertiajs/react";
 import AppLayout from "@/layouts/AppLayout";
 import {
     VoucherForm,
@@ -13,6 +13,9 @@ interface EditVoucherProps {
 }
 
 const EditVoucher = ({ voucher }: EditVoucherProps) => {
+    const page = usePage();
+    const role = (page.props as any)?.auth?.user?.role as string | undefined;
+    const canEdit = role === "admin";
     const defaultValues: Partial<VoucherFormValues> = {
         ...voucher,
         vendor_id: voucher.vendor_id || undefined,
@@ -103,6 +106,7 @@ const EditVoucher = ({ voucher }: EditVoucherProps) => {
                             voucher.voucher_image_portrait_path
                         }
                         isEdit={true}
+                        canEdit={canEdit}
                     />
                 </div>
             </div>

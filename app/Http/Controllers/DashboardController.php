@@ -10,6 +10,8 @@ use App\Models\Orders;
 use App\Models\Payments;
 use App\Models\Referrals;
 use App\Models\User;
+use App\Models\UserVoucherClaims;
+use App\Models\UserVouchers;
 use App\Models\Vendors;
 use App\Models\Vouchers;
 use Illuminate\Support\Carbon;
@@ -20,6 +22,44 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
+        $user = $request->user();
+        if ($user && $user->role === 'vendor') {
+            $vendorIds = Vendors::query()
+                ->where('user_id', $user->user_id)
+                ->pluck('vendor_id')
+                ->all();
+
+            $activeVouchers = 0;
+            $totalClaims = 0;
+            $totalRedeems = 0;
+
+            if (!empty($vendorIds)) {
+                $activeVouchers = (int) Vouchers::query()
+                    ->whereIn('vendor_id', $vendorIds)
+                    ->where('voucher_status', true)
+                    ->count();
+
+                $totalClaims = (int) UserVouchers::query()
+                    ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
+                    ->whereIn('vouchers.vendor_id', $vendorIds)
+                    ->count();
+
+                $totalRedeems = (int) UserVoucherClaims::query()
+                    ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id')
+                    ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
+                    ->whereIn('vouchers.vendor_id', $vendorIds)
+                    ->count();
+            }
+
+            return Inertia::render('dashboard/vendor-dashboard', [
+                'kpis' => [
+                    'active_vouchers' => $activeVouchers,
+                    'total_claims' => $totalClaims,
+                    'total_redeems' => $totalRedeems,
+                ],
+            ]);
+        }
+
         $now = Carbon::now();
         $today = $now->copy()->startOfDay();
         $startOfMonth = $now->copy()->startOfMonth();
