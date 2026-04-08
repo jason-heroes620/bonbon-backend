@@ -182,7 +182,7 @@ class VouchersController extends Controller
         }
 
         // Create redeem history
-        UserVouchers::create([
+        UserVouchers::firstOrCreate([
             'voucher_id' => $voucher_id,
             'user_id' => $request->user()->user_id,
         ]);
