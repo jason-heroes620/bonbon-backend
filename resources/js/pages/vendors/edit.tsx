@@ -93,9 +93,7 @@ const Edit = ({
                         <div className="flex items-center gap-4">
                             <Button
                                 variant="default"
-                                onClick={() =>
-                                    router.visit(route("vendors.index"))
-                                }
+                                onClick={() => window.history.back()}
                             >
                                 <ChevronLeft className="mr" size={20} />
                                 Back

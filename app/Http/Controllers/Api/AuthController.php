@@ -33,23 +33,27 @@ class AuthController extends Controller
             ->where('email', $validated['email'])
             ->where('role', 'user')
             ->first();
-        $user->membership = $this->getUserMembership($user->user_id);
-        [$user->referral_gifts_earned, $user->referral_gifts_claimed] = $this->getUserReferralGiftCounts($user->user_id);
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
+        Log::info('Login api success', $user->toArray());
 
         if (isset($user->is_active) && !$user->is_active) {
             return response()->json([
                 'message' => 'Account is inactive. Please verify your email.',
             ], 403);
         }
+        Log::info('Login account active');
+
+        $user->membership = $this->getUserMembership($user->user_id);
+        [$user->referral_gifts_earned, $user->referral_gifts_claimed] = $this->getUserReferralGiftCounts($user->user_id);
 
         $deviceName = $validated['device_name'] ?? 'api';
         $token = $user->createToken($deviceName)->plainTextToken;
+        Log::info('Login token created', ['token' => $token]);
 
         return response()->json([
             'token' => $token,
