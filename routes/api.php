@@ -53,6 +53,9 @@ Route::middleware(['auth:sanctum'])->group(
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::delete('/account', [AuthController::class, 'destroy']);
+
+        // Referral
+        Route::get('/referrals/{referral_code}', [AuthController::class, 'referral']);
         Route::post('/referral-gifts/claim', [AuthController::class, 'claimReferralGift']);
         Route::post('/push-tokens/register', [PushTokensController::class, 'register']);
 

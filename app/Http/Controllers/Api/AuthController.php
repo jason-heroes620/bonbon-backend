@@ -33,6 +33,7 @@ class AuthController extends Controller
             ->where('email', $validated['email'])
             ->where('role', 'user')
             ->first();
+        Log::info('Login user found', $user->toArray());
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
