@@ -71,7 +71,7 @@ class UserReferralController extends Controller
             ->leftJoin('membership_types', 'memberships.membership_type_id', '=', 'membership_types.membership_type_id')
             ->where('user_id', $user_id)
             ->where('membership_status', 'active')
-            ->orderBy('membership_end_date', 'desc')
+            ->orderBy('user_memberships.membership_end_date', 'desc')
             ->first()->membership_type;
 
         return $membership_type;
