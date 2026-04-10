@@ -13,7 +13,7 @@ use App\Http\Controllers\Api\NotificationsController;
 use App\Http\Controllers\Api\UserInterestListController;
 use App\Http\Controllers\Api\UserPetsController;
 use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\UserReferralController;
+use App\Http\Controllers\Api\ReferralController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -56,8 +56,8 @@ Route::middleware(['auth:sanctum'])->group(
         Route::delete('/account', [AuthController::class, 'destroy']);
 
         // Referral
-        Route::get('/referrals/{referral_code}', [UserReferralController::class, 'referral']);
-        Route::post('/referral-gifts/claim', [UserReferralController::class, 'claimReferralGift']);
+        Route::get('/referrals/{referral_code}', [ReferralController::class, 'referral']);
+        Route::post('/referral-gifts/claim', [ReferralController::class, 'claimReferralGift']);
         Route::post('/push-tokens/register', [PushTokensController::class, 'register']);
 
         // Membership

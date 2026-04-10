@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Referrals;
 use App\Models\User;
 use App\Models\UserMemberships;
-use App\Models\UserReferrals;
 use Illuminate\Http\Request;
 
-class UserReferralController extends Controller
+class ReferralController extends Controller
 {
     // get referral list by referral code
     public function referral(Request $request, string $referralCode)
@@ -24,18 +24,18 @@ class UserReferralController extends Controller
         $membership_type = $this->checkMembershipType($referralCode);
         if ($membership_type === 'KOL' || $membership_type === 'FOBB') {
             // return total no. of referee
-            $totalReferee = UserReferrals::query()
+            $totalReferee = Referrals::query()
                 ->where('referral_code', $referralCode)
                 ->where('referral_status', 'qualified')
                 ->count();
         } else if ($membership_type === 'Standard') {
             // select max(cycle) of referral code user
-            $maxCycle = UserReferrals::query()
+            $maxCycle = Referrals::query()
                 ->where('referral_code', $referralCode)
                 ->max('cycle');
 
             // return total no. of referee per cycle
-            $totalReferee = UserReferrals::query()
+            $totalReferee = Referrals::query()
                 ->where('referral_code', $referralCode)
                 ->where('cycle', $maxCycle)
                 ->where('referral_status', 'qualified')
@@ -46,7 +46,7 @@ class UserReferralController extends Controller
         } else {
             // Free membership
             // return total no. of referee
-            $totalReferee = UserReferrals::query()
+            $totalReferee = Referrals::query()
                 ->where('referral_code', $referralCode)
                 ->count();
         }
