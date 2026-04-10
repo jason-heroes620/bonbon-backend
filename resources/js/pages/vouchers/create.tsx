@@ -3,11 +3,12 @@ import {
     type VoucherFormValues,
 } from "@/components/vouchers/voucher-form";
 import AppLayout from "@/layouts/AppLayout";
+import type { User } from "@/types";
 import { Head, router } from "@inertiajs/react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 
-const Create = () => {
+const Create = ({ user }: { user: User }) => {
     const handleSubmit = (values: VoucherFormValues) => {
         router.post(route("vouchers.store"), values as any, {
             forceFormData: true,
@@ -37,7 +38,10 @@ const Create = () => {
                     </div>
                 </div>
                 <div className="mt-4">
-                    <VoucherForm onSubmit={handleSubmit} />
+                    <VoucherForm
+                        onSubmit={handleSubmit}
+                        canEdit={user.role === "admin" ? true : false}
+                    />
                 </div>
             </div>
         </AppLayout>
