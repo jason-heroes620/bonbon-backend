@@ -3,12 +3,14 @@ import {
     type VoucherFormValues,
 } from "@/components/vouchers/voucher-form";
 import AppLayout from "@/layouts/AppLayout";
-import type { User } from "@/types";
-import { Head, router } from "@inertiajs/react";
+import { Head, router, usePage } from "@inertiajs/react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 
-const Create = ({ user }: { user: User }) => {
+const Create = () => {
+    const page = usePage();
+    const role = (page.props as any)?.auth?.user?.role as string | undefined;
+
     const handleSubmit = (values: VoucherFormValues) => {
         router.post(route("vouchers.store"), values as any, {
             forceFormData: true,
@@ -40,7 +42,7 @@ const Create = ({ user }: { user: User }) => {
                 <div className="mt-4">
                     <VoucherForm
                         onSubmit={handleSubmit}
-                        canEdit={user.role === "admin" ? true : false}
+                        canEdit={role === "admin" ? true : false}
                     />
                 </div>
             </div>
