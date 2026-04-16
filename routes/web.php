@@ -16,6 +16,7 @@ use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\ProductDiscountsController;
 use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\ReferralsController;
+use App\Http\Controllers\KolController;
 use App\Http\Controllers\TaxesController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserInterestListController;
@@ -179,6 +180,11 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/user-interest-list', [UserInterestListController::class, 'index'])->name('user_interest_list.index');
     Route::get('/user-interest-list/all', [UserInterestListController::class, 'showAll'])->name('user_interest_list.all');
+
+    Route::get('/kol', [KolController::class, 'index'])->name('kol.index');
+    Route::get('/kol/all', [KolController::class, 'showAll'])->name('kol.all');
+    Route::get('/kol/{user}', [KolController::class, 'show'])->name('kol.show');
+    Route::get('/kol/{user}/referrals/all', [KolController::class, 'referrals'])->name('kol.referrals.all');
 
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/all', [NotificationsController::class, 'showAll'])->name('notifications.all');

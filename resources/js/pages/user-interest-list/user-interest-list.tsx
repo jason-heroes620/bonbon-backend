@@ -6,6 +6,7 @@ import { format } from "date-fns";
 type InterestListRow = {
     user_interest_list_id: string;
     email: string;
+    referral_code: string;
     created_at?: string | null;
 };
 
@@ -14,6 +15,11 @@ export const columns: ColumnDef<InterestListRow>[] = [
         accessorKey: "email",
         header: "Email",
         cell: ({ row }) => row.original.email,
+    },
+    {
+        accessorKey: "referral_code",
+        header: "Referral Code",
+        cell: ({ row }) => row.original.referral_code,
     },
     {
         accessorKey: "created_at",
@@ -56,4 +62,3 @@ const UserInterestList = () => {
 };
 
 export default UserInterestList;
-

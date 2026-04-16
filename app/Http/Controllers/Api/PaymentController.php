@@ -59,7 +59,7 @@ class PaymentController extends Controller
 
         $merchantCode = config('services.ipay88.code');
         $merchantKey = config('services.ipay88.key');
-
+        Log::info($merchantKey);
         $refNo = $this->generateOrderNo();
         $amountRaw = (string) $request->input('amount');
         $amount = str_replace(['.', ','], '', $amountRaw); // Format: 100.00 -> 10000

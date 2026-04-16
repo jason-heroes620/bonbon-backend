@@ -132,6 +132,10 @@ const allItems: {
                 url: "/user-interest-list",
             },
             {
+                title: "KOL",
+                url: "/kol",
+            },
+            {
                 title: "Referrals",
                 url: "/referrals",
             },
