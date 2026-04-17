@@ -73,8 +73,10 @@ class PaymentController extends Controller
         Log::info("PAYLOAD_TO_HASH: '" . $payload . "'");
         Log::info("PAYLOAD_HEX_DUMP: " . bin2hex($payload));
 
-        $signature = hash_hmac('sha512', $payload, true);
+        $signature = hash_hmac('sha512', $payload, $merchantKey);
         Log::info('signature');
+        Log::info($signature);
+        DB::info('signature');
         Log::info($signature);
         DB::transaction(function () use ($request, $refNo) {
             Log::info('Create payment request', $request->all());
@@ -293,7 +295,7 @@ class PaymentController extends Controller
         // The specific order for Response Signature:
         // MerchantKey + MerchantCode + PaymentId + RefNo + Amount + Currency + Status
         $rawString = $merchantKey . $merchantCode . $paymentId . $refNo . $amount . $currency . $status;
-        $computedSignature = hash_hmac('sha512', $rawString, true);
+        $computedSignature = hash_hmac('sha512', $rawString, $merchantKey);
 
         if ($computedSignature === $request->Signature) {
             return true;
