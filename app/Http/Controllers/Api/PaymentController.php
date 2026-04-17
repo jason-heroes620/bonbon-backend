@@ -66,7 +66,7 @@ class PaymentController extends Controller
         $currency = "MYR";
 
         // Signature = MerchantKey + MerchantCode + RefNo + Amount + Currency
-        $signature = base64_encode(hash_hmac('sha256', $merchantKey . $merchantCode . $refNo . $amount . $currency, true));
+        $signature = hash_hmac('sha512', $merchantKey . $merchantCode . $refNo . $amount . $currency, true);
 
         DB::transaction(function () use ($request, $refNo) {
             Log::info('Create payment request', $request->all());
@@ -285,7 +285,7 @@ class PaymentController extends Controller
         // The specific order for Response Signature:
         // MerchantKey + MerchantCode + PaymentId + RefNo + Amount + Currency + Status
         $rawString = $merchantKey . $merchantCode . $paymentId . $refNo . $amount . $currency . $status;
-        $computedSignature = base64_encode(hash_hmac('sha256', $rawString, true));
+        $computedSignature = hash_hmac('sha512', $rawString, true);
 
         if ($computedSignature === $request->Signature) {
             return true;
