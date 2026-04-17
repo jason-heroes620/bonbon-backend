@@ -67,7 +67,8 @@ class PaymentController extends Controller
 
         // Signature = MerchantKey + MerchantCode + RefNo + Amount + Currency
         $signature = hash_hmac('sha512', $merchantKey . $merchantCode . $refNo . $amount . $currency, true);
-
+        Log::info('signature');
+        Log::info($signature);
         DB::transaction(function () use ($request, $refNo) {
             Log::info('Create payment request', $request->all());
             $totalPayment = $request->input('amount') !== null
