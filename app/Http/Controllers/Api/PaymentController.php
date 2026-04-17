@@ -66,7 +66,14 @@ class PaymentController extends Controller
         $currency = "MYR";
 
         // Signature = MerchantKey + MerchantCode + RefNo + Amount + Currency
-        $signature = base64_encode(hash_hmac('sha512', $merchantKey . $merchantCode . $refNo . $amount . $currency, true));
+        $payload = $merchantKey . $merchantCode . $refNo . $amount . $currency;
+
+        // CRITICAL: Log the string to your storage/logs/laravel.log file
+        // Use bin2hex or wrap in quotes so you can see if there are trailing spaces
+        Log::info("PAYLOAD_TO_HASH: '" . $payload . "'");
+        Log::info("PAYLOAD_HEX_DUMP: " . bin2hex($payload));
+
+        $signature = hash_hmac('sha512', $payload, true);
         Log::info('signature');
         Log::info($signature);
         DB::transaction(function () use ($request, $refNo) {
@@ -286,7 +293,7 @@ class PaymentController extends Controller
         // The specific order for Response Signature:
         // MerchantKey + MerchantCode + PaymentId + RefNo + Amount + Currency + Status
         $rawString = $merchantKey . $merchantCode . $paymentId . $refNo . $amount . $currency . $status;
-        $computedSignature = base64_encode(hash_hmac('sha512', $rawString, true));
+        $computedSignature = hash_hmac('sha512', $rawString, true);
 
         if ($computedSignature === $request->Signature) {
             return true;
