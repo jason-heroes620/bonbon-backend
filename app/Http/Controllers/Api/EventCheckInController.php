@@ -104,8 +104,8 @@ class EventCheckInController extends Controller
                 ->whereDate('effective_date', '<=', today())
                 ->where(function ($query) {
                     $query
-                        ->whereNull('expiration_date')
-                        ->orWhereDate('expiration_date', '>=', today());
+                        ->whereNull('expiry_date')
+                        ->orWhereDate('expiry_date', '>=', today());
                 })
                 ->where('is_active', true)
                 ->orderByDesc('effective_date')
