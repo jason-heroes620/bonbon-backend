@@ -10,6 +10,7 @@ type KolRow = {
     user_id: string;
     first_name: string;
     last_name: string;
+    referral_code?: string | null;
     email: string;
     contact_no?: string | null;
     membership_end_date?: string | null;
@@ -26,6 +27,11 @@ export const columns: ColumnDef<KolRow>[] = [
         accessorKey: "email",
         header: "Email",
         cell: ({ row }) => row.original.email,
+    },
+    {
+        accessorKey: "referral_code",
+        header: "Referral Code",
+        cell: ({ row }) => row.original.referral_code ?? "-",
     },
     {
         accessorKey: "contact_no",
@@ -88,4 +94,3 @@ export default function Kol() {
         </AppLayout>
     );
 }
-

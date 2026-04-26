@@ -290,6 +290,85 @@ class UserController extends Controller
         ]);
     }
 
+    public function updateReferralCode(Request $request, User $user)
+    {
+        $actor = $request->user();
+        if (!$actor || $actor->role !== 'admin') {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'referral_code' => ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9]+$/'],
+        ]);
+
+        $referralCode = $validated['referral_code'] ?? null;
+        $referralCode = $referralCode !== null ? strtoupper(trim((string) $referralCode)) : null;
+        $referralCode = $referralCode === '' ? null : $referralCode;
+
+        if ($referralCode !== null) {
+            $existsOnUser = User::query()
+                ->where('referral_code', $referralCode)
+                ->where('user_id', '!=', $user->user_id)
+                ->exists();
+
+            $existsOnActiveReferralCode = ReferralCodes::query()
+                ->where('referral_code', $referralCode)
+                ->where('user_id', '!=', $user->user_id)
+                ->where('is_active', true)
+                ->exists();
+
+            if ($existsOnUser || $existsOnActiveReferralCode) {
+                return redirect()->back()->withErrors([
+                    'referral_code' => 'Referral code already in use.',
+                ]);
+            }
+        }
+
+        $now = now();
+
+        DB::transaction(function () use ($user, $referralCode, $now) {
+            ReferralCodes::query()
+                ->where('user_id', $user->user_id)
+                ->where('is_active', true)
+                ->update(['is_active' => false]);
+
+            if ($referralCode === null) {
+                User::query()->where('user_id', $user->user_id)->update([
+                    'referral_code' => null,
+                ]);
+                return;
+            }
+
+            ReferralCodes::create([
+                'user_id' => $user->user_id,
+                'campaign_name' => 'Admin',
+                'referral_code' => $referralCode,
+                'code_effective_date' => $now->toDateString(),
+                'code_expiry_date' => $now->copy()->addYear()->toDateString(),
+                'usage_count' => 0,
+                'max_usage' => 0,
+                'is_active' => true,
+            ]);
+
+            User::query()->where('user_id', $user->user_id)->update([
+                'referral_code' => $referralCode,
+            ]);
+        });
+
+        Log::info('User referral code updated via admin edit page', [
+            'actor_user_id' => $actor->user_id,
+            'actor_email' => $actor->email,
+            'target_user_id' => $user->user_id,
+            'target_email' => $user->email,
+            'referral_code' => $referralCode,
+            'updated_at' => $now->toDateTimeString(),
+        ]);
+
+        return redirect()->back()->with([
+            'success' => 'Referral code updated successfully',
+        ]);
+    }
+
     public function resendVerificationEmail(Request $request, User $user)
     {
         if ($user->hasVerifiedEmail()) {

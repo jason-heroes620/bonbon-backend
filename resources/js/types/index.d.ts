@@ -192,6 +192,16 @@ export type MembershipType = {
     is_active?: boolean;
 };
 
+export type TransactionType = {
+    id: number;
+    transaction_type: string;
+    transaction_name: string;
+    credit_amount: number;
+    effective_date: string;
+    expire_date: string | null;
+    is_active: boolean;
+};
+
 export type EventCategory = {
     event_category_id: number;
     event_id: string;

@@ -7,10 +7,12 @@ use App\Models\Memberships;
 use App\Models\MembershipTypes;
 use App\Models\ReferralCodes;
 use App\Models\Referrals;
+use App\Models\TransactionTypes;
 use App\Models\User;
 use App\Models\UserInterestList;
 use App\Models\UserReferralGifts;
 use App\Models\UserMemberships;
+use App\Services\CreditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -20,6 +22,13 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    protected CreditService $creditService;
+
+    public function __construct(CreditService $creditService)
+    {
+        $this->creditService = $creditService;
+    }
+
     public function login(Request $request)
     {
         Log::info('Login api request', $request->all());
@@ -148,6 +157,12 @@ class AuthController extends Controller
             'is_active' => false,
             'role' => 'user',
         ]);
+
+        // give register credit
+        $credit = TransactionTypes::query()
+            ->where('transaction_type', 'account_registration')->first();
+        $this->creditService
+            ->addCredits($user, $credit->credit_amount, $credit->transaction_name, null, 'Account registration');
 
         $user->sendEmailVerificationNotification();
 

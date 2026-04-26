@@ -38,6 +38,7 @@ class KolController extends Controller
                 'users.user_id',
                 'users.first_name',
                 'users.last_name',
+                'users.referral_code',
                 'users.email',
                 'users.contact_no',
                 'users.is_active',
@@ -116,7 +117,7 @@ class KolController extends Controller
             ->select('referral_status', DB::raw('COUNT(*) as total'))
             ->groupBy('referral_status')
             ->pluck('total', 'referral_status')
-            ->map(fn ($v) => (int) $v)
+            ->map(fn($v) => (int) $v)
             ->all();
 
         return Inertia::render('kol/show', [
@@ -201,4 +202,3 @@ class KolController extends Controller
         ]);
     }
 }
-

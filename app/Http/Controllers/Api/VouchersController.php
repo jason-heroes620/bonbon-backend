@@ -6,18 +6,50 @@ use App\Http\Controllers\Controller;
 use App\Models\UserVoucherClaims;
 use App\Models\UserVouchers;
 use App\Models\User;
+use App\Models\UserMemberships;
 use App\Models\Vendors;
 use App\Models\Vouchers;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class VouchersController extends Controller
 {
+    private function getActiveMembershipId(?string $userId): ?string
+    {
+        if (!$userId) {
+            return null;
+        }
+
+        return UserMemberships::query()
+            ->where('user_id', $userId)
+            ->where('membership_status', 'active')
+            ->orderByDesc('membership_end_date')
+            ->value('membership_id');
+    }
+
+    private function canUserAccessVoucher(string $voucherId, ?string $membershipId): bool
+    {
+        if ($membershipId && DB::table('voucher_memberships')
+            ->where('voucher_id', $voucherId)
+            ->where('membership_id', $membershipId)
+            ->exists()) {
+            return true;
+        }
+
+        $hasRestrictions = DB::table('voucher_memberships')
+            ->where('voucher_id', $voucherId)
+            ->exists();
+
+        return !$hasRestrictions;
+    }
+
     public function vouchers(Request $request)
     {
         $userId = $request->user()?->user_id;
         $perPage = 10;
+        $membershipId = $this->getActiveMembershipId($userId);
 
         $filter = $request->input('filter');
         $categoryIds = [];
@@ -47,6 +79,22 @@ class VouchersController extends Controller
                 'vendors.vendor_name as vendor_name',
             ])
             ->where('voucher_status', true)
+            ->where(function ($q) use ($membershipId) {
+                $q->whereNotExists(function ($sq) {
+                    $sq->selectRaw('1')
+                        ->from('voucher_memberships')
+                        ->whereColumn('voucher_memberships.voucher_id', 'vouchers.voucher_id');
+                });
+
+                if ($membershipId) {
+                    $q->orWhereExists(function ($sq) use ($membershipId) {
+                        $sq->selectRaw('1')
+                            ->from('voucher_memberships')
+                            ->whereColumn('voucher_memberships.voucher_id', 'vouchers.voucher_id')
+                            ->where('voucher_memberships.membership_id', $membershipId);
+                    });
+                }
+            })
             ->when($userId, function ($q) use ($userId) {
                 $q->whereNotIn('voucher_id', function ($sq) use ($userId) {
                     $sq->select('voucher_id')
@@ -93,15 +141,21 @@ class VouchersController extends Controller
             ->where('voucher_id', $voucher_id)
             ->where('voucher_status', true)
             ->first();
+        if (!$voucher) {
+            return response()->json(['message' => 'Voucher not found.'], 404);
+        }
+
+        $membershipId = $this->getActiveMembershipId($request->user()?->user_id);
+        if (!$this->canUserAccessVoucher((string) $voucher_id, $membershipId)) {
+            return response()->json(['message' => 'Voucher not available for your membership.'], 403);
+        }
+
         $voucher->vendor = Vendors::query()
             ->select(['vendor_name', 'profile_picture'])
             ->where('vendor_id', $voucher->vendor_id)
             ->first();
         $voucher->profile_picture = Storage::url($voucher->profile_picture);
         $voucherImages = $voucher->voucher_images ?? [];
-        if (!$voucher) {
-            return response()->json(['message' => 'Voucher not found.'], 404);
-        }
 
         return response()->json([
             'data' => $voucher,
@@ -150,14 +204,20 @@ class VouchersController extends Controller
             ->where('voucher_id', $voucher_id)
             ->where('voucher_status', true)
             ->first();
+        if (!$voucher) {
+            return response()->json(['message' => 'Voucher not found.'], 404);
+        }
+
+        $membershipId = $this->getActiveMembershipId($request->user()?->user_id);
+        if (!$this->canUserAccessVoucher((string) $voucher_id, $membershipId)) {
+            return response()->json(['message' => 'Voucher not available for your membership.'], 403);
+        }
+
         $voucher->vendor = Vendors::query()
             ->select(['vendor_name', 'profile_picture'])
             ->where('vendor_id', $voucher->vendor_id)
             ->first();
         $voucher->profile_picture = Storage::url($voucher->profile_picture);
-        if (!$voucher) {
-            return response()->json(['message' => 'Voucher not found.'], 404);
-        }
 
         // Check if voucher is already redeemed
         $redeemHistory = UserVouchers::query()
@@ -206,6 +266,15 @@ class VouchersController extends Controller
     public function checkIfVoucherIsValid(Request $request, $voucher_id)
     {
         try {
+            $membershipId = $this->getActiveMembershipId($request->user()?->user_id);
+            if (!$this->canUserAccessVoucher((string) $voucher_id, $membershipId)) {
+                return response()->json([
+                    'data' => [
+                        'is_valid' => false,
+                    ],
+                ]);
+            }
+
             // voucher claim count
             $userRedeemCount = UserVoucherClaims::query()
                 ->leftJoin('user_vouchers', 'user_voucher_claims.user_voucher_id', '=', 'user_vouchers.user_voucher_id')

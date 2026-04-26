@@ -16,8 +16,10 @@ use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\ProductDiscountsController;
 use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\ReferralsController;
+use App\Http\Controllers\ReferralReportsController;
 use App\Http\Controllers\KolController;
 use App\Http\Controllers\TaxesController;
+use App\Http\Controllers\TransactionTypesController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserInterestListController;
 use App\Http\Controllers\VendorsController;
@@ -122,6 +124,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/memberships/{membership}', [MembershipsController::class, 'edit'])->name('memberships.edit');
     Route::put('/memberships/{membership}', [MembershipsController::class, 'update'])->name('memberships.update');
     Route::delete('/memberships/{membership}', [MembershipsController::class, 'destroy'])->name('memberships.destroy');
+    Route::get('/getMembershipList', [MembershipsController::class, 'getMembershipList'])->name('memberships.list');
 
     Route::get('/membership-types', [MembershipTypesController::class, 'index'])->name('membership_types.index');
     Route::get('/membership-types/all', [MembershipTypesController::class, 'showAll'])->name('membership_types.all');
@@ -129,6 +132,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/membership-types/create', [MembershipTypesController::class, 'store'])->name('membership_types.store');
     Route::get('/membership-types/{membershipType}', [MembershipTypesController::class, 'edit'])->name('membership_types.edit');
     Route::put('/membership-types/{membershipType}', [MembershipTypesController::class, 'update'])->name('membership_types.update');
+
+    Route::get('/transaction-types', [TransactionTypesController::class, 'index'])->name('transaction_types.index');
+    Route::get('/transaction-types/all', [TransactionTypesController::class, 'showAll'])->name('transaction_types.all');
+    Route::get('/transaction-types/create', [TransactionTypesController::class, 'create'])->name('transaction_types.create');
+    Route::post('/transaction-types/create', [TransactionTypesController::class, 'store'])->name('transaction_types.store');
+    Route::get('/transaction-types/{transactionType}', [TransactionTypesController::class, 'edit'])->name('transaction_types.edit');
+    Route::put('/transaction-types/{transactionType}', [TransactionTypesController::class, 'update'])->name('transaction_types.update');
 
     Route::get('/categories', [CategoriesController::class, 'index'])->name('categories.index');
     Route::get('/categories/all', [CategoriesController::class, 'showAll'])->name('categories.all');
@@ -176,6 +186,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/getUserList', [UserController::class, 'getUserList'])->name('users.list');
     Route::get('/users/{user}', [UserController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::put('/users/{user}/referral-code', [UserController::class, 'updateReferralCode'])->name('users.referral_code.update');
     Route::post('/users/{user}/resend-verification', [UserController::class, 'resendVerificationEmail'])->name('users.resend_verification');
 
     Route::get('/user-interest-list', [UserInterestListController::class, 'index'])->name('user_interest_list.index');
@@ -197,4 +208,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/referrals', [ReferralsController::class, 'index'])->name('referrals.index');
     Route::get('/referrals/all', [ReferralsController::class, 'showAll'])->name('referrals.all');
+
+    Route::get('/reports/referral-report', [ReferralReportsController::class, 'index'])->name('reports.referral.index');
+    Route::get('/reports/referral-report/users', [ReferralReportsController::class, 'users'])->name('reports.referral.users');
+    Route::get('/reports/referral-report/data', [ReferralReportsController::class, 'data'])->name('reports.referral.data');
 });

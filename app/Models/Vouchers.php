@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Vouchers extends Model
 {
@@ -48,5 +49,15 @@ class Vouchers extends Model
     public function voucher_images()
     {
         return $this->hasMany(VoucherImages::class, 'voucher_id', 'voucher_id');
+    }
+
+    public function memberships(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Memberships::class,
+            'voucher_memberships',
+            'voucher_id',
+            'membership_id'
+        );
     }
 }

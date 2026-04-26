@@ -203,4 +203,24 @@ class MembershipsController extends Controller
             'success' => 'Membership deleted successfully',
         ]);
     }
+
+    public function getMembershipList()
+    {
+        $memberships = Memberships::query()
+            ->select([
+                'membership_id as value',
+                'membership_name',
+                'membership_type',
+            ])
+            ->where('is_active', true)
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('membership_name', 'asc')
+            ->get()
+            ->map(fn ($m) => [
+                'value' => $m->value,
+                'label' => trim($m->membership_name . (empty($m->membership_type) ? '' : " ({$m->membership_type})")),
+            ]);
+
+        return response()->json($memberships);
+    }
 }

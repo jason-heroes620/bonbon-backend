@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://*.bonbon.com.my', 'https://bonbon.com.my', 'http://localhost:5174'],
+    'allowed_origins' => ['https://*.bonbon.com.my', 'https://bonbon.com.my', 'http://localhost:5174', 'https://192.168.100.252:5173'],
 
     'allowed_origins_patterns' => [],
 

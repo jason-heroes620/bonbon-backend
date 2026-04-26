@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\VoucherImages;
 use App\Models\VoucherCategories;
+use App\Models\VoucherMemberships;
 use App\Models\Vouchers;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -90,6 +92,9 @@ class VouchersController extends Controller
             'voucher_claim_per_user' => 'nullable|integer|min:1',
             'voucher_claim_period' => 'nullable|string|in:week,month',
             'voucher_claim_per_period' => 'nullable|integer|min:1',
+            'membership_ids_present' => 'nullable|boolean',
+            'membership_ids' => 'nullable|array',
+            'membership_ids.*' => 'uuid|exists:memberships,membership_id',
             'categories' => 'required|array',
             'categories.*' => 'uuid|exists:categories,category_id',
             'voucher_status' => 'nullable|boolean',
@@ -119,6 +124,28 @@ class VouchersController extends Controller
         $validated['voucher_expiry_date'] = date('Y-m-d', strtotime($validated['voucher_expiry_date']));
 
         $voucher = Vouchers::create($validated);
+
+        if (array_key_exists('membership_ids_present', $validated)) {
+            $membershipIds = $validated['membership_ids'] ?? [];
+            if (!is_array($membershipIds)) {
+                $membershipIds = [];
+            }
+            $membershipIds = array_values(array_unique(array_map('strval', $membershipIds)));
+
+            if (!empty($membershipIds)) {
+                VoucherMemberships::insert(
+                    array_map(
+                        fn($membershipId) => [
+                            'voucher_id' => $voucher->voucher_id,
+                            'membership_id' => $membershipId,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ],
+                        $membershipIds
+                    )
+                );
+            }
+        }
 
         if ($request->has('categories')) {
             foreach ((array) $request->categories as $category) {
@@ -179,6 +206,13 @@ class VouchersController extends Controller
                 ->pluck('category_id')
                 ->toArray(),
         );
+        $voucher->setAttribute(
+            'membership_ids',
+            DB::table('voucher_memberships')
+                ->where('voucher_id', $voucher->voucher_id)
+                ->pluck('membership_id')
+                ->toArray(),
+        );
 
         return Inertia::render('vouchers/edit', [
             'voucher' => $voucher,
@@ -203,6 +237,9 @@ class VouchersController extends Controller
             'voucher_claim_per_user' => 'nullable|integer|min:1',
             'voucher_claim_period' => 'nullable|string|in:week,month',
             'voucher_claim_per_period' => 'nullable|integer|min:1',
+            'membership_ids_present' => 'nullable|boolean',
+            'membership_ids' => 'nullable|array',
+            'membership_ids.*' => 'uuid|exists:memberships,membership_id',
             'categories' => 'required|array',
             'categories.*' => 'uuid|exists:categories,category_id',
             'voucher_status' => 'nullable|boolean',
@@ -231,6 +268,30 @@ class VouchersController extends Controller
         $validated['voucher_expiry_date'] = date('Y-m-d', strtotime($validated['voucher_expiry_date']));
 
         $voucher->update($validated);
+
+        if (array_key_exists('membership_ids_present', $validated)) {
+            $membershipIds = $validated['membership_ids'] ?? [];
+            if (!is_array($membershipIds)) {
+                $membershipIds = [];
+            }
+            $membershipIds = array_values(array_unique(array_map('strval', $membershipIds)));
+
+            DB::table('voucher_memberships')->where('voucher_id', $voucher->voucher_id)->delete();
+
+            if (!empty($membershipIds)) {
+                DB::table('voucher_memberships')->insert(
+                    array_map(
+                        fn($membershipId) => [
+                            'voucher_id' => $voucher->voucher_id,
+                            'membership_id' => $membershipId,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ],
+                        $membershipIds
+                    )
+                );
+            }
+        }
 
         if ($request->has('categories')) {
             VoucherCategories::where('voucher_id', $voucher->voucher_id)->delete();

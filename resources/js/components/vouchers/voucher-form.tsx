@@ -56,6 +56,8 @@ const voucherSchema = z
                 z.coerce.number().int().min(1).optional(),
             )
             .optional(),
+        membership_ids: z.array(z.string().uuid()).default([]),
+        membership_ids_present: z.boolean().default(true),
         categories: z.array(z.string().uuid()).optional(),
         voucher_status: z.boolean().default(false),
         voucher_image: z.any().optional(),
@@ -112,6 +114,7 @@ export function VoucherForm({
         defaultValues: {
             voucher_limit: 0,
             voucher_claim_per_user: 1,
+            membership_ids: [],
             categories: [],
             voucher_status: false,
             delete_voucher_image_ids: [],
@@ -126,6 +129,9 @@ export function VoucherForm({
 
     const [vendors, setVendors] = useState([]);
     const [categories, setCategories] = useState<
+        { value: string; label: string }[]
+    >([]);
+    const [membershipOptions, setMembershipOptions] = useState<
         { value: string; label: string }[]
     >([]);
     const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
@@ -181,6 +187,12 @@ export function VoucherForm({
     }, []);
 
     useEffect(() => {
+        axios.get(route("memberships.list")).then((res) => {
+            setMembershipOptions(res.data ?? []);
+        });
+    }, []);
+
+    useEffect(() => {
         if (!selectedImage) {
             setLocalPreviewUrl(null);
             return;
@@ -201,6 +213,10 @@ export function VoucherForm({
             onSubmit={handleSubmit(
                 (values) => {
                     const payload: any = { ...values };
+                    payload.membership_ids_present = true;
+                    if (!Array.isArray(payload.membership_ids)) {
+                        payload.membership_ids = [];
+                    }
                     if (!payload.voucher_claim_period) {
                         delete payload.voucher_claim_period;
                         delete payload.voucher_claim_per_period;
@@ -527,6 +543,28 @@ export function VoucherForm({
                     {errors.categories && (
                         <p className="text-sm text-red-500">
                             {String(errors.categories.message)}
+                        </p>
+                    )}
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Claimable Memberships</Label>
+                    <Controller
+                        name="membership_ids"
+                        control={control}
+                        render={({ field }) => (
+                            <MultiSelect
+                                defaultValue={field.value || []}
+                                options={membershipOptions}
+                                onValueChange={field.onChange}
+                                placeholder="All memberships"
+                                searchable={true}
+                            />
+                        )}
+                    />
+                    {errors.membership_ids && (
+                        <p className="text-sm text-red-500">
+                            {String(errors.membership_ids.message)}
                         </p>
                     )}
                 </div>

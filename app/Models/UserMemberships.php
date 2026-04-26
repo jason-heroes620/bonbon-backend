@@ -27,4 +27,9 @@ class UserMemberships extends Model
         'is_active' => 'boolean',
         'auto_renew' => 'boolean',
     ];
+
+    public function membership()
+    {
+        return $this->hasOne(Memberships::class, 'membership_id', 'membership_id');
+    }
 }

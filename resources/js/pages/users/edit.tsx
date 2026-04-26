@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { ChevronLeft } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
+import { useState } from "react";
 import { toast } from "sonner";
 
 type MembershipOption = {
@@ -65,7 +66,10 @@ const membershipStatusOptions: {
 ];
 
 type Props = {
-    user: User & { referral_code?: string | null; email_verified_at?: string | null };
+    user: User & {
+        referral_code?: string | null;
+        email_verified_at?: string | null;
+    };
     memberships: MembershipOption[];
     userMembership?: UserMembership | null;
 };
@@ -90,6 +94,12 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
         },
         shouldUnregister: false,
     });
+
+    const [isEditingReferralCode, setIsEditingReferralCode] = useState(false);
+    const [referralCodeDraft, setReferralCodeDraft] = useState(
+        user.referral_code ?? "",
+    );
+    const [isSavingReferralCode, setIsSavingReferralCode] = useState(false);
 
     const handleSubmit = (values: UserEditFormValues) => {
         return new Promise<void>((resolve) => {
@@ -122,6 +132,45 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
         });
     };
 
+    const handleStartEditReferralCode = () => {
+        setReferralCodeDraft(user.referral_code ?? "");
+        setIsEditingReferralCode(true);
+    };
+
+    const handleCancelEditReferralCode = () => {
+        setReferralCodeDraft(user.referral_code ?? "");
+        setIsEditingReferralCode(false);
+    };
+
+    const handleSaveReferralCode = () => {
+        setIsSavingReferralCode(true);
+        router.post(
+            route("users.referral_code.update", user.user_id),
+            {
+                _method: "put",
+                referral_code:
+                    referralCodeDraft.trim() === ""
+                        ? null
+                        : referralCodeDraft.trim(),
+            } as any,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success("Referral code updated");
+                    setIsEditingReferralCode(false);
+                    router.reload();
+                },
+                onError: (errors: Record<string, string>) => {
+                    toast.error("Failed to update referral code");
+                    Object.values(errors).forEach((error) =>
+                        toast.error(error),
+                    );
+                },
+                onFinish: () => setIsSavingReferralCode(false),
+            },
+        );
+    };
+
     const handleGenerateReferralCode = () => {
         const values = methods.getValues();
         router.post(
@@ -129,7 +178,9 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
             {
                 _method: "put",
                 ...values,
-                membership_id: values.membership_id ? values.membership_id : null,
+                membership_id: values.membership_id
+                    ? values.membership_id
+                    : null,
                 membership_end_date: values.membership_end_date
                     ? values.membership_end_date
                     : null,
@@ -143,7 +194,9 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
                 },
                 onError: (errors: Record<string, string>) => {
                     toast.error("Failed to generate referral code");
-                    Object.values(errors).forEach((error) => toast.error(error));
+                    Object.values(errors).forEach((error) =>
+                        toast.error(error),
+                    );
                 },
             },
         );
@@ -233,7 +286,9 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
                                 <Label>Email verification</Label>
                                 <div className="flex items-center justify-between gap-3 border border-[#D1D5DB] rounded-md px-4 py-2 bg-white">
                                     <div className="text-sm">
-                                        {isEmailVerified ? "Verified" : "Not verified"}
+                                        {isEmailVerified
+                                            ? "Verified"
+                                            : "Not verified"}
                                     </div>
                                     <Button
                                         type="button"
@@ -303,7 +358,9 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                <Label htmlFor="membership_id">Membership</Label>
+                                <Label htmlFor="membership_id">
+                                    Membership
+                                </Label>
                                 <Controller
                                     name="membership_id"
                                     control={methods.control}
@@ -319,11 +376,16 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
                                                 <SelectGroup>
                                                     {memberships.map((m) => (
                                                         <SelectItem
-                                                            key={m.membership_id}
-                                                            value={m.membership_id}
+                                                            key={
+                                                                m.membership_id
+                                                            }
+                                                            value={
+                                                                m.membership_id
+                                                            }
                                                         >
                                                             {m.membership_name}{" "}
-                                                            ({m.membership_type})
+                                                            ({m.membership_type}
+                                                            )
                                                         </SelectItem>
                                                     ))}
                                                 </SelectGroup>
@@ -334,7 +396,9 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                <Label htmlFor="membership_status">Status</Label>
+                                <Label htmlFor="membership_status">
+                                    Status
+                                </Label>
                                 <Controller
                                     name="membership_status"
                                     control={methods.control}
@@ -352,7 +416,9 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
                                                         (item) => (
                                                             <SelectItem
                                                                 key={item.value}
-                                                                value={item.value}
+                                                                value={
+                                                                    item.value
+                                                                }
                                                             >
                                                                 {item.label}
                                                             </SelectItem>
@@ -373,7 +439,9 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
                                     type="date"
                                     id="membership_start_date"
                                     className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                                    {...methods.register("membership_start_date")}
+                                    {...methods.register(
+                                        "membership_start_date",
+                                    )}
                                 />
                             </div>
 
@@ -422,14 +490,60 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
                                 <Label htmlFor="referral_code">
                                     Referral code
                                 </Label>
-                                <Input
-                                    type="text"
-                                    id="referral_code"
-                                    disabled
-                                    value={user.referral_code ?? ""}
-                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                                    readOnly
-                                />
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        type="text"
+                                        id="referral_code"
+                                        maxLength={10}
+                                        disabled={!isEditingReferralCode}
+                                        value={
+                                            isEditingReferralCode
+                                                ? referralCodeDraft
+                                                : (user.referral_code ?? "")
+                                        }
+                                        onChange={(e) =>
+                                            setReferralCodeDraft(e.target.value)
+                                        }
+                                        className="border border-[#D1D5DB] rounded-md px-4 py-2 flex-1"
+                                    />
+                                    {!isEditingReferralCode ? (
+                                        <Button
+                                            size={"sm"}
+                                            type="button"
+                                            variant="outline"
+                                            onClick={
+                                                handleStartEditReferralCode
+                                            }
+                                            disabled={isSavingReferralCode}
+                                        >
+                                            Edit
+                                        </Button>
+                                    ) : (
+                                        <>
+                                            <Button
+                                                size={"sm"}
+                                                type="button"
+                                                variant="secondary"
+                                                onClick={
+                                                    handleCancelEditReferralCode
+                                                }
+                                                disabled={isSavingReferralCode}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                size={"sm"}
+                                                type="button"
+                                                onClick={handleSaveReferralCode}
+                                                disabled={isSavingReferralCode}
+                                            >
+                                                {isSavingReferralCode
+                                                    ? "Saving..."
+                                                    : "Save"}
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="flex items-end justify-end">
@@ -438,6 +552,10 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
                                     type="button"
                                     variant="outline"
                                     onClick={handleGenerateReferralCode}
+                                    disabled={
+                                        isEditingReferralCode ||
+                                        isSavingReferralCode
+                                    }
                                 >
                                     Generate
                                 </Button>

@@ -8,11 +8,14 @@ use App\Models\OrderItems;
 use App\Models\Orders;
 use App\Models\Payments;
 use App\Models\Products;
+use App\Models\ReferralEarnings;
 use App\Models\ReferralCodes;
 use App\Models\Referrals;
+use App\Models\TransactionTypes;
 use App\Models\User;
 use App\Models\UserReferralGifts;
 use App\Models\UserMemberships;
+use App\Services\CreditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +25,16 @@ use Illuminate\Support\Str;
 
 class PaymentController extends Controller
 {
+    protected $tier_one  = 5;
+    protected $tier_two  = 10;
+
+    protected $creditService;
+
+    public function __construct(CreditService $creditService)
+    {
+        $this->creditService = $creditService;
+    }
+
     public function createPayment(Request $request)
     {
         Log::info('Create payment request');
@@ -73,7 +86,7 @@ class PaymentController extends Controller
         Log::info("PAYLOAD_TO_HASH: '" . $payload . "'");
         Log::info("PAYLOAD_HEX_DUMP: " . bin2hex($payload));
 
-        $signature = hash_hmac('sha512', $payload, $merchantKey);
+        $signature = base64_encode(hash('sha1', $payload, true));
         Log::info('signature');
         Log::info($signature);
 
@@ -223,6 +236,12 @@ class PaymentController extends Controller
                     'membership_end_date' => now()->addYear()->subDay(1)->toDateString(),
                 ]);
 
+                // add credits to user
+                $credit = TransactionTypes::query()
+                    ->where('transaction_type', 'standard_membership')->first();
+                $this->creditService
+                    ->addCredits($user, $credit->credit_amount, $credit->transaction_name, null, 'Purchased membership:' . $membership->membership_description);
+
                 $referral = Referrals::query()
                     ->where('referee_id', $user->user_id)
                     ->where('referral_status', 'pending')
@@ -245,6 +264,40 @@ class PaymentController extends Controller
                     ['KOL', 'FOBB'],
                     true
                 );
+
+                if ($isUnlimitedReferrer) {
+                    DB::transaction(function () use ($referrerUserId, $referral) {
+                        $existing = ReferralEarnings::query()
+                            ->where('referral_id', $referral->referral_id)
+                            ->lockForUpdate()
+                            ->first();
+                        if ($existing) {
+                            return;
+                        }
+
+                        $now = now();
+                        $month = (int) $now->format('n');
+                        $year = (int) $now->format('Y');
+
+                        $currentCount = (int) ReferralEarnings::query()
+                            ->where('user_id', $referrerUserId)
+                            ->where('month', $month)
+                            ->where('year', $year)
+                            ->lockForUpdate()
+                            ->count();
+
+                        $nextCount = $currentCount + 1;
+                        $amount = $nextCount <= 50 ? $this->tier_one : $this->tier_two;
+
+                        ReferralEarnings::create([
+                            'user_id' => $referrerUserId,
+                            'referral_id' => $referral->referral_id,
+                            'month' => $month,
+                            'year' => $year,
+                            'amount' => $amount,
+                        ]);
+                    });
+                }
 
                 $qualifiedCount = Referrals::query()
                     ->where('user_id', $referrerUserId)
@@ -294,9 +347,9 @@ class PaymentController extends Controller
         // The specific order for Response Signature:
         // MerchantKey + MerchantCode + PaymentId + RefNo + Amount + Currency + Status
         $rawString = $merchantKey . $merchantCode . $paymentId . $refNo . $amount . $currency . $status;
-        $computedSignature = hash_hmac('sha512', $rawString, $merchantKey);
+        $computedSignature = base64_encode(hash('sha1', $rawString, true));
 
-        if ($computedSignature === $request->Signature) {
+        if (hash_equals((string) $computedSignature, (string) $request->Signature)) {
             return true;
         }
 

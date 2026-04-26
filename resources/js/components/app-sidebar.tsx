@@ -11,6 +11,7 @@ import {
     ChevronDown,
     Receipt,
     Percent,
+    BarChart3,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
@@ -120,6 +121,16 @@ const allItems: {
         ],
     },
     {
+        title: "Reports",
+        icon: BarChart3,
+        items: [
+            {
+                title: "Referral Report",
+                url: "/reports/referral-report",
+            },
+        ],
+    },
+    {
         title: "Users",
         icon: Users,
         items: [
@@ -152,6 +163,10 @@ const allItems: {
             {
                 title: "Membership Types",
                 url: "/membership-types",
+            },
+            {
+                title: "Transaction Types",
+                url: "/transaction-types",
             },
 
             {

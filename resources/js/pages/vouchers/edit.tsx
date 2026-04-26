@@ -47,6 +47,9 @@ const EditVoucher = ({ voucher }: EditVoucherProps) => {
             voucher.voucher_claim_per_period !== undefined
                 ? Number(voucher.voucher_claim_per_period)
                 : undefined,
+        membership_ids: Array.isArray(voucher.membership_ids)
+            ? voucher.membership_ids
+            : [],
         categories: Array.isArray(voucher.categories) ? voucher.categories : [],
         voucher_status: Boolean(voucher.voucher_status),
     };

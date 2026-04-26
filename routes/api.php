@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DiscountController;
+use App\Http\Controllers\Api\EventCheckInController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\EventsController;
+use App\Http\Controllers\Api\LDAuthController;
 use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PushTokensController;
@@ -14,6 +16,7 @@ use App\Http\Controllers\Api\UserInterestListController;
 use App\Http\Controllers\Api\UserPetsController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ReferralController;
+use App\Http\Controllers\Api\RegisterLuckyDrawController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -88,6 +91,9 @@ Route::middleware(['auth:sanctum'])->group(
         // Vendor Vouchers Redeem
         Route::get('/user-vouchers/{voucher_id}/{user_id}', [VouchersController::class, 'userVoucher']);
         Route::post('/user-vouchers/{voucher_id}/{user_id}/redeem', [VouchersController::class, 'redeem']);
+
+        Route::post('/lucky-draw/register-ticket', [RegisterLuckyDrawController::class, 'registerUser']);
+        Route::post('/event-check-in', [EventCheckInController::class, 'checkIn']);
     }
 );
 
@@ -97,6 +103,10 @@ Route::post('/merchant-login', [AuthController::class, 'merchantLogin'])->middle
 
 Route::post('/auth/google', [SocialAuthController::class, 'google']);
 Route::post('/auth/apple', [SocialAuthController::class, 'apple']);
+
+Route::post('/lucky-draw/login', [LDAuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/event-check-in/login', [EventCheckInController::class, 'login'])->middleware('throttle:10,1');
+
 
 // User Interest List
 // Route::post('/user-interest-list/register', [UserInterestListController::class, 'registerInterestList']);

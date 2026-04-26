@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -54,6 +55,18 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'credit_balance' => 'integer',
         ];
+    }
+
+    public function creditTransactions(): HasMany
+    {
+        return $this->hasMany(CreditTransactions::class, 'user_id', 'user_id');
+    }
+
+    public function routeNotificationForExpo(): string
+    {
+        $token = UserPushTokens::where('user_id', $this->user_id)->first()->expo_push_token;
+        return $token;
     }
 }
