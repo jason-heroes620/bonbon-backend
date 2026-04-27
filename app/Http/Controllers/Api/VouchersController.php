@@ -34,7 +34,8 @@ class VouchersController extends Controller
         if ($membershipId && DB::table('voucher_memberships')
             ->where('voucher_id', $voucherId)
             ->where('membership_id', $membershipId)
-            ->exists()) {
+            ->exists()
+        ) {
             return true;
         }
 
@@ -78,6 +79,23 @@ class VouchersController extends Controller
                 'vouchers.voucher_image_path',
                 'vendors.vendor_name as vendor_name',
             ])
+            ->selectRaw(
+                "CASE
+                    WHEN NOT EXISTS (
+                        SELECT 1
+                        FROM voucher_memberships vm
+                        WHERE vm.voucher_id = vouchers.voucher_id
+                    ) THEN 0
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM voucher_memberships vm
+                        JOIN memberships m ON m.membership_id = vm.membership_id
+                        WHERE vm.voucher_id = vouchers.voucher_id
+                          AND UPPER(m.membership_type) = 'FREE'
+                    ) THEN 0
+                    ELSE 1
+                END as is_exclusive"
+            )
             ->where('voucher_status', true)
             ->where(function ($q) use ($membershipId) {
                 $q->whereNotExists(function ($sq) {
@@ -119,7 +137,10 @@ class VouchersController extends Controller
             ->paginate($perPage);
 
 
-        $items = $vouchers->items();
+        $items = array_map(function ($item) {
+            $item->is_exclusive = (bool) $item->is_exclusive;
+            return $item;
+        }, $vouchers->items());
         return response()->json([
             'data' => empty($items) ? [] : $items,
             'meta' => [
