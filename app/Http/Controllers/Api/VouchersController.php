@@ -152,10 +152,10 @@ class VouchersController extends Controller
             return response()->json(['message' => 'Voucher not found.'], 404);
         }
 
-        $membershipId = $this->getActiveMembershipId($request->user()?->user_id);
-        if (!$this->canUserAccessVoucher((string) $voucher_id, $membershipId)) {
-            return response()->json(['message' => 'Voucher not available for your membership.'], 403);
-        }
+        // $membershipId = $this->getActiveMembershipId($request->user()?->user_id);
+        // if (!$this->canUserAccessVoucher((string) $voucher_id, $membershipId)) {
+        //     return response()->json(['message' => 'Voucher not available for your membership.'], 403);
+        // }
 
         $voucher->vendor = Vendors::query()
             ->select(['vendor_name', 'profile_picture'])
