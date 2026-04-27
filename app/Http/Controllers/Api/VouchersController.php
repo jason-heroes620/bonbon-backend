@@ -31,7 +31,8 @@ class VouchersController extends Controller
 
     private function canUserAccessVoucher(string $voucherId, ?string $membershipId): bool
     {
-        if ($membershipId && DB::table('voucher_memberships')
+        if (
+            $membershipId && DB::table('voucher_memberships')
             ->where('voucher_id', $voucherId)
             ->where('membership_id', $membershipId)
             ->exists()
@@ -91,28 +92,13 @@ class VouchersController extends Controller
                         FROM voucher_memberships vm
                         JOIN memberships m ON m.membership_id = vm.membership_id
                         WHERE vm.voucher_id = vouchers.voucher_id
-                          AND UPPER(m.membership_type) = 'FREE'
+                          AND UPPER(m.membership_code) = 'MEMFREE'
                     ) THEN 0
                     ELSE 1
                 END as is_exclusive"
             )
             ->where('voucher_status', true)
-            ->where(function ($q) use ($membershipId) {
-                $q->whereNotExists(function ($sq) {
-                    $sq->selectRaw('1')
-                        ->from('voucher_memberships')
-                        ->whereColumn('voucher_memberships.voucher_id', 'vouchers.voucher_id');
-                });
-
-                if ($membershipId) {
-                    $q->orWhereExists(function ($sq) use ($membershipId) {
-                        $sq->selectRaw('1')
-                            ->from('voucher_memberships')
-                            ->whereColumn('voucher_memberships.voucher_id', 'vouchers.voucher_id')
-                            ->where('voucher_memberships.membership_id', $membershipId);
-                    });
-                }
-            })
+            ->where('voucher_expiry_date', '>=', today())
             ->when($userId, function ($q) use ($userId) {
                 $q->whereNotIn('voucher_id', function ($sq) use ($userId) {
                     $sq->select('voucher_id')
