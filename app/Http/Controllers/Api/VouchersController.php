@@ -51,7 +51,6 @@ class VouchersController extends Controller
     {
         $userId = $request->user()?->user_id;
         $perPage = 10;
-        $membershipId = $this->getActiveMembershipId($userId);
 
         $filter = $request->input('filter');
         $categoryIds = [];
@@ -71,6 +70,22 @@ class VouchersController extends Controller
         $search = $request->input('search');
         $search = is_string($search) ? trim($search) : null;
 
+        $isExclusiveCase = "CASE
+            WHEN NOT EXISTS (
+                SELECT 1
+                FROM voucher_memberships vm
+                WHERE vm.voucher_id = vouchers.voucher_id
+            ) THEN 0
+            WHEN EXISTS (
+                SELECT 1
+                FROM voucher_memberships vm
+                JOIN memberships m ON m.membership_id = vm.membership_id
+                WHERE vm.voucher_id = vouchers.voucher_id
+                  AND UPPER(m.membership_code) = 'MEMFREE'
+            ) THEN 0
+            ELSE 1
+        END";
+
         $vouchers = Vouchers::query()
             ->leftJoin('vendors', 'vouchers.vendor_id', '=', 'vendors.vendor_id')
             ->select([
@@ -80,23 +95,8 @@ class VouchersController extends Controller
                 'vouchers.voucher_image_path',
                 'vendors.vendor_name as vendor_name',
             ])
-            ->selectRaw(
-                "CASE
-                    WHEN NOT EXISTS (
-                        SELECT 1
-                        FROM voucher_memberships vm
-                        WHERE vm.voucher_id = vouchers.voucher_id
-                    ) THEN 0
-                    WHEN EXISTS (
-                        SELECT 1
-                        FROM voucher_memberships vm
-                        JOIN memberships m ON m.membership_id = vm.membership_id
-                        WHERE vm.voucher_id = vouchers.voucher_id
-                          AND UPPER(m.membership_code) = 'MEMFREE'
-                    ) THEN 0
-                    ELSE 1
-                END as is_exclusive"
-            )
+            ->selectRaw("{$isExclusiveCase} as is_exclusive")
+            ->selectRaw("ROW_NUMBER() OVER (PARTITION BY ({$isExclusiveCase}) ORDER BY vouchers.created_at DESC) as is_exclusive_rank")
             ->where('voucher_status', true)
             ->where('voucher_expiry_date', '>=', today())
             ->when($userId, function ($q) use ($userId) {
@@ -119,6 +119,8 @@ class VouchersController extends Controller
                         ->orWhere('voucher_short_description', 'like', "%{$search}%");
                 });
             })
+            ->orderBy('is_exclusive_rank', 'asc')
+            ->orderByDesc('is_exclusive')
             ->orderBy('vouchers.created_at', 'desc')
             ->paginate($perPage);
 
