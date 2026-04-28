@@ -7,6 +7,15 @@ import { createRoot } from "react-dom/client";
 import { Toaster } from "@/components/ui/sonner";
 import React, { useEffect } from "react";
 import { toast } from "sonner";
+import { configureEcho } from "@laravel/echo-react";
+
+configureEcho({
+    broadcaster: "pusher",
+});
+
+configureEcho({
+    broadcaster: "reverb",
+});
 
 const appName = import.meta.env.VITE_APP_NAME || "Heroes";
 

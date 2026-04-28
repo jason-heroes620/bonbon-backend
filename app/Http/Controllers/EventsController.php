@@ -114,6 +114,7 @@ class EventsController extends Controller
                 EventImages::create([
                     'event_id' => $event->event_id,
                     'event_image_path' => Storage::url($path),
+                    'is_enabled' => true,
                 ]);
             }
         }
@@ -128,7 +129,7 @@ class EventsController extends Controller
         $eventImages = EventImages::query()
             ->where('event_id', $event->event_id)
             ->orderBy('created_at', 'desc')
-            ->get(['event_image_id', 'event_image_path']);
+            ->get(['event_image_id', 'event_image_path', 'is_enabled']);
 
         $event->setAttribute('event_images', $eventImages);
         $event->setAttribute(
@@ -166,6 +167,9 @@ class EventsController extends Controller
             'event_images.*' => ['image', 'max:4096'],
             'delete_event_image_ids' => ['nullable', 'array'],
             'delete_event_image_ids.*' => ['integer'],
+            'disabled_event_image_ids' => ['nullable', 'array'],
+            'disabled_event_image_ids.*' => ['integer'],
+            'disabled_event_image_ids_present' => ['nullable', 'boolean'],
         ]);
 
         $event->update($validated);
@@ -205,6 +209,22 @@ class EventsController extends Controller
             }
         }
 
+        if ($request->boolean('disabled_event_image_ids_present')) {
+            $disabledIds = $request->input('disabled_event_image_ids');
+            $disabledIds = is_array($disabledIds) ? $disabledIds : [];
+
+            EventImages::query()
+                ->where('event_id', $event->event_id)
+                ->update(['is_enabled' => true]);
+
+            if ($disabledIds !== []) {
+                EventImages::query()
+                    ->where('event_id', $event->event_id)
+                    ->whereIn('event_image_id', $disabledIds)
+                    ->update(['is_enabled' => false]);
+            }
+        }
+
         if ($request->hasFile('event_images')) {
             foreach ((array) $request->file('event_images') as $image) {
                 if (!$image) {
@@ -214,6 +234,7 @@ class EventsController extends Controller
                 EventImages::create([
                     'event_id' => $event->event_id,
                     'event_image_path' => Storage::url($path),
+                    'is_enabled' => true,
                 ]);
             }
         }

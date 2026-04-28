@@ -170,6 +170,7 @@ export type Event = {
     event_images?: {
         event_image_id: number;
         event_image_path: string;
+        is_enabled?: boolean;
     }[];
     categories?: string[];
     event_start_date: string;

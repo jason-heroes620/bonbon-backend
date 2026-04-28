@@ -30,15 +30,16 @@ class EventsController extends Controller
             ->where('is_published', true)
             ->where('event_id', $event_id)
             ->first();
-        $result = collect($event->except('event_image_path'));
-        $result->put('event_image_path', EventImages::where('event_id', $event_id)
-            ->pluck('event_image_path')
-            ->toArray());
         if (!$event) {
             return response()->json([
                 'message' => 'Event not found',
             ], 404);
         }
+        $result = collect($event->except('event_image_path'));
+        $result->put('event_image_path', EventImages::where('event_id', $event_id)
+            ->where('is_enabled', true)
+            ->pluck('event_image_path')
+            ->toArray());
         return response()->json([
             'data' => $result,
         ]);

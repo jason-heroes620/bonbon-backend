@@ -45,6 +45,8 @@ type EventFormValues = {
     event_image?: File | null;
     event_images?: File[];
     delete_event_image_ids?: number[];
+    disabled_event_image_ids?: number[];
+    disabled_event_image_ids_present?: boolean;
 };
 
 export function EventForm({
@@ -64,6 +66,8 @@ export function EventForm({
             event_image: null,
             event_images: [],
             delete_event_image_ids: [],
+            disabled_event_image_ids: [],
+            disabled_event_image_ids_present: true,
             event_start_date: event?.event_start_date
                 ? new Date(`${event.event_start_date.slice(0, 10)}T00:00:00`)
                 : null,
@@ -103,6 +107,15 @@ export function EventForm({
     const [removedExistingImageIds, setRemovedExistingImageIds] = useState<
         number[]
     >([]);
+    const [disabledExistingImageIds, setDisabledExistingImageIds] = useState<
+        number[]
+    >(() =>
+        (event?.event_images ?? [])
+            .filter((img) => img.is_enabled === false)
+            .map((img) => img.event_image_id),
+    );
+
+    const existingEventImages = event?.event_images ?? [];
 
     useEffect(() => {
         axios.get(route("ev_categories.list")).then((res) => {
@@ -150,6 +163,19 @@ export function EventForm({
         };
     }, [selectedImage]);
 
+    useEffect(() => {
+        const nextDisabled = (event?.event_images ?? [])
+            .filter((img) => img.is_enabled === false)
+            .map((img) => img.event_image_id);
+        setDisabledExistingImageIds(nextDisabled);
+        methods.setValue("disabled_event_image_ids", nextDisabled, {
+            shouldDirty: false,
+        });
+        methods.setValue("disabled_event_image_ids_present", true, {
+            shouldDirty: false,
+        });
+    }, [event?.event_id, methods]);
+
     const handleSubmit = (values: EventFormValues) => {
         const loc = values.locations?.[0];
         const payload = {
@@ -180,6 +206,11 @@ export function EventForm({
                 values.delete_event_image_ids &&
                 values.delete_event_image_ids.length > 0
                     ? values.delete_event_image_ids
+                    : undefined,
+            disabled_event_image_ids_present: true,
+            disabled_event_image_ids:
+                disabledExistingImageIds.length > 0
+                    ? disabledExistingImageIds
                     : undefined,
         };
 
@@ -224,7 +255,6 @@ export function EventForm({
     };
 
     const previewUrl = localPreviewUrl ?? event?.event_image_path ?? null;
-    const existingEventImages = event?.event_images ?? [];
 
     return (
         <form
@@ -507,8 +537,81 @@ export function EventForm({
                                     <img
                                         src={img.event_image_path}
                                         alt=""
-                                        className="w-full h-16 object-cover rounded"
+                                        className={cn(
+                                            "w-full h-16 object-cover rounded cursor-pointer",
+                                            disabledExistingImageIds.includes(
+                                                img.event_image_id,
+                                            ) && "opacity-50",
+                                        )}
+                                        onClick={() => {
+                                            window.open(
+                                                img.event_image_path,
+                                                "_blank",
+                                                "noopener,noreferrer",
+                                            );
+                                        }}
                                     />
+                                    <div className="flex items-center justify-between gap-2 mt-1">
+                                        <label className="flex items-center gap-2 text-xs">
+                                            <input
+                                                type="checkbox"
+                                                checked={
+                                                    !disabledExistingImageIds.includes(
+                                                        img.event_image_id,
+                                                    )
+                                                }
+                                                onChange={(e) => {
+                                                    const isEnabled =
+                                                        e.target.checked;
+                                                    const nextDisabled =
+                                                        isEnabled
+                                                            ? disabledExistingImageIds.filter(
+                                                                  (id) =>
+                                                                      id !==
+                                                                      img.event_image_id,
+                                                              )
+                                                            : Array.from(
+                                                                  new Set([
+                                                                      ...disabledExistingImageIds,
+                                                                      img.event_image_id,
+                                                                  ]),
+                                                              );
+                                                    setDisabledExistingImageIds(
+                                                        nextDisabled,
+                                                    );
+                                                    methods.setValue(
+                                                        "disabled_event_image_ids",
+                                                        nextDisabled,
+                                                        {
+                                                            shouldDirty: true,
+                                                        },
+                                                    );
+                                                    methods.setValue(
+                                                        "disabled_event_image_ids_present",
+                                                        true,
+                                                        {
+                                                            shouldDirty: true,
+                                                        },
+                                                    );
+                                                }}
+                                            />
+                                            Enabled
+                                        </label>
+                                        <Button
+                                            type="button"
+                                            size={"sm"}
+                                            variant="secondary"
+                                            onClick={() => {
+                                                window.open(
+                                                    img.event_image_path,
+                                                    "_blank",
+                                                    "noopener,noreferrer",
+                                                );
+                                            }}
+                                        >
+                                            Preview
+                                        </Button>
+                                    </div>
                                     <Button
                                         type="button"
                                         size={"sm"}
@@ -522,9 +625,28 @@ export function EventForm({
                                                 ]),
                                             );
                                             setRemovedExistingImageIds(next);
+                                            const nextDisabled =
+                                                disabledExistingImageIds.filter(
+                                                    (id) =>
+                                                        id !==
+                                                        img.event_image_id,
+                                                );
+                                            setDisabledExistingImageIds(
+                                                nextDisabled,
+                                            );
                                             methods.setValue(
                                                 "delete_event_image_ids",
                                                 next,
+                                                { shouldDirty: true },
+                                            );
+                                            methods.setValue(
+                                                "disabled_event_image_ids",
+                                                nextDisabled,
+                                                { shouldDirty: true },
+                                            );
+                                            methods.setValue(
+                                                "disabled_event_image_ids_present",
+                                                true,
                                                 { shouldDirty: true },
                                             );
                                         }}

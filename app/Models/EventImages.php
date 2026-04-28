@@ -12,5 +12,10 @@ class EventImages extends Model
     protected $fillable = [
         'event_id',
         'event_image_path',
+        'is_enabled',
+    ];
+
+    protected $casts = [
+        'is_enabled' => 'boolean',
     ];
 }
