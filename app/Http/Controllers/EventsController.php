@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ImageUpdated;
 use App\Models\EventImages;
 use App\Models\EventCategories;
 use App\Models\Events;
@@ -218,10 +219,11 @@ class EventsController extends Controller
                 ->update(['is_enabled' => true]);
 
             if ($disabledIds !== []) {
-                EventImages::query()
+                $images = EventImages::query()
                     ->where('event_id', $event->event_id)
                     ->whereIn('event_image_id', $disabledIds)
                     ->update(['is_enabled' => false]);
+                broadcast(new ImageUpdated($images))->toOthers();
             }
         }
 
