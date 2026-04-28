@@ -1,4 +1,5 @@
-<?php // app/Events/ImageUpdated.php
+<?php
+
 namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
@@ -11,17 +12,18 @@ class ImageUpdated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public $imageData) {}
+    public function __construct(public $imageData)
+    {
+    }
 
     public function broadcastOn()
     {
-        // This is the "Channel" name your Expo app will listen to
         return new Channel('carousel-channel');
     }
 
     public function broadcastAs()
     {
-        // This is the "Event" name
         return 'image.updated';
     }
 }
+
