@@ -219,11 +219,15 @@ class EventsController extends Controller
                 ->update(['is_enabled' => true]);
 
             if ($disabledIds !== []) {
-                $images = EventImages::query()
+                EventImages::query()
                     ->where('event_id', $event->event_id)
                     ->whereIn('event_image_id', $disabledIds)
                     ->update(['is_enabled' => false]);
-                broadcast(new ImageUpdated($images))->toOthers();
+
+                broadcast(new ImageUpdated([
+                    'event_id' => $event->event_id,
+                    'disabled_event_image_ids' => $disabledIds,
+                ]))->toOthers();
             }
         }
 
