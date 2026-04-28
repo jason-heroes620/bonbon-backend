@@ -38,7 +38,8 @@ class EventsController extends Controller
         $result = collect($event->except('event_image_path'));
         $result->put('event_image_path', EventImages::where('event_id', $event_id)
             ->where('is_enabled', true)
-            ->pluck('event_image_path')
+            ->orderByDesc('created_at')
+            ->get(['event_image_id', 'event_image_path'])
             ->toArray());
         return response()->json([
             'data' => $result,
