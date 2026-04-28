@@ -224,10 +224,10 @@ class EventsController extends Controller
                     ->whereIn('event_image_id', $disabledIds)
                     ->update(['is_enabled' => false]);
 
-                broadcast(new ImageUpdated([
+                event(new ImageUpdated([
                     'event_id' => $event->event_id,
                     'disabled_event_image_ids' => $disabledIds,
-                ]))->toOthers();
+                ]));
             }
         }
 
