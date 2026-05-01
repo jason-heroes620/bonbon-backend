@@ -116,7 +116,8 @@ class VouchersController extends Controller
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($qq) use ($search) {
                     $qq->where('voucher_name', 'like', "%{$search}%")
-                        ->orWhere('voucher_short_description', 'like', "%{$search}%");
+                        ->orWhere('voucher_short_description', 'like', "%{$search}%")
+                        ->orWhere('vendor_name', 'like', "%{$search}%");
                 });
             })
             ->orderBy('is_exclusive_rank', 'asc')
