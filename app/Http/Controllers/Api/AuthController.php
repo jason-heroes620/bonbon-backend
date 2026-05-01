@@ -117,6 +117,12 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        if (!$request->has('referral_code') && $request->has('referralCode')) {
+            $request->merge([
+                'referral_code' => $request->input('referralCode'),
+            ]);
+        }
+
         $validator = Validator::make($request->all(), [
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
@@ -124,7 +130,7 @@ class AuthController extends Controller
             'contact_no' => ['required', 'string', 'max:20'],
             'password' => ['required', 'string', 'min:8', 'max:255'],
             'password_confirmation' => ['required', 'string', 'min:8', 'max:255', 'same:password'],
-            'referral_code' => ['nullable', 'string', 'max:255'],
+            'referral_code' => ['nullable', 'string', 'max:50'],
         ]);
         if ($validator->fails()) {
 
@@ -137,10 +143,20 @@ class AuthController extends Controller
         $validated = $validator->validated();
 
         $referralCode = null;
+        $inputReferralCode = $validated['referral_code'] ?? null;
+        $inputReferralCode = $inputReferralCode !== null ? strtoupper(trim((string) $inputReferralCode)) : null;
+        $inputReferralCode = $inputReferralCode === '' ? null : $inputReferralCode;
 
         // check if referral code is valid
-        if (!empty($validated['referral_code'])) {
-            $referralCode = ReferralCodes::where('referral_code', $validated['referral_code'])->first();
+        if ($inputReferralCode !== null) {
+            $referralCode = ReferralCodes::query()
+                ->whereRaw('UPPER(referral_code) = ?', [$inputReferralCode])
+                ->where('is_active', true)
+                ->where(function ($q) {
+                    $q->whereNull('code_expiry_date')
+                        ->orWhere('code_expiry_date', '>=', now()->toDateString());
+                })
+                ->first();
             if (!$referralCode) {
                 throw ValidationException::withMessages([
                     'referral_code' => ['The provided referral code is invalid.'],
@@ -196,11 +212,12 @@ class AuthController extends Controller
 
             $cycle = $giftsEarned + 1;
 
-            Referrals::create([
+            Referrals::query()->firstOrCreate([
                 'user_id' => $referralCode->user_id,
                 'referee_id' => $user->user_id,
+            ], [
                 'referral_code' => $referralCode->referral_code,
-                'referral_date' => now(),
+                'referral_date' => now()->toDateString(),
                 'cycle' => $cycle,
                 'referral_status' => 'pending',
             ]);
@@ -217,9 +234,13 @@ class AuthController extends Controller
             if (!$interest || !$interestReferralCode) {
                 return;
             }
+            $interestReferralCode = strtoupper(trim((string) $interestReferralCode));
+            if ($interestReferralCode === '') {
+                return;
+            }
 
             $owner = ReferralCodes::query()
-                ->where('referral_code', $interestReferralCode)
+                ->whereRaw('UPPER(referral_code) = ?', [$interestReferralCode])
                 ->value('user_id');
 
             if (!$owner) {
