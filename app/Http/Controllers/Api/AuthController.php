@@ -115,7 +115,9 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        Log::info('register');
         Log::info($request->all());
+
         if (!$request->has('referral_code') && $request->has('referralCode')) {
             $request->merge([
                 'referral_code' => $request->input('referralCode'),
@@ -132,7 +134,6 @@ class AuthController extends Controller
             'referral_code' => ['nullable', 'string', 'max:50'],
         ]);
         if ($validator->fails()) {
-
             return response()->json([
                 'message' => 'Validation failed.',
                 'error' => $validator->errors(),
