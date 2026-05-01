@@ -71,7 +71,7 @@ class MembershipController extends Controller
                     isset($membership->discounted_sale_price) &&
                     $membership->discounted_sale_price !== null
                 ) {
-                    $membership->membership_price = (string) $membership->discounted_sale_price;
+                    $membership->membership_price = number_format($membership->discounted_sale_price, 2);
                 }
                 return $membership;
             });
