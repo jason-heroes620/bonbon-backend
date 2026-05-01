@@ -13,7 +13,6 @@ class MembershipController extends Controller
     //
     public function membership(Request $request)
     {
-        Log::info('membership');
         $today = now()->toDateString();
         $user = $request->user();
         if (!$user) {
@@ -66,6 +65,16 @@ class MembershipController extends Controller
                 ->where('membership_types.membership_type', '!=', 'Free')
                 ->orderBy('memberships.sort_order', 'asc')
                 ->get();
+
+            $memberships = $memberships->map(function ($membership) {
+                if (
+                    isset($membership->discounted_sale_price) &&
+                    $membership->discounted_sale_price !== null
+                ) {
+                    $membership->membership_price = (string) $membership->discounted_sale_price;
+                }
+                return $membership;
+            });
         }
 
 
