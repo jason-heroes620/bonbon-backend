@@ -23,12 +23,10 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        Log::info('Login request', $request->all());
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
-        Log::info('Login attempt', $credentials);
 
         if (Auth::attempt($credentials, $request->filled('remember'))) {
 
@@ -38,8 +36,7 @@ class AuthController extends Controller
                     'email' => __('auth.failed'),
                 ]);
             }
-            Log::info('Login successful', ['user' => Auth::user()]);
-            Log::info($request->session()->regenerate());
+
             $request->session()->regenerate();
 
             // return response()->json(['message' => 'Login successful', 'user' => Auth::user()]);
