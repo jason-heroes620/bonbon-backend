@@ -158,7 +158,7 @@ class AuthController extends Controller
                 'is_active' => false,
                 'role' => 'user',
             ]);
-
+            Log::info($user);
             $credit = TransactionTypes::query()
                 ->where('transaction_type', 'account_registration')
                 ->first();
