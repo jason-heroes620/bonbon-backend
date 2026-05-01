@@ -245,7 +245,7 @@ class EventsController extends Controller
             }
         }
 
-        return redirect()->route('events.index')->with([
+        return redirect()->back()->with([
             'success' => 'Event updated successfully',
         ]);
     }

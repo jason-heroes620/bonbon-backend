@@ -14,8 +14,10 @@ class EventsController extends Controller
     {
         $events = Events::where('is_active', true)
             ->where('is_published', true)
-            ->where('event_start_date', '>=', now())
+            ->where('event_start_date', '<=', now())
             ->where('event_end_date', '>=', now())
+            ->where('is_published', true)
+            ->where('is_active', true)
             ->orderBy('event_start_date', 'asc')
             ->limit(6)
             ->get();

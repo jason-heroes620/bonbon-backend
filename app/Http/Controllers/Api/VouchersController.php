@@ -358,21 +358,25 @@ class VouchersController extends Controller
         }
     }
 
-    private function getVendorId(Request $request)
+    private function getVendorIds(Request $request): array
     {
         $userId = $request->user()?->user_id;
         if (!$userId) {
-            return null;
+            return [];
         }
 
-        $vendor = Vendors::query()->where('user_id', $userId)->first();
-        return $vendor?->vendor_id;
+        return Vendors::query()
+            ->where('user_id', $userId)
+            ->pluck('vendor_id')
+            ->map(fn($id) => (string) $id)
+            ->values()
+            ->all();
     }
 
     public function merchantVouchers(Request $request)
     {
-        $vendorId = $this->getVendorId($request);
-        if (!$vendorId) {
+        $vendorIds = $this->getVendorIds($request);
+        if ($vendorIds === []) {
             return response()->json([
                 'message' => 'Vendor not found.',
             ], 404);
@@ -381,24 +385,24 @@ class VouchersController extends Controller
         $since = now()->subMonth();
 
         $totalVouchers = Vouchers::query()
-            ->where('vendor_id', $vendorId)
+            ->whereIn('vendor_id', $vendorIds)
             ->count();
 
         $totalClaimed = UserVouchers::query()
             ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
-            ->where('vouchers.vendor_id', $vendorId)
+            ->whereIn('vouchers.vendor_id', $vendorIds)
             ->count();
 
         $totalRedeemed = UserVoucherClaims::query()
             ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id')
             ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
-            ->where('vouchers.vendor_id', $vendorId)
+            ->whereIn('vouchers.vendor_id', $vendorIds)
             ->count();
 
         $recentClaims = UserVouchers::query()
             ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
             ->leftJoin('users', 'user_vouchers.user_id', '=', 'users.user_id')
-            ->where('vouchers.vendor_id', $vendorId)
+            ->whereIn('vouchers.vendor_id', $vendorIds)
             ->where('user_vouchers.created_at', '>=', $since)
             ->orderByDesc('user_vouchers.created_at')
             ->get([
@@ -413,7 +417,7 @@ class VouchersController extends Controller
         $recentRedemptions = UserVoucherClaims::query()
             ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id')
             ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
-            ->where('vouchers.vendor_id', $vendorId)
+            ->whereIn('vouchers.vendor_id', $vendorIds)
             ->where('user_voucher_claims.created_at', '>=', $since)
             ->orderByDesc('user_voucher_claims.created_at')
             ->get([
@@ -434,8 +438,8 @@ class VouchersController extends Controller
 
     public function userVoucher(Request $request, string $voucher_id, string $user_id)
     {
-        $vendorId = $this->getVendorId($request);
-        if (!$vendorId) {
+        $vendorIds = $this->getVendorIds($request);
+        if ($vendorIds === []) {
             return response()->json([
                 'message' => 'Vendor not found.',
             ], 404);
@@ -446,7 +450,7 @@ class VouchersController extends Controller
             return response()->json(['message' => 'Voucher not found.'], 404);
         }
 
-        if ((string) $voucher->vendor_id !== (string) $vendorId) {
+        if (!in_array((string) $voucher->vendor_id, $vendorIds, true)) {
             return response()->json([
                 'message' => 'Voucher does not belong to this vendor.',
             ], 403);
@@ -543,6 +547,24 @@ class VouchersController extends Controller
 
     public function redeem(Request $request, string $voucher_id, string $user_id)
     {
+        $vendorIds = $this->getVendorIds($request);
+        if ($vendorIds === []) {
+            return response()->json([
+                'message' => 'Vendor not found.',
+            ], 404);
+        }
+
+        $voucher = Vouchers::query()->where('voucher_id', $voucher_id)->first();
+        if (!$voucher) {
+            return response()->json(['message' => 'Voucher not found.'], 404);
+        }
+
+        if (!in_array((string) $voucher->vendor_id, $vendorIds, true)) {
+            return response()->json([
+                'message' => 'Voucher does not belong to this vendor.',
+            ], 403);
+        }
+
         $userVoucher = UserVouchers::query()
             ->where('voucher_id', $voucher_id)
             ->where('user_id', $user_id)
@@ -556,12 +578,6 @@ class VouchersController extends Controller
             'claimed_at' => now(),
         ]);
 
-        // check if user has enough claim limit
-        $voucher = Vouchers::query()->where('voucher_id', $voucher_id)->first();
-        if (!$voucher) {
-            return response()->json(['message' => 'Voucher not found.'], 404);
-        }
-
         $claimLimit = (int) ($voucher->voucher_claim_per_user ?? 0);
         if ($claimLimit <= 0) {
             $claimLimit = 1;
@@ -573,10 +589,14 @@ class VouchersController extends Controller
             ->count();
 
         if ($userClaimCount === $claimLimit) {
-            Log::info('User has reached reached claim claim limit.');
+            Log::info('User has reached reached claim limit.');
             UserVouchers::query()->where('user_id', $user_id)
                 ->where('voucher_id', $voucher_id)
                 ->update(['is_valid' => false]);
         }
+
+        return response()->json([
+            'message' => 'Voucher redeemed successfully.',
+        ]);
     }
 }
