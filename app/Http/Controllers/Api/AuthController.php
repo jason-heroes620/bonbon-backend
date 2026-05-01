@@ -115,6 +115,7 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        Log::info($request->all());
         if (!$request->has('referral_code') && $request->has('referralCode')) {
             $request->merge([
                 'referral_code' => $request->input('referralCode'),
@@ -214,20 +215,22 @@ class AuthController extends Controller
                             ->where('user_id', $referralCode->user_id)
                             ->count();
 
+                        $referralStatus = 'pending';
                         if (!$isUnlimitedReferrer && $giftsEarned >= 2) {
                             $warnings[] = 'Referral code has reached its maximum reward cycles. Registration continued without referral.';
-                        } else {
-                            $cycle = $giftsEarned + 1;
-                            Referrals::query()->firstOrCreate([
-                                'user_id' => $referralCode->user_id,
-                                'referee_id' => $user->user_id,
-                            ], [
-                                'referral_code' => $referralCode->referral_code,
-                                'referral_date' => now()->toDateString(),
-                                'cycle' => $cycle,
-                                'referral_status' => 'pending',
-                            ]);
+                            $referralStatus = 'pending';
                         }
+
+                        $cycle = $giftsEarned + 1;
+                        Referrals::query()->updateOrCreate([
+                            'user_id' => $referralCode->user_id,
+                            'referee_id' => $user->user_id,
+                        ], [
+                            'referral_code' => $referralCode->referral_code,
+                            'referral_date' => now()->toDateString(),
+                            'cycle' => $cycle,
+                            'referral_status' => $referralStatus,
+                        ]);
                     }
                 } catch (\Throwable $e) {
                     Log::warning('Referral handling failed during registration; continuing without referral.', [
