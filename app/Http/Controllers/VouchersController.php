@@ -83,7 +83,7 @@ class VouchersController extends Controller
                 'vouchers.tnc',
                 'vouchers.created_at',
             ])
-            ->where('vouchers.status', true)
+            ->where('vouchers.voucher_status', true)
             ->orderByDesc('vouchers.created_at');
 
         if ($user->role === 'vendor') {
