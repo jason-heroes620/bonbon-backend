@@ -4,7 +4,7 @@ import { router, usePage } from "@inertiajs/react";
 import { DataTable } from "@/components/datatable/data-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Voucher } from "@/types";
-import { Pencil, Plus } from "lucide-react";
+import { Download, Pencil, Plus } from "lucide-react";
 import { format } from "date-fns";
 
 export const columns: ColumnDef<Voucher>[] = [
@@ -59,6 +59,7 @@ const vouchers = () => {
     const page = usePage();
     const role = (page.props as any)?.auth?.user?.role as string | undefined;
     const canCreate = role === "admin";
+    const canExport = role === "admin" || role === "vendor";
     return (
         <AppLayout>
             <div className="flex px-4 py-2 w-full">
@@ -70,6 +71,20 @@ const vouchers = () => {
                             </h2>
                         </div>
                         <div>
+                            {canExport ? (
+                                <Button
+                                    variant="secondary"
+                                    className="mr-2"
+                                    onClick={() => {
+                                        window.location.assign(
+                                            route("vouchers.export"),
+                                        );
+                                    }}
+                                >
+                                    <Download className="mr" size={20} />
+                                    Export
+                                </Button>
+                            ) : null}
                             {canCreate ? (
                                 <Button
                                     variant="default"

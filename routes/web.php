@@ -79,6 +79,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/vouchers', [VouchersController::class, 'index'])->name('vouchers.index');
     Route::get('/vouchers/all', [VouchersController::class, 'showAll'])->name('vouchers.all');
+    Route::get('/vouchers/export', [VouchersController::class, 'export'])->name('vouchers.export');
     Route::get('/vouchers/create', [VouchersController::class, 'create'])->name('vouchers.create');
     Route::post('/vouchers/create', [VouchersController::class, 'store'])->name('vouchers.store');
     Route::get('/vouchers/{voucher}', [VouchersController::class, 'edit'])->name('vouchers.edit');

@@ -66,6 +66,59 @@ class VouchersController extends Controller
             ],
         ]);
     }
+
+    public function export(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || !in_array($user->role, ['admin', 'vendor'], true)) {
+            abort(403);
+        }
+
+        $query = Vouchers::query()
+            ->join('vendors', 'vouchers.vendor_id', '=', 'vendors.vendor_id')
+            ->select([
+                'vouchers.voucher_name',
+                'vouchers.voucher_value',
+                'vouchers.voucher_description',
+                'vouchers.tnc',
+                'vouchers.created_at',
+            ])
+            ->where('vouchers.status', true)
+            ->orderByDesc('vouchers.created_at');
+
+        if ($user->role === 'vendor') {
+            $query->where('vendors.user_id', $user->user_id);
+        }
+
+        $rows = $query->get();
+
+        $filename = 'vouchers_export_' . now()->format('Ymd_His') . '.csv';
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, [
+                'voucher_name',
+                'voucher_value',
+                'voucher_description',
+                'tnc',
+            ]);
+
+            foreach ($rows as $row) {
+                fputcsv($out, [
+                    (string) ($row->voucher_name ?? ''),
+                    (string) ($row->voucher_value ?? ''),
+                    $this->cleanHtmlForExcel($row->voucher_description ?? null),
+                    $this->cleanHtmlForExcel($row->tnc ?? null),
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
     /**
      * Show the form for creating a new resource.
      */
@@ -365,5 +418,33 @@ class VouchersController extends Controller
             $code .= $characters[rand(0, strlen($characters) - 1)];
         }
         return $code;
+    }
+
+    private function cleanHtmlForExcel(?string $html): string
+    {
+        if ($html === null) {
+            return '';
+        }
+
+        $value = trim((string) $html);
+        if ($value === '') {
+            return '';
+        }
+
+        $value = str_replace(["\r\n", "\r"], "\n", $value);
+        $value = preg_replace('/<\s*br\s*\/?\s*>/i', "\n", $value);
+        $value = preg_replace('/<\s*\/\s*p\s*>/i', "\n", $value);
+        $value = preg_replace('/<\s*\/\s*div\s*>/i', "\n", $value);
+        $value = preg_replace('/<\s*\/\s*h[1-6]\s*>/i', "\n", $value);
+        $value = preg_replace('/<\s*li(\s+[^>]*)?>/i', "- ", $value);
+        $value = preg_replace('/<\s*\/\s*li\s*>/i', "\n", $value);
+
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $value = strip_tags($value);
+        $value = str_replace("\xC2\xA0", ' ', $value);
+        $value = preg_replace("/[ \t]+/", ' ', $value);
+        $value = preg_replace("/\n{3,}/", "\n\n", $value);
+
+        return trim($value);
     }
 }
