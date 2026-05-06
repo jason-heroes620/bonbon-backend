@@ -83,6 +83,7 @@ class VouchersController extends Controller
                 'vouchers.tnc',
                 'vouchers.created_at',
             ])
+            ->where('vouchers.voucher_expiry_date', '>=', now())
             ->where('vouchers.voucher_status', true)
             ->orderByDesc('vouchers.created_at');
 
