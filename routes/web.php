@@ -93,6 +93,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/lucky-draw', [LucyDrawEntriesController::class, 'page'])->name('lucky_draw.page');
     Route::post('/lucky-draw/{sessionId}/prepare', [LucyDrawEntriesController::class, 'prepareEntries'])->name('lucky_draw.prepare');
     Route::post('/lucky-draw/{sessionId}/draw', [LucyDrawEntriesController::class, 'runDraw'])->name('lucky_draw.draw');
+    Route::post('/lucky-draw/{sessionId}/complete', [LucyDrawEntriesController::class, 'completeSession'])->name('lucky_draw.complete');
     Route::get('/lucky-draw/{sessionId}/winners', [LucyDrawEntriesController::class, 'winners'])->name('lucky_draw.winners');
 
     Route::get('/events', [EventsController::class, 'index'])->name('events.index');

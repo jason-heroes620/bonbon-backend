@@ -77,6 +77,47 @@ export function DataTable<T>({
         manualFiltering: true,
     });
 
+    const getPaginationPages = (pageCount: number, pageIndex: number) => {
+        const maxButtons = 7;
+        if (pageCount <= maxButtons) {
+            return Array.from({ length: pageCount }, (_, i) => i);
+        }
+
+        const first = 0;
+        const last = pageCount - 1;
+        const pages: (number | "ellipsis")[] = [];
+
+        pages.push(first);
+
+        const siblings = 1;
+        let start = Math.max(pageIndex - siblings, first + 1);
+        let end = Math.min(pageIndex + siblings, last - 1);
+
+        const remainingSlots = maxButtons - 2;
+        const windowSize = end - start + 1;
+        if (windowSize < remainingSlots) {
+            const deficit = remainingSlots - windowSize;
+            const shiftLeft = Math.min(deficit, start - (first + 1));
+            start -= shiftLeft;
+            const shiftRight = deficit - shiftLeft;
+            end = Math.min(last - 1, end + shiftRight);
+        }
+
+        if (start > first + 1) {
+            pages.push("ellipsis");
+        }
+        for (let i = start; i <= end; i++) {
+            pages.push(i);
+        }
+        if (end < last - 1) {
+            pages.push("ellipsis");
+        }
+
+        pages.push(last);
+
+        return pages;
+    };
+
     return (
         <div className="space-y-4">
             {/* Search and Filters */}
@@ -243,24 +284,31 @@ export function DataTable<T>({
                             Previous
                         </Button>
                         <div className="flex gap-1">
-                            {Array.from(
-                                { length: table.getPageCount() },
-                                (_, index) => (
+                            {getPaginationPages(
+                                table.getPageCount(),
+                                table.getState().pagination.pageIndex,
+                            ).map((p, idx) =>
+                                p === "ellipsis" ? (
+                                    <div
+                                        key={`ellipsis-${idx}`}
+                                        className="px-2 py-2 text-gray-500 select-none"
+                                    >
+                                        ...
+                                    </div>
+                                ) : (
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        key={index}
-                                        onClick={() =>
-                                            table.setPageIndex(index)
-                                        }
+                                        key={p}
+                                        onClick={() => table.setPageIndex(p)}
                                         className={`rounded-md border bg-white px-4 py-2 hover:text-[#F06F40] ${
                                             table.getState().pagination
-                                                .pageIndex === index
+                                                .pageIndex === p
                                                 ? "bg-[#F06F40] text-white opacity-80"
                                                 : "text-gray-700"
                                         }`}
                                     >
-                                        {index + 1}
+                                        {p + 1}
                                     </Button>
                                 ),
                             )}

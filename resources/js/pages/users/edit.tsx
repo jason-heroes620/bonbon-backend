@@ -47,6 +47,7 @@ type UserEditFormValues = {
     membership_end_date?: string;
     inactive_reason?: string;
     auto_renew?: boolean;
+    credit_balance?: number;
 };
 
 const roleOptions: { value: UserEditFormValues["role"]; label: string }[] = [
@@ -454,6 +455,19 @@ const Edit = ({ user, memberships, userMembership }: Props) => {
                                     id="membership_end_date"
                                     className="border border-[#D1D5DB] rounded-md px-4 py-2"
                                     {...methods.register("membership_end_date")}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="credit_balance">
+                                    Credit Balance
+                                </Label>
+                                <Input
+                                    type="number"
+                                    id="credit_balance"
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    value={user.credit_balance}
+                                    disabled
                                 />
                             </div>
 

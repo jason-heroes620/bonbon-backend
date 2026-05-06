@@ -57,7 +57,7 @@ class ReferralReportsController extends Controller
             ])
             ->orderBy('users.email', 'asc');
 
-        $items = $query->get()->map(fn ($u) => [
+        $items = $query->get()->map(fn($u) => [
             'value' => $u->user_id,
             'label' => trim(($u->email ?? '') . ' - ' . ($u->first_name ?? '') . ' ' . ($u->last_name ?? '') . ' (' . strtoupper((string) $u->membership_type) . ')'),
         ])->values();
@@ -103,7 +103,7 @@ class ReferralReportsController extends Controller
             ])
             ->where('month', $month)
             ->where('year', $year)
-            ->when($userId, fn ($q) => $q->where('user_id', $userId))
+            ->when($userId, fn($q) => $q->where('user_id', $userId))
             ->groupBy('user_id');
 
         $rows = User::query()
@@ -125,7 +125,7 @@ class ReferralReportsController extends Controller
             ])
             ->orderByDesc('earnings.total_payable')
             ->get()
-            ->map(fn ($r) => [
+            ->map(fn($r) => [
                 'user_id' => $r->user_id,
                 'first_name' => $r->first_name,
                 'last_name' => $r->last_name,
@@ -141,4 +141,3 @@ class ReferralReportsController extends Controller
         ]);
     }
 }
-

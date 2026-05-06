@@ -153,6 +153,9 @@ class LucyDrawEntriesController extends Controller
         if (!$session) {
             return response()->json(['message' => 'Session not found.'], 404);
         }
+        if ($session->session_status === 'completed') {
+            return response()->json(['message' => 'Session is completed.'], 422);
+        }
 
         $eligibleUsers = User::query()
             ->select(['user_id', 'email'])
@@ -210,6 +213,9 @@ class LucyDrawEntriesController extends Controller
         $session = LuckyDrawSession::query()->where('id', $sessionId)->first();
         if (!$session) {
             return response()->json(['message' => 'Session not found.'], 404);
+        }
+        if ($session->session_status === 'completed') {
+            return response()->json(['message' => 'Session is completed.'], 422);
         }
 
         $winnerCount = (int) $request->input('winner_count', $session->winners_count ?: 1);
@@ -279,6 +285,31 @@ class LucyDrawEntriesController extends Controller
 
         return response()->json([
             'data' => $winners,
+        ]);
+    }
+
+    public function completeSession(Request $request, string $sessionId)
+    {
+        $user = $request->user();
+        if (!$user || $user->role !== 'admin') {
+            abort(403);
+        }
+
+        $session = LuckyDrawSession::query()->where('id', $sessionId)->first();
+        if (!$session) {
+            return response()->json(['message' => 'Session not found.'], 404);
+        }
+
+        if ($session->session_status !== 'completed') {
+            $session->session_status = 'completed';
+            $session->save();
+        }
+
+        return response()->json([
+            'data' => [
+                'id' => $session->id,
+                'session_status' => $session->session_status,
+            ],
         ]);
     }
 

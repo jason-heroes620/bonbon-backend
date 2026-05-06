@@ -78,6 +78,7 @@ export type User = {
     is_active: boolean;
     role: string;
     profile_picture?: string | null;
+    credit_balance?: number;
 };
 
 export type ReferralByUser = {

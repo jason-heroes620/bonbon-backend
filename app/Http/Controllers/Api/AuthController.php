@@ -166,7 +166,7 @@ class AuthController extends Controller
                 $this->creditService->addCredits(
                     $user,
                     (int) $credit->credit_amount,
-                    (string) $credit->transaction_name,
+                    (string) $credit->transaction_type,
                     null,
                     'Account registration'
                 );

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Referrals;
-use App\Models\User;
 use App\Models\UserMemberships;
 use Illuminate\Http\Request;
 
@@ -48,6 +47,7 @@ class ReferralController extends Controller
             // return total no. of referee
             $totalReferee = Referrals::query()
                 ->where('referral_code', $referralCode)
+                ->where('referral_status', 'qualified')
                 ->count();
         }
 
@@ -59,21 +59,22 @@ class ReferralController extends Controller
     }
 
     // check if user membership belongs to KOL or FOBB
-    private function checkMembershipType(string $referralCode): bool
+    private function checkMembershipType(string $referralCode): string
     {
-        $user_id = User::query()
-            ->where('referral_code', $referralCode)
-            ->first()->user_id;
+        $normalizedReferralCode = strtoupper(trim($referralCode));
+        if ($normalizedReferralCode === '') {
+            return 'Free';
+        }
 
-        // check user membership type
         $membership_type = UserMemberships::query()
+            ->join('users', 'user_memberships.user_id', '=', 'users.user_id')
             ->leftJoin('memberships', 'user_memberships.membership_id', '=', 'memberships.membership_id')
             ->leftJoin('membership_types', 'memberships.membership_type_id', '=', 'membership_types.membership_type_id')
-            ->where('user_id', $user_id)
-            ->where('membership_status', 'active')
+            ->whereRaw('UPPER(users.referral_code) = ?', [$normalizedReferralCode])
+            ->where('user_memberships.membership_status', 'active')
             ->orderBy('user_memberships.membership_end_date', 'desc')
-            ->first()->membership_type;
+            ->value('membership_types.membership_type');
 
-        return $membership_type;
+        return $membership_type ?: 'Free';
     }
 }

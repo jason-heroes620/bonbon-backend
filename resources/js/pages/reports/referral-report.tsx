@@ -114,6 +114,12 @@ export default function ReferralReport({
         [rows],
     );
 
+    const totalReferrals = useMemo(
+        () =>
+            rows.reduce((sum, r) => sum + (Number(r.total_referrals) || 0), 0),
+        [rows],
+    );
+
     return (
         <AppLayout>
             <Head title="Referral Report" />
@@ -208,13 +214,13 @@ export default function ReferralReport({
                                     Email
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-bold tracking-wider text-gray-500">
-                                    Membership
+                                    Membership Type
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-bold tracking-wider text-gray-500">
                                     Referrals
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-bold tracking-wider text-gray-500">
-                                    Total Payable
+                                    Total Payable (RM)
                                 </th>
                             </tr>
                         </thead>
@@ -238,25 +244,41 @@ export default function ReferralReport({
                                     </td>
                                 </tr>
                             ) : (
-                                rows.map((r) => (
-                                    <tr key={r.user_id}>
-                                        <td className="px-6 py-3 text-sm whitespace-nowrap">
-                                            {`${r.first_name ?? ""} ${r.last_name ?? ""}`.trim()}
+                                <>
+                                    {rows.map((r) => (
+                                        <tr key={r.user_id}>
+                                            <td className="px-6 py-3 text-sm whitespace-nowrap">
+                                                {`${r.first_name ?? ""} ${r.last_name ?? ""}`.trim()}
+                                            </td>
+                                            <td className="px-6 py-3 text-sm whitespace-nowrap">
+                                                {r.email}
+                                            </td>
+                                            <td className="px-6 py-3 text-sm whitespace-nowrap">
+                                                {r.membership_type}
+                                            </td>
+                                            <td className="px-6 py-3 text-sm whitespace-nowrap">
+                                                {r.total_referrals}
+                                            </td>
+                                            <td className="px-6 py-3 text-sm whitespace-nowrap">
+                                                {r.total_payable.toFixed(2)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    <tr className="bg-gray-50 font-semibold">
+                                        <td
+                                            className="px-6 py-3 text-sm"
+                                            colSpan={3}
+                                        >
+                                            Total
                                         </td>
                                         <td className="px-6 py-3 text-sm whitespace-nowrap">
-                                            {r.email}
+                                            {totalReferrals}
                                         </td>
                                         <td className="px-6 py-3 text-sm whitespace-nowrap">
-                                            {r.membership_type}
-                                        </td>
-                                        <td className="px-6 py-3 text-sm whitespace-nowrap">
-                                            {r.total_referrals}
-                                        </td>
-                                        <td className="px-6 py-3 text-sm whitespace-nowrap">
-                                            {r.total_payable}
+                                            {totalPayable.toFixed(2)}
                                         </td>
                                     </tr>
-                                ))
+                                </>
                             )}
                         </tbody>
                     </table>
@@ -275,4 +297,3 @@ export default function ReferralReport({
         </AppLayout>
     );
 }
-

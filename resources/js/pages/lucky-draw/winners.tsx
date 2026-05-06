@@ -27,6 +27,9 @@ type Winner = {
 
 const LuckyDrawWinnersPage = ({ session }: { session: Session }) => {
     const sessionId = session.id;
+    const [sessionStatus, setSessionStatus] = useState<
+        Session["session_status"]
+    >(session.session_status);
     const [winnerCount, setWinnerCount] = useState<number>(
         Math.max(1, session.winners_count || 1),
     );
@@ -45,6 +48,8 @@ const LuckyDrawWinnersPage = ({ session }: { session: Session }) => {
             })
             .finally(() => setLoading(false));
     }, [sessionId]);
+
+    const isCompleted = sessionStatus === "completed";
 
     const handlePrepare = async () => {
         setLoading(true);
@@ -89,6 +94,22 @@ const LuckyDrawWinnersPage = ({ session }: { session: Session }) => {
         }
     };
 
+    const handleCompleteSession = async () => {
+        setLoading(true);
+        try {
+            await axios.post(route("lucky_draw.complete", sessionId));
+            setSessionStatus("completed");
+            toast.success("Session marked as completed");
+        } catch (e: any) {
+            const message =
+                e?.response?.data?.message ??
+                "Failed to mark session as completed";
+            toast.error(message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <AppLayout>
             <div className="flex px-4 py-2 w-full">
@@ -108,8 +129,19 @@ const LuckyDrawWinnersPage = ({ session }: { session: Session }) => {
                                 Lucky Draw - {session.session_name}
                             </h2>
                         </div>
-                        <div className="text-sm text-gray-700">
-                            {session.session_status}
+                        <div className="flex items-center gap-2">
+                            <div className="text-sm text-gray-700">
+                                {sessionStatus}
+                            </div>
+                            <Button
+                                type="button"
+                                size={"sm"}
+                                variant="outline"
+                                disabled={loading || isCompleted}
+                                onClick={handleCompleteSession}
+                            >
+                                Mark Completed
+                            </Button>
                         </div>
                     </div>
 
@@ -121,6 +153,7 @@ const LuckyDrawWinnersPage = ({ session }: { session: Session }) => {
                                     type="number"
                                     min={1}
                                     value={winnerCount}
+                                    disabled={loading || isCompleted}
                                     onChange={(e) =>
                                         setWinnerCount(
                                             Math.max(1, Number(e.target.value)),
@@ -133,14 +166,14 @@ const LuckyDrawWinnersPage = ({ session }: { session: Session }) => {
                                 <Button
                                     type="button"
                                     variant="secondary"
-                                    disabled={loading}
+                                    disabled={loading || isCompleted}
                                     onClick={handlePrepare}
                                 >
                                     Prepare User Entries
                                 </Button>
                                 <Button
                                     type="button"
-                                    disabled={loading}
+                                    disabled={loading || isCompleted}
                                     onClick={handleDraw}
                                 >
                                     Run Draw
