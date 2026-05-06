@@ -169,8 +169,8 @@ class LucyDrawEntriesController extends Controller
                     ->where('membership_status', 'active')
                     ->first();
 
-                $eligible = $membership && $membership->membership
-                    ? ($membership->membership->membership_type === 'Standard' ? 5 : 1)
+                $eligible = $membership
+                    ? ($membership->membership_type === 'Standard' ? 5 : 1)
                     : 1;
 
                 LuckyDrawEntries::query()->create([
