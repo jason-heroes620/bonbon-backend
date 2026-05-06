@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import axios from "axios";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { router } from "@inertiajs/react";
+import { ChevronLeft } from "lucide-react";
 
 type Session = {
     id: number;
@@ -23,42 +25,15 @@ type Winner = {
     won_at?: string;
 };
 
-const LuckyDrawWinnersPage = ({
-    sessions,
-    initialSessionId,
-}: {
-    sessions: Session[];
-    initialSessionId?: number | string | null;
-}) => {
-    const defaultSessionId = useMemo(() => {
-        const candidate =
-            initialSessionId !== undefined &&
-            initialSessionId !== null &&
-            String(initialSessionId) !== ""
-                ? Number(initialSessionId)
-                : null;
-        if (
-            candidate !== null &&
-            !Number.isNaN(candidate) &&
-            sessions.some((s) => s.id === candidate)
-        ) {
-            return candidate;
-        }
-        const pending = sessions.find((s) => s.session_status === "pending");
-        return pending?.id ?? sessions[0]?.id ?? null;
-    }, [initialSessionId, sessions]);
-
-    const [sessionId, setSessionId] = useState<number | null>(defaultSessionId);
-    const [winnerCount, setWinnerCount] = useState<number>(2);
+const LuckyDrawWinnersPage = ({ session }: { session: Session }) => {
+    const sessionId = session.id;
+    const [winnerCount, setWinnerCount] = useState<number>(
+        Math.max(1, session.winners_count || 1),
+    );
     const [loading, setLoading] = useState(false);
     const [winners, setWinners] = useState<Winner[]>([]);
 
     useEffect(() => {
-        if (!sessionId) {
-            setWinners([]);
-            return;
-        }
-
         setLoading(true);
         axios
             .get(route("lucky_draw.winners", sessionId))
@@ -72,7 +47,6 @@ const LuckyDrawWinnersPage = ({
     }, [sessionId]);
 
     const handlePrepare = async () => {
-        if (!sessionId) return;
         setLoading(true);
         try {
             const res = await axios.post(
@@ -92,7 +66,6 @@ const LuckyDrawWinnersPage = ({
     };
 
     const handleDraw = async () => {
-        if (!sessionId) return;
         setLoading(true);
         try {
             const res = await axios.post(route("lucky_draw.draw", sessionId), {
@@ -121,37 +94,27 @@ const LuckyDrawWinnersPage = ({
             <div className="flex px-4 py-2 w-full">
                 <div className="flex-1">
                     <div className="flex justify-between items-center bg-[#3730A3]/20 px-4 py-2 rounded-md">
-                        <div>
+                        <div className="flex items-center gap-4">
+                            <Button
+                                variant="default"
+                                onClick={() =>
+                                    router.visit(route("lucky_draw.sessions"))
+                                }
+                            >
+                                <ChevronLeft className="mr" size={20} />
+                                Back
+                            </Button>
                             <h2 className="text-lg font-bold text-[#3730A3]">
-                                Lucky Draw
+                                Lucky Draw - {session.session_name}
                             </h2>
+                        </div>
+                        <div className="text-sm text-gray-700">
+                            {session.session_status}
                         </div>
                     </div>
 
                     <div className="mt-4 bg-white p-6 rounded-md shadow-md">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="flex flex-col gap-2">
-                                <Label>Session</Label>
-                                <select
-                                    className="border border-[#D1D5DB] rounded-md px-3 py-2"
-                                    value={sessionId ?? ""}
-                                    onChange={(e) => {
-                                        const v = e.target.value;
-                                        setSessionId(v ? Number(v) : null);
-                                    }}
-                                >
-                                    <option value="" disabled>
-                                        Select session
-                                    </option>
-                                    {sessions.map((s) => (
-                                        <option key={s.id} value={s.id}>
-                                            {s.session_name} ({s.session_status}
-                                            )
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
                             <div className="flex flex-col gap-2">
                                 <Label>Winners Count</Label>
                                 <Input
@@ -170,14 +133,14 @@ const LuckyDrawWinnersPage = ({
                                 <Button
                                     type="button"
                                     variant="secondary"
-                                    disabled={!sessionId || loading}
+                                    disabled={loading}
                                     onClick={handlePrepare}
                                 >
                                     Prepare User Entries
                                 </Button>
                                 <Button
                                     type="button"
-                                    disabled={!sessionId || loading}
+                                    disabled={loading}
                                     onClick={handleDraw}
                                 >
                                     Run Draw

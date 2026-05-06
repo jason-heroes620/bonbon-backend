@@ -117,9 +117,14 @@ class LucyDrawEntriesController extends Controller
             abort(403);
         }
 
-        $sessions = LuckyDrawSession::query()
-            ->orderByDesc('id')
-            ->get([
+        $sessionId = $request->query('session_id');
+        if (!$sessionId) {
+            return redirect()->route('lucky_draw.sessions');
+        }
+
+        $session = LuckyDrawSession::query()
+            ->where('id', $sessionId)
+            ->first([
                 'id',
                 'session_name',
                 'session_status',
@@ -128,9 +133,12 @@ class LucyDrawEntriesController extends Controller
                 'session_end_time',
             ]);
 
+        if (!$session) {
+            abort(404);
+        }
+
         return Inertia::render('lucky-draw/winners', [
-            'sessions' => $sessions,
-            'initialSessionId' => $request->query('session_id'),
+            'session' => $session,
         ]);
     }
 
