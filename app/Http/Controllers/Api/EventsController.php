@@ -14,7 +14,6 @@ class EventsController extends Controller
     {
         $events = Events::where('is_active', true)
             ->where('is_published', true)
-            ->where('event_start_date', '<=', date('Y-m-d'))
             ->where('event_end_date', '>=', date('Y-m-d'))
             ->where('is_published', true)
             ->where('is_active', true)
