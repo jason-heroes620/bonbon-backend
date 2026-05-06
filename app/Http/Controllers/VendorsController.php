@@ -227,7 +227,6 @@ class VendorsController extends Controller
         if ($vendor->profile_picture !== null) {
             $vendor->profile_picture = Storage::url($vendor->profile_picture);
         }
-        Log::info($vendor);
         return Inertia::render('vendors/edit', [
             'vendor' => $vendor,
             'categories' => $categories,

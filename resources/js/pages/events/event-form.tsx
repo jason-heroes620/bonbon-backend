@@ -240,7 +240,6 @@ export function EventForm({
                     forceFormData: true,
                     onSuccess: () => {
                         toast.success("Event updated successfully");
-                        router.visit(route("events.index"));
                     },
                     onError: (errors: Record<string, string>) => {
                         toast.error("Failed to update event");

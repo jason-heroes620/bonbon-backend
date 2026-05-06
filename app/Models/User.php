@@ -69,4 +69,16 @@ class User extends Authenticatable implements MustVerifyEmail
         $token = UserPushTokens::where('user_id', $this->user_id)->first()->expo_push_token;
         return $token;
     }
+
+    public function userMembership()
+    {
+        // Fetch the user's membership
+        $membership = UserMemberships::where('user_id', $this->user_id)
+            ->where('membership_status', 'active')
+            ->first()
+            ->membership_type;
+        if (!$membership) {
+            return null;
+        }
+    }
 }

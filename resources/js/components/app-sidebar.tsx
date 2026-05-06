@@ -131,6 +131,16 @@ const allItems: {
         ],
     },
     {
+        title: "Lucky Draw",
+        icon: Award,
+        items: [
+            {
+                title: "All Sessions",
+                url: "/lucky-draw/sessions",
+            },
+        ],
+    },
+    {
         title: "Users",
         icon: Users,
         items: [

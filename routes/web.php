@@ -24,6 +24,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserInterestListController;
 use App\Http\Controllers\VendorsController;
 use App\Http\Controllers\VouchersController;
+use App\Http\Controllers\LucyDrawEntriesController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 
@@ -84,6 +85,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/vouchers/create', [VouchersController::class, 'store'])->name('vouchers.store');
     Route::get('/vouchers/{voucher}', [VouchersController::class, 'edit'])->name('vouchers.edit');
     Route::put('/vouchers/{voucher}', [VouchersController::class, 'update'])->name('vouchers.update');
+
+    Route::get('/lucky-draw/sessions', [LucyDrawEntriesController::class, 'sessionsPage'])->name('lucky_draw.sessions');
+    Route::get('/lucky-draw/sessions/all', [LucyDrawEntriesController::class, 'sessionsAll'])->name('lucky_draw.sessions_all');
+    Route::get('/lucky-draw/sessions/create', [LucyDrawEntriesController::class, 'createSessionPage'])->name('lucky_draw.sessions.create');
+    Route::post('/lucky-draw/sessions', [LucyDrawEntriesController::class, 'storeSession'])->name('lucky_draw.sessions.store');
+    Route::get('/lucky-draw', [LucyDrawEntriesController::class, 'page'])->name('lucky_draw.page');
+    Route::post('/lucky-draw/{sessionId}/prepare', [LucyDrawEntriesController::class, 'prepareEntries'])->name('lucky_draw.prepare');
+    Route::post('/lucky-draw/{sessionId}/draw', [LucyDrawEntriesController::class, 'runDraw'])->name('lucky_draw.draw');
+    Route::get('/lucky-draw/{sessionId}/winners', [LucyDrawEntriesController::class, 'winners'])->name('lucky_draw.winners');
 
     Route::get('/events', [EventsController::class, 'index'])->name('events.index');
     Route::get('/events/all', [EventsController::class, 'showAll'])->name('events.all');

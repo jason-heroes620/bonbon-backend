@@ -23,9 +23,9 @@ class LDAuthController extends Controller
             ->where('email', $validated['email'])
             ->where('role', 'BBLDAdmin')
             ->first();
-        Log::info($user);
+
+
         if (!$user || !Hash::check($validated['password'], $user->password)) {
-            Log::info("failed to login ");
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
