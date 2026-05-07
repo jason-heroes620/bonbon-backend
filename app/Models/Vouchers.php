@@ -34,6 +34,7 @@ class Vouchers extends Model
         'is_unlimited',
         'tnc',
         'how_to_use',
+        'voucher_claim_points',
     ];
 
     protected $casts = [

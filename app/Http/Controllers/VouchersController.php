@@ -158,6 +158,7 @@ class VouchersController extends Controller
             'is_unlimited' => 'nullable|boolean',
             'tnc' => 'nullable|string',
             'how_to_use' => 'nullable|string',
+            'voucher_claim_points' => 'required|integer|min:0',
         ]);
 
         $user = $request->user();
@@ -305,6 +306,7 @@ class VouchersController extends Controller
             'is_unlimited' => 'nullable|boolean',
             'tnc' => 'nullable|string',
             'how_to_use' => 'nullable|string',
+            'voucher_claim_points' => 'required|integer|min:0',
         ]);
 
         $user = $request->user();

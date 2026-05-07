@@ -34,7 +34,7 @@ Route::middleware(['auth:sanctum'])->group(
         // Vouchers
         Route::get('/vouchers', [VouchersController::class, 'vouchers']);
         Route::get('/vouchers/{voucher_id}', [VouchersController::class, 'voucher']);
-        Route::post('/vouchers/{voucher_id}/claim', [VouchersController::class, 'claim']);
+        Route::post('/vouchers/{voucher_id}/claim/{points}', [VouchersController::class, 'claim']);
         Route::get('/vouchers/{voucher_id}/history', [VouchersController::class, 'history']);
         Route::get('/vouchers/{voucher_id}/check-validity', [VouchersController::class, 'checkIfVoucherIsValid']);
 
@@ -84,6 +84,8 @@ Route::middleware(['auth:sanctum'])->group(
 
         // user
         Route::get('/user/{user_id}', [UserController::class, 'show']);
+        Route::get('/users/me/points', [UserController::class, 'mePoints']);
+        Route::get('/users/me/points/transactions', [UserController::class, 'mePointsTransactions']);
 
         // Vendor Profile
         Route::get('/merchant/profile', [VendorsController::class, 'merchantProfile']);

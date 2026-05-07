@@ -67,6 +67,7 @@ const voucherSchema = z
         tnc: z.string().optional(),
         how_to_use: z.string().optional(),
         is_unlimited: z.boolean().default(false),
+        voucher_claim_points: z.coerce.number().int().min(0).default(0),
     })
     .superRefine((values, ctx) => {
         if (values.voucher_claim_period && !values.voucher_claim_per_period) {
@@ -565,6 +566,20 @@ export function VoucherForm({
                     {errors.membership_ids && (
                         <p className="text-sm text-red-500">
                             {String(errors.membership_ids.message)}
+                        </p>
+                    )}
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="voucher_claim_points">Claim Points</Label>
+                    <Input
+                        type="number"
+                        id="voucher_claim_points"
+                        {...register("voucher_claim_points")}
+                        min={0}
+                    />
+                    {errors.voucher_claim_points && (
+                        <p className="text-sm text-red-500">
+                            {String(errors.voucher_claim_points.message)}
                         </p>
                     )}
                 </div>

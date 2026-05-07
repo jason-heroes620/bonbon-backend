@@ -31,6 +31,7 @@ return new class extends Migration
             $table->boolean('is_unlimited')->default(false);
             $table->text('tnc')->nullable();
             $table->text('how_to_use')->nullable();
+            $table->integer('voucher_claim_points')->default(0);
             $table->timestamps();
         });
     }
