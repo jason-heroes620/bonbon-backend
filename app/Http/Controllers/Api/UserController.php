@@ -49,19 +49,20 @@ class UserController extends Controller
         // request pagination parameter
         $page = $request->input('page', 1);
         $limit = $request->input('limit', 10);
+
         $start_date = $request->input('start_date', null);
         $end_date = $request->input('end_date', null);
         if ($start_date && $end_date) {
             $transactions = CreditTransactions::query()
                 ->where('user_id', $user->user_id)
                 ->whereBetween('created_at', [$start_date, $end_date])
-                ->limit($limit)
-                ->paginate($page);
+                ->latest()
+                ->paginate($limit, ['credit_amount', 'created_at', 'transaction_type'], 'page', $page);
         } else {
             $transactions = CreditTransactions::query()
                 ->where('user_id', $user->user_id)
-                ->limit($limit)
-                ->paginate($page);
+                ->latest()
+                ->paginate($limit, ['credit_amount', 'created_at', 'transaction_type'], 'page', $page);
         }
 
         return response()->json([
