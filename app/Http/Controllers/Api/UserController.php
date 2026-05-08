@@ -54,7 +54,7 @@ class UserController extends Controller
         if ($start_date && $end_date) {
             $transactions = CreditTransactions::query()
                 ->where('user_id', $user->user_id)
-                ->whereBetween('transaction_date', [$start_date, $end_date])
+                ->whereBetween('created_at', [$start_date, $end_date])
                 ->latest()
                 ->limit($limit)
                 ->paginate($page);
