@@ -12,7 +12,7 @@ class UserController extends Controller
 {
     public function show($user_id)
     {
-        $user = User::find($user_id);
+        $user = User::find($user_id, 'user_id');
         $user->membership = $this->getUserMembership($user->user_id);
 
         if (!$user) {
@@ -71,7 +71,7 @@ class UserController extends Controller
         ]);
     }
 
-    private function getUserMembership($user_id)
+    private function getUserMembership(string $user_id)
     {
         $membership = UserMemberships::where('user_id', $user_id)
             ->join('memberships', 'memberships.membership_id', '=', 'user_memberships.membership_id')

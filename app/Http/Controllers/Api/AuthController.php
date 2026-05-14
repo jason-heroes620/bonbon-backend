@@ -443,9 +443,9 @@ class AuthController extends Controller
         ]);
     }
 
-    private function getUserMembership($user_id)
+    private function getUserMembership(string $user_id)
     {
-        $membership = UserMemberships::where('user_id', $user_id)
+        $membership = UserMemberships::query()->where('user_id', $user_id)
             ->join('memberships', 'memberships.membership_id', '=', 'user_memberships.membership_id')
             ->select('memberships.membership_type', 'user_memberships.membership_status', 'user_memberships.membership_end_date')
             ->where('user_memberships.membership_status', 'active')
@@ -454,7 +454,7 @@ class AuthController extends Controller
         return $membership;
     }
 
-    private function getUserMembershipType($user_id): ?string
+    private function getUserMembershipType(string $user_id): ?string
     {
         return UserMemberships::query()
             ->where('user_id', $user_id)

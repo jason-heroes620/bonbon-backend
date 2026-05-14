@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Discounts;
 use App\Models\Memberships;
+use App\Models\Referrals;
 use App\Models\UserInterestList;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -66,13 +68,44 @@ class MembershipController extends Controller
                 ->orderBy('memberships.sort_order', 'asc')
                 ->get();
 
-            $memberships = $memberships->map(function ($membership) {
-                if (
-                    isset($membership->discounted_sale_price) &&
-                    $membership->discounted_sale_price !== null
-                ) {
-                    $membership->membership_price = number_format($membership->discounted_sale_price, 2);
+            $refereeDiscount = null;
+            $isReferee = Referrals::query()
+                ->where('referee_id', $user->user_id)
+                ->exists();
+
+            if ($isReferee) {
+                $refereeDiscount = Discounts::query()
+                    ->where('discount_code', 'MEMREF2026')
+                    ->where('is_active', 1)
+                    ->where(function ($q) use ($today) {
+                        $q->whereNull('discount_start_date')
+                            ->orWhere('discount_start_date', '<=', $today);
+                    })
+                    ->where(function ($q) use ($today) {
+                        $q->whereNull('discount_end_date')
+                            ->orWhere('discount_end_date', '>=', $today);
+                    })
+                    ->first(['discount_type', 'discount_amount']);
+            }
+
+            $memberships = $memberships->map(function ($membership) use ($refereeDiscount) {
+                $basePrice = (float) ($membership->discounted_sale_price ?? $membership->sale_price ?? $membership->membership_price ?? 0);
+                $finalPrice = $basePrice;
+
+                if ($refereeDiscount) {
+                    $discountAmount = (float) ($refereeDiscount->discount_amount ?? 0);
+                    if ($refereeDiscount->discount_type === 'P') {
+                        $finalPrice = $basePrice - ($basePrice * ($discountAmount / 100));
+                    } else {
+                        $finalPrice = $basePrice - $discountAmount;
+                    }
+
+                    if ($finalPrice < 0) {
+                        $finalPrice = 0;
+                    }
                 }
+
+                $membership->membership_price = number_format($finalPrice, 2);
                 return $membership;
             });
         }
