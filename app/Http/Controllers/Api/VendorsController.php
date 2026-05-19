@@ -250,6 +250,7 @@ class VendorsController extends Controller
                 'category_id',
                 'category_name',
             ])
+            ->orderBy('sort_order', 'asc')
             ->get();
 
         return response()->json([
