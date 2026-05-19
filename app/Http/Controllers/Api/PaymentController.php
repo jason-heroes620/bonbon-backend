@@ -72,7 +72,7 @@ class PaymentController extends Controller
 
         $merchantCode = config('services.ipay88.code');
         $merchantKey = config('services.ipay88.key');
-        Log::info($merchantKey);
+
         $refNo = $this->generateOrderNo();
         $amountRaw = (string) $request->input('amount');
         $amount = str_replace(['.', ','], '', $amountRaw); // Format: 100.00 -> 10000
@@ -86,7 +86,8 @@ class PaymentController extends Controller
         Log::info("PAYLOAD_TO_HASH: '" . $payload . "'");
         Log::info("PAYLOAD_HEX_DUMP: " . bin2hex($payload));
 
-        $signature = base64_encode(hash('sha1', $payload, true));
+        // cannot change this algorithm, important
+        $signature = hash_hmac('sha512', $payload, $merchantKey);
         Log::info('signature');
         Log::info($signature);
 
@@ -217,12 +218,14 @@ class PaymentController extends Controller
                         'is_active' => true,
                     ]);
 
-                    User::where('user_id', $user->user_id)->update([
-                        'referral_code' => $referralCode,
-                    ]);
+                    User::query()
+                        ->where('user_id', $user->user_id)->update([
+                            'referral_code' => $referralCode,
+                        ]);
                 }
                 // update user membership to inactive before creating new one
-                UserMemberships::where('user_id', $user->user_id)
+                UserMemberships::query()
+                    ->where('user_id', $user->user_id)
                     ->where('membership_status', 'active')
                     ->update([
                         'membership_status' => 'inactive',
@@ -347,7 +350,9 @@ class PaymentController extends Controller
         // The specific order for Response Signature:
         // MerchantKey + MerchantCode + PaymentId + RefNo + Amount + Currency + Status
         $rawString = $merchantKey . $merchantCode . $paymentId . $refNo . $amount . $currency . $status;
-        $computedSignature = base64_encode(hash('sha1', $rawString, true));
+
+        // cannot change this algorithm, important
+        $computedSignature = hash_hmac('sha512', $rawString, $merchantKey);
 
         if (hash_equals((string) $computedSignature, (string) $request->Signature)) {
             return true;
