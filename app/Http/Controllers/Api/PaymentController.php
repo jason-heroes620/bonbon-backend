@@ -154,7 +154,7 @@ class PaymentController extends Controller
         if ($request->has('Xfield1') && $request->Xfield1 === 'Events') {
 
             // 1. Silent API-to-API POST request
-            $apiResponse = Http::post('https://events.bonbon.com/api/payments/backend', $request->all());
+            $apiResponse = Http::post('https://events.bonbon.com.my/api/payments/backend', $request->all());
             Log::info('post to events');
 
             // 2. Check if the second server accepted the data successfully
