@@ -123,7 +123,7 @@ Route::post('/payments/frontend-callback', function (Request $request) {
     $userAgent = $request->header('User-Agent');
 
     if ($request->has('Xfield1') && $request->Xfield1 === 'Events') {
-        return redirect()->away("https://bonbon.com.my/api/payments/" . $request->RefNo);
+        return redirect()->away("https://events.bonbon.com.my/api/payments/" . $request->RefNo);
     }
 
     Log::info('User-Agent: ' . $userAgent);
