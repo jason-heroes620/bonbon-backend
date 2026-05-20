@@ -155,16 +155,16 @@ class PaymentController extends Controller
 
             // 1. Silent API-to-API POST request
             $apiResponse = Http::post('https://events.bonbon.com/api/payments/backend', $request->all());
+            Log::info('post to events');
 
             // 2. Check if the second server accepted the data successfully
             if ($apiResponse->successful()) {
-
-                // 3. Clean redirect away to a GET request on another page
-                return redirect()->away("https://bonbon.com.my/api/payments/" . $request->RefNo);
+                Log::info('return success');
+                return response("RECEIVEOK")->header('Content-Type', 'text/plain');
             }
 
             // Handle API failures gracefully
-            return back()->withErrors(['error' => 'Payment processing failed.']);
+            return response("FAILED")->header('Content-Type', 'text/plain');
         }
         try {
             if (!$this->verifySignature($request) || (string) $request->Status !== "1") {

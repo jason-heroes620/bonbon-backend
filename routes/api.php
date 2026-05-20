@@ -121,6 +121,11 @@ Route::post('/payments/backend-callback', [PaymentController::class, 'backendCal
 Route::post('/payments/frontend-callback', function (Request $request) {
     $status = $request->Status; // 1 = Success, 0 = Fail
     $userAgent = $request->header('User-Agent');
+
+    if ($request->has('Xfield1') && $request->Xfield1 === 'Events') {
+        return redirect()->away("https://bonbon.com.my/api/payments/" . $request->RefNo);
+    }
+
     Log::info('User-Agent: ' . $userAgent);
     $appUrl = ($status == "1")
         ? "bonbon://payment-success/" . urlencode($request->RefNo)
