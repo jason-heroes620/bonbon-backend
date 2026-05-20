@@ -18,6 +18,7 @@ use App\Models\UserMemberships;
 use App\Services\CreditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -150,6 +151,21 @@ class PaymentController extends Controller
     // This handles the Server-to-Server notification
     public function backendCallback(Request $request)
     {
+        if ($request->has('Xfield1') && $request->Xfield1 === 'Events') {
+
+            // 1. Silent API-to-API POST request
+            $apiResponse = Http::post('https://events.bonbon.com/api/payments/backend', $request->all());
+
+            // 2. Check if the second server accepted the data successfully
+            if ($apiResponse->successful()) {
+
+                // 3. Clean redirect away to a GET request on another page
+                return redirect()->away("https://bonbon.com.my/api/payments/" . $request->RefNo);
+            }
+
+            // Handle API failures gracefully
+            return back()->withErrors(['error' => 'Payment processing failed.']);
+        }
         try {
             if (!$this->verifySignature($request) || (string) $request->Status !== "1") {
                 return response("FAILED")->header('Content-Type', 'text/plain');
@@ -333,8 +349,6 @@ class PaymentController extends Controller
             Log::error($e->getMessage());
             return response("FAILED")->header('Content-Type', 'text/plain');
         }
-
-        return response("FAILED")->header('Content-Type', 'text/plain');
     }
 
     public function verifySignature(Request $request)
