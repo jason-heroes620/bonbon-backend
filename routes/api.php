@@ -27,13 +27,10 @@ Route::get('/user', function (Request $request) {
 
 Route::middleware(['auth:sanctum'])->group(
     function () {
-        // Events
-        Route::get('/events', [EventsController::class, 'events']);
-        Route::get('/events/{event_id}', [EventsController::class, 'event']);
+
 
         // Vouchers
-        Route::get('/vouchers', [VouchersController::class, 'vouchers']);
-        Route::get('/vouchers/{voucher_id}', [VouchersController::class, 'voucher']);
+
         Route::post('/vouchers/{voucher_id}/claim/{points}', [VouchersController::class, 'claim']);
         Route::get('/vouchers/{voucher_id}/history', [VouchersController::class, 'history']);
         Route::get('/vouchers/{voucher_id}/check-validity', [VouchersController::class, 'checkIfVoucherIsValid']);
@@ -96,6 +93,17 @@ Route::middleware(['auth:sanctum'])->group(
 
         Route::post('/lucky-draw/register-ticket', [RegisterLuckyDrawController::class, 'registerUser']);
         Route::post('/event-check-in', [EventCheckInController::class, 'checkIn']);
+    }
+);
+
+Route::middleware('guest')->group(
+    function () {
+        // Events
+        Route::get('/events', [EventsController::class, 'events']);
+        Route::get('/events/{event_id}', [EventsController::class, 'event']);
+
+        Route::get('/vouchers', [VouchersController::class, 'vouchers']);
+        Route::get('/vouchers/{voucher_id}', [VouchersController::class, 'voucher']);
     }
 );
 
