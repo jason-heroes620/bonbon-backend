@@ -27,10 +27,7 @@ Route::get('/user', function (Request $request) {
 
 Route::middleware(['auth:sanctum'])->group(
     function () {
-
-
         // Vouchers
-
         Route::post('/vouchers/{voucher_id}/claim/{points}', [VouchersController::class, 'claim']);
         Route::get('/vouchers/{voucher_id}/history', [VouchersController::class, 'history']);
         Route::get('/vouchers/{voucher_id}/check-validity', [VouchersController::class, 'checkIfVoucherIsValid']);
@@ -40,10 +37,7 @@ Route::middleware(['auth:sanctum'])->group(
         // My Vouchers
         Route::get('/my-vouchers', [VouchersController::class, 'myVouchers']);
 
-        // Vendors
-        Route::get('/vendors', [VendorsController::class, 'vendors']);
-        Route::get('/getVendor/{vendor_id}', [VendorsController::class, 'vendor']);
-        Route::get('/vendor-categories', [VendorsController::class, 'vendorCategories']);
+
 
         // notifications
         Route::get('/notifications', [NotificationsController::class, 'notifications']);
@@ -104,6 +98,11 @@ Route::middleware('guest')->group(
 
         Route::get('/vouchers', [VouchersController::class, 'vouchers']);
         Route::get('/vouchers/{voucher_id}', [VouchersController::class, 'voucher']);
+
+        // Vendors
+        Route::get('/vendors', [VendorsController::class, 'vendors']);
+        Route::get('/getVendor/{vendor_id}', [VendorsController::class, 'vendor']);
+        Route::get('/vendor-categories', [VendorsController::class, 'vendorCategories']);
     }
 );
 
