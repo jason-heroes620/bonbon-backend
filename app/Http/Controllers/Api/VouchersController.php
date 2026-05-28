@@ -13,9 +13,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use App\Services\CreditService;
 
 class VouchersController extends Controller
 {
+    private CreditService $creditService;
+
+    public function __construct(CreditService $creditService)
+    {
+        $this->creditService = $creditService;
+    }
+
     private function getActiveMembershipId(?string $userId): ?string
     {
         if (!$userId) {
@@ -251,7 +259,13 @@ class VouchersController extends Controller
             return response()->json(['message' => 'Voucher expired.'], 400);
         }
 
-        // Create redeem history
+        // deduct credits if voucher has claim points
+        if ($voucher->voucher_claim_points > 0) {
+            $user = $request->user();
+            $this->creditService->deductCredits($user, $voucher->voucher_claim_points, 'voucher_redeem', null, 'Voucher redeemed');
+        }
+
+        // Create claim history
         UserVouchers::firstOrCreate([
             'voucher_id' => $voucher_id,
             'user_id' => $request->user()->user_id,
@@ -550,9 +564,7 @@ class VouchersController extends Controller
     {
         $vendorIds = $this->getVendorIds($request);
         if ($vendorIds === []) {
-            return response()->json([
-                'message' => 'Vendor not found.',
-            ], 404);
+            return response()->json(['message' => 'Vendor not found.'], 404);
         }
 
         $voucher = Vouchers::query()->where('voucher_id', $voucher_id)->first();
@@ -561,43 +573,58 @@ class VouchersController extends Controller
         }
 
         if (!in_array((string) $voucher->vendor_id, $vendorIds, true)) {
-            return response()->json([
-                'message' => 'Voucher does not belong to this vendor.',
-            ], 403);
+            return response()->json(['message' => 'Voucher does not belong to this vendor.'], 403);
         }
 
-        $userVoucher = UserVouchers::query()
-            ->where('voucher_id', $voucher_id)
-            ->where('user_id', $user_id)
-            ->first();
-        if (!$userVoucher) {
-            return response()->json(['message' => 'User voucher not found.'], 404);
-        }
+        // Use a Database Transaction to prevent race conditions (double taps)
+        return DB::transaction(function () use ($voucher_id, $user_id, $voucher) {
 
-        UserVoucherClaims::query()->create([
-            'user_voucher_id' => $userVoucher->user_voucher_id,
-            'claimed_at' => now(),
-        ]);
-
-        $claimLimit = (int) ($voucher->voucher_claim_per_user ?? 0);
-        if ($claimLimit <= 0) {
-            $claimLimit = 1;
-        }
-        $userClaimCount = UserVoucherClaims::query()
-            ->leftJoin('user_vouchers', 'user_voucher_claims.user_voucher_id', '=', 'user_vouchers.user_voucher_id')
-            ->where('user_vouchers.voucher_id', $voucher_id)
-            ->where('user_vouchers.user_id', $user_id)
-            ->count();
-
-        if ($userClaimCount === $claimLimit) {
-            Log::info('User has reached reached claim limit.');
-            UserVouchers::query()->where('user_id', $user_id)
+            // 1. Lock the user voucher row for writing
+            $userVoucher = UserVouchers::query()
                 ->where('voucher_id', $voucher_id)
-                ->update(['is_valid' => false]);
-        }
+                ->where('user_id', $user_id)
+                ->lockForUpdate()
+                ->first();
 
-        return response()->json([
-            'message' => 'Voucher redeemed successfully.',
-        ]);
+            if (!$userVoucher || !$userVoucher->is_valid) {
+                return response()->json(['message' => 'User voucher not found or no longer valid.'], 404);
+            }
+
+            // 2. Fetch current claim count
+            $claimLimit = (int) ($voucher->voucher_claim_per_user ?? 1);
+            if ($claimLimit <= 0) $claimLimit = 1;
+
+            $userClaimCount = UserVoucherClaims::query()
+                ->where('user_voucher_id', $userVoucher->user_voucher_id)
+                ->count();
+
+            // 3. Early Block Check: Are they already at the limit?
+            if ($userClaimCount >= $claimLimit) {
+                if ($userVoucher->is_valid) {
+                    $userVoucher->update(['is_valid' => false]);
+                }
+                return response()->json(['message' => 'User has reached claim limit.'], 403);
+            }
+
+            // 4. Record the current redemption
+            UserVoucherClaims::query()->create([
+                'user_voucher_id' => $userVoucher->user_voucher_id,
+                'claimed_at' => now(),
+            ]);
+
+            // 5. Smart Cleanup: If this was their LAST allowed claim, invalidate it immediately
+            if (($userClaimCount + 1) >= $claimLimit) {
+                $userVoucher->update(['is_valid' => false]);
+            }
+
+            return response()->json([
+                'message' => 'Voucher redeemed successfully.',
+                // Pro-Tip: Return the remaining/current counts so the frontend can sync its state!
+                'data' => [
+                    'redeemed_count' => $userClaimCount + 1,
+                    'max_vouchers' => $claimLimit
+                ]
+            ]);
+        });
     }
 }
