@@ -19,6 +19,8 @@ class UserMemberships extends Model
         'membership_status',
         'inactive_reason',
         'auto_renew',
+        'max_vouchers',
+        'redeemed_vouchers_count',
     ];
 
     public $timestamps = true;
