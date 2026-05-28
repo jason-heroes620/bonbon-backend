@@ -37,8 +37,6 @@ Route::middleware(['auth:sanctum'])->group(
         // My Vouchers
         Route::get('/my-vouchers', [VouchersController::class, 'myVouchers']);
 
-
-
         // notifications
         Route::get('/notifications', [NotificationsController::class, 'notifications']);
         Route::post('/notifications/mark-all-read', [NotificationsController::class, 'markAsRead']);
@@ -77,6 +75,8 @@ Route::middleware(['auth:sanctum'])->group(
         Route::get('/user/{user_id}', [UserController::class, 'show']);
         Route::get('/users/me/points', [UserController::class, 'mePoints']);
         Route::get('/users/me/points/transactions', [UserController::class, 'mePointsTransactions']);
+
+        Route::post('/user/trial', [UserController::class, 'trial']);
 
         // Vendor Profile
         Route::get('/merchant/profile', [VendorsController::class, 'merchantProfile']);

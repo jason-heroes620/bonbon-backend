@@ -25,6 +25,7 @@ class AuthController extends Controller
     protected CreditService $creditService;
 
     private const FREE_MEMBERSHIP_CODE = 'MEMFREE';
+    private const FREE_TRIAL_CODE = 'FREETRIAL2026';
     private const UNLIMITED_REFERRER_MEMBERSHIP_TYPES = ['KOL', 'FOBB'];
 
     public function __construct(CreditService $creditService)
@@ -158,7 +159,7 @@ class AuthController extends Controller
                 'is_active' => false,
                 'role' => 'user',
             ]);
-            Log::info($user);
+
             $credit = TransactionTypes::query()
                 ->where('transaction_type', 'account_registration')
                 ->first();
@@ -175,7 +176,7 @@ class AuthController extends Controller
             }
 
             $membership = Memberships::query()
-                ->where('membership_code', self::FREE_MEMBERSHIP_CODE)
+                ->where('membership_code', self::FREE_TRIAL_CODE)
                 ->first();
             if (!$membership) {
                 throw ValidationException::withMessages([
