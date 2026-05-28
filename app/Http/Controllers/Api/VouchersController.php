@@ -193,11 +193,12 @@ class VouchersController extends Controller
                 'vouchers.voucher_short_description',
                 'vouchers.voucher_image_path',
                 'vendors.vendor_name as vendor_name',
+                'vouchers.voucher_expiry_date',
             ])
             ->where('user_vouchers.user_id', $request->user()->user_id)
             ->where('is_valid', true)
             ->where('voucher_status', true)
-            ->orderBy('user_vouchers.created_at', 'desc')
+            ->orderBy('vouchers.voucher_expiry_date', 'desc')
             ->paginate($perPage);
 
         $items = $vouchers->items();
