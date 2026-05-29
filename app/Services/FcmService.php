@@ -74,20 +74,26 @@ class FcmService
             ];
         }
 
-        $payload = [
-            'message' => [
-                'token' => $deviceToken,
+        $message = [
+            'token' => $deviceToken,
+            'notification' => [
+                'title' => $title,
+                'body' => $body,
+            ],
+            'android' => [
                 'notification' => [
-                    'title' => $title,
-                    'body' => $body,
-                ],
-                'data' => $this->normalizeDataPayload($data, $tokenFingerprint),
-                'android' => [
-                    'notification' => [
-                        'channel_id' => 'default', // Matches Expo Channel ID
-                    ],
+                    'channel_id' => 'default', // Matches Expo Channel ID
                 ],
             ],
+        ];
+
+        $dataPayload = $this->normalizeDataPayload($data, $tokenFingerprint);
+        if (!empty($dataPayload)) {
+            $message['data'] = $dataPayload;
+        }
+
+        $payload = [
+            'message' => $message,
         ];
 
         try {
