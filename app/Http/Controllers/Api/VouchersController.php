@@ -403,24 +403,24 @@ class VouchersController extends Controller
         $since = now()->subMonth();
 
         $totalVouchers = Vouchers::query()
-            ->whereIn('vendor_id', $vendorIds)
+            ->whereIn('vendor_id', $vendorIds, 'and', false)
             ->count();
 
         $totalClaimed = UserVouchers::query()
-            ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
-            ->whereIn('vouchers.vendor_id', $vendorIds)
+            ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id', 'inner', false)
+            ->whereIn('vouchers.vendor_id', $vendorIds, 'and', false)
             ->count();
 
         $totalRedeemed = UserVoucherClaims::query()
-            ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id')
-            ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
-            ->whereIn('vouchers.vendor_id', $vendorIds)
+            ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id', 'inner', false)
+            ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id', 'inner', false)
+            ->whereIn('vouchers.vendor_id', $vendorIds, 'and', false)
             ->count();
 
         $recentClaims = UserVouchers::query()
-            ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
+            ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id', 'inner', false)
             ->leftJoin('users', 'user_vouchers.user_id', '=', 'users.user_id')
-            ->whereIn('vouchers.vendor_id', $vendorIds)
+            ->whereIn('vouchers.vendor_id', $vendorIds, 'and', false)
             ->where('user_vouchers.created_at', '>=', $since)
             ->orderByDesc('user_vouchers.created_at')
             ->get([
@@ -433,9 +433,9 @@ class VouchersController extends Controller
             ]);
 
         $recentRedemptions = UserVoucherClaims::query()
-            ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id')
-            ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
-            ->whereIn('vouchers.vendor_id', $vendorIds)
+            ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id', 'inner', false)
+            ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id', 'inner', false)
+            ->whereIn('vouchers.vendor_id', $vendorIds, 'and', false)
             ->where('user_voucher_claims.created_at', '>=', $since)
             ->orderByDesc('user_voucher_claims.created_at')
             ->get([
@@ -497,7 +497,7 @@ class VouchersController extends Controller
         // $claimedCount = $claimHistory->count();
 
         $redemptionHistory = UserVoucherClaims::query()
-            ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id')
+            ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id', 'inner', false)
             ->where('user_vouchers.voucher_id', $voucher_id)
             ->where('user_vouchers.user_id', $user_id)
             ->orderByDesc('user_voucher_claims.created_at')
@@ -529,7 +529,7 @@ class VouchersController extends Controller
             if ($start) {
                 $periodLimit = (int) $voucher->voucher_claim_per_period;
                 $periodRedeemedCount = (int) UserVoucherClaims::query()
-                    ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id')
+                    ->join('user_vouchers', 'user_vouchers.user_voucher_id', '=', 'user_voucher_claims.user_voucher_id', 'inner', false)
                     ->where('user_vouchers.voucher_id', $voucher_id)
                     ->where('user_vouchers.user_id', $user_id)
                     ->where('user_voucher_claims.created_at', '>=', $start)
@@ -620,12 +620,25 @@ class VouchersController extends Controller
                 $userVoucher->update(['is_valid' => false]);
             }
 
+            $userMembership = UserMemberships::query()
+                ->with('membership:membership_id,membership_type')
+                ->where('user_id', $user_id)
+                ->where('membership_status', 'active')
+                ->lockForUpdate()
+                ->first();
+
+            $membershipType = strtoupper((string) ($userMembership?->membership?->membership_type));
+            if ($membershipType === 'TRIAL') {
+                $userMembership->increment('redeemed_vouchers_count');
+                $userMembership->refresh();
+            }
+
             return response()->json([
                 'message' => 'Voucher redeemed successfully.',
                 // Pro-Tip: Return the remaining/current counts so the frontend can sync its state!
                 'data' => [
-                    'redeemed_count' => $userClaimCount + 1,
-                    'max_vouchers' => $claimLimit
+                    'redeemed_vouchers_count' => (int) ($userMembership?->redeemed_vouchers_count ?? 0),
+                    'max_vouchers' => (int) ($userMembership?->max_vouchers ?? 0),
                 ]
             ]);
         });
