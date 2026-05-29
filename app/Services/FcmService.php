@@ -81,8 +81,7 @@ class FcmService
                     'title' => $title,
                     'body' => $body,
                 ],
-                // Custom data payload properties must contain string values only
-                'data' => array_map('strval', $data),
+                'data' => $this->normalizeDataPayload($data, $tokenFingerprint),
                 'android' => [
                     'notification' => [
                         'channel_id' => 'default', // Matches Expo Channel ID
@@ -126,5 +125,43 @@ class FcmService
                 'message' => $e->getMessage(),
             ];
         }
+    }
+
+    private function normalizeDataPayload(array $data, string $tokenFingerprint): array
+    {
+        if (empty($data)) {
+            return [];
+        }
+
+        $keys = array_keys($data);
+        $isList = ($keys === range(0, count($data) - 1));
+        if ($isList) {
+            Log::warning('FCM data payload is a list; encoding into a map.', [
+                'token_fingerprint' => $tokenFingerprint,
+            ]);
+            return [
+                '_payload' => json_encode($data),
+            ];
+        }
+
+        $normalized = [];
+        foreach ($data as $key => $value) {
+            $key = trim((string) $key);
+            if ($key === '') {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $normalized[$key] = json_encode($value);
+            } elseif (is_bool($value)) {
+                $normalized[$key] = $value ? 'true' : 'false';
+            } elseif ($value === null) {
+                $normalized[$key] = '';
+            } else {
+                $normalized[$key] = (string) $value;
+            }
+        }
+
+        return $normalized;
     }
 }
