@@ -107,6 +107,7 @@ class VouchersController extends Controller
             ->selectRaw("ROW_NUMBER() OVER (PARTITION BY ({$isExclusiveCase}) ORDER BY vouchers.created_at DESC) as is_exclusive_rank")
             ->where('voucher_status', true)
             ->where('voucher_expiry_date', '>=', today())
+            ->where('vendors.is_active', 'active')
             ->when($userId, function ($q) use ($userId) {
                 $q->whereNotIn('voucher_id', function ($sq) use ($userId) {
                     $sq->select('voucher_id')
@@ -218,7 +219,7 @@ class VouchersController extends Controller
         ]);
     }
 
-    public function claim(Request $request, $voucher_id)
+    public function claim(Request $request, string $voucher_id)
     {
         $voucher = Vouchers::query()
             ->where('voucher_id', $voucher_id)
