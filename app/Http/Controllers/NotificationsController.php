@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Notifications;
 use App\Models\UserPushTokens;
 use App\Models\User;
+use App\Services\FcmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -13,6 +14,13 @@ use Inertia\Inertia;
 
 class NotificationsController extends Controller
 {
+    private FcmService $fcmService;
+
+    public function __construct(FcmService $fcmService)
+    {
+        $this->fcmService = $fcmService;
+    }
+
     public function index()
     {
         return Inertia::render('notifications/notifications');
@@ -151,7 +159,7 @@ class NotificationsController extends Controller
 
     public function destroy(Notifications $notification)
     {
-        $notification->delete();
+        Notifications::destroy($notification->getKey());
 
         return redirect()->route('notifications.index');
     }
@@ -258,24 +266,44 @@ class NotificationsController extends Controller
             return;
         }
 
-        $messages = array_map(function ($token) use ($notification) {
-            $payload = [
-                'to' => $token,
-                'title' => $notification->title,
-                'body' => $notification->body ?? '',
-                'sound' => 'default',
-            ];
+        $tokens = collect($tokens)->map(fn($t) => trim((string) $t))->filter()->unique()->values()->all();
+        $data = is_array($notification->data) ? $notification->data : [];
+        $body = $notification->body ?? '';
 
-            if (is_array($notification->data) && !empty($notification->data)) {
-                $payload['data'] = $notification->data;
+        $expoTokens = [];
+        $fcmTokens = [];
+        foreach ($tokens as $token) {
+            if (str_starts_with($token, 'ExponentPushToken') || str_starts_with($token, 'ExpoPushToken')) {
+                $expoTokens[] = $token;
+            } else {
+                $fcmTokens[] = $token;
             }
+        }
 
-            return $payload;
-        }, $tokens);
+        foreach ($fcmTokens as $token) {
+            $this->fcmService->sendPush($token, $notification->title, $body, $data);
+        }
 
-        $chunks = array_chunk($messages, 100);
-        foreach ($chunks as $chunk) {
-            Http::post('https://exp.host/--/api/v2/push/send', $chunk);
+        if (!empty($expoTokens)) {
+            $messages = array_map(function ($token) use ($notification, $data) {
+                $payload = [
+                    'to' => $token,
+                    'title' => $notification->title,
+                    'body' => $notification->body ?? '',
+                    'sound' => 'default',
+                ];
+
+                if (!empty($data)) {
+                    $payload['data'] = $data;
+                }
+
+                return $payload;
+            }, $expoTokens);
+
+            $chunks = array_chunk($messages, 100);
+            foreach ($chunks as $chunk) {
+                Http::post('https://exp.host/--/api/v2/push/send', $chunk);
+            }
         }
 
         $notification->update([

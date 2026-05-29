@@ -50,7 +50,8 @@ Route::middleware(['auth:sanctum'])->group(
         // Referral
         Route::get('/referrals/{referral_code}', [ReferralController::class, 'referral']);
         Route::post('/referral-gifts/claim', [ReferralController::class, 'claimReferralGift']);
-        Route::post('/push-tokens/register', [PushTokensController::class, 'register']);
+        Route::post('/push-tokens/register', [PushTokensController::class, 'register'])->middleware('throttle:30,1');
+        Route::post('/user/device-token', [PushTokensController::class, 'deviceToken'])->middleware('throttle:30,1');
 
         // Membership
         Route::get('/memberships', [MembershipController::class, 'membership']);
