@@ -24,7 +24,7 @@ class VouchersController extends Controller
     public function showAll(Request $request)
     {
         $query = Vouchers::query();
-        $query->join('vendors', 'vouchers.vendor_id', '=', 'vendors.vendor_id')
+        $query->leftJoin('vendors', 'vouchers.vendor_id', '=', 'vendors.vendor_id')
             ->select('vouchers.*', 'vendors.vendor_name');
 
         $user = $request->user();
@@ -75,12 +75,14 @@ class VouchersController extends Controller
         }
 
         $query = Vouchers::query()
-            ->join('vendors', 'vouchers.vendor_id', '=', 'vendors.vendor_id')
+            ->leftJoin('vendors', 'vouchers.vendor_id', '=', 'vendors.vendor_id')
             ->select([
+                'vendors.vendor_name',
                 'vouchers.voucher_name',
                 'vouchers.voucher_value',
                 'vouchers.voucher_description',
                 'vouchers.tnc',
+                'vouchers.voucher_expiry_date',
                 'vouchers.created_at',
             ])
             ->where('vouchers.voucher_expiry_date', '>=', now())
@@ -100,10 +102,12 @@ class VouchersController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
 
             fputcsv($out, [
+                'vendor_name',
                 'voucher_name',
                 'voucher_value',
                 'voucher_description',
                 'tnc',
+                'voucher_expiry_date',
             ]);
 
             foreach ($rows as $row) {
@@ -257,7 +261,8 @@ class VouchersController extends Controller
         $voucher->setAttribute('voucher_images', $voucherImages);
         $voucher->setAttribute(
             'categories',
-            VoucherCategories::where('voucher_id', $voucher->voucher_id)
+            VoucherCategories::query()
+                ->where('voucher_id', $voucher->voucher_id)
                 ->pluck('category_id')
                 ->toArray(),
         );
@@ -350,7 +355,7 @@ class VouchersController extends Controller
         }
 
         if ($request->has('categories')) {
-            VoucherCategories::where('voucher_id', $voucher->voucher_id)->delete();
+            VoucherCategories::query()->where('voucher_id', $voucher->voucher_id)->delete();
             foreach ((array) $request->categories as $category) {
                 VoucherCategories::create([
                     'voucher_id' => $voucher->voucher_id,
@@ -395,7 +400,6 @@ class VouchersController extends Controller
                 ]);
             }
         }
-
 
         return redirect()->route('vouchers.index')->with([
             'success' => 'Voucher updated successfully',
