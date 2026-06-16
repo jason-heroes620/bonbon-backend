@@ -127,7 +127,7 @@ export function EventForm({
         if (!startDate || !endDate) {
             return;
         }
-        if (endDate <= startDate) {
+        if (endDate < startDate) {
             methods.setValue("event_end_date", null, {
                 shouldDirty: true,
                 shouldValidate: true,
@@ -361,9 +361,7 @@ export function EventForm({
                                             )
                                         }
                                         disabled={(date) =>
-                                            startDate
-                                                ? date <= startDate
-                                                : false
+                                            startDate ? date < startDate : false
                                         }
                                         required
                                     />
