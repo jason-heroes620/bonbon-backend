@@ -62,8 +62,9 @@ class OrdersController extends Controller
             'user_id' => ['required', 'uuid'],
             'order_no' => ['nullable', 'string', 'max:20'],
             'order_date' => ['required', 'date'],
+            'order_description' => ['nullable', 'string', 'max:255'],
             'total_price' => ['required', 'numeric', 'min:0'],
-            'total_tax' => ['required', 'numeric', 'min:0'],
+            'total_charges' => ['required', 'numeric', 'min:0'],
             'total_discount' => ['required', 'numeric', 'min:0'],
             'total_payment' => ['required', 'numeric', 'min:0'],
             'shipping_method' => ['nullable', 'string', 'max:50'],
@@ -114,7 +115,7 @@ class OrdersController extends Controller
         $order->load([
             'orderItems.product:product_id,product_name,uom',
         ]);
-        $order->email = User::where('user_id', $order->user_id)->pluck('email')->first();
+        $order->email = User::query()->where('user_id', $order->user_id)->pluck('email')->first();
         return Inertia::render('orders/edit', [
             'order' => $order,
         ]);
@@ -126,8 +127,9 @@ class OrdersController extends Controller
             'user_id' => ['required', 'uuid'],
             'order_no' => ['nullable', 'string', 'max:20'],
             'order_date' => ['required', 'date'],
+            'order_description' => ['nullable', 'string', 'max:255'],
             'total_price' => ['required', 'numeric', 'min:0'],
-            'total_tax' => ['required', 'numeric', 'min:0'],
+            'total_charges' => ['required', 'numeric', 'min:0'],
             'total_discount' => ['required', 'numeric', 'min:0'],
             'total_payment' => ['required', 'numeric', 'min:0'],
             'shipping_method' => ['nullable', 'string', 'max:50'],
@@ -151,7 +153,7 @@ class OrdersController extends Controller
 
         $order->update($validated);
 
-        OrderItems::where('order_id', $order->getKey())->delete();
+        OrderItems::query()->where('order_id', $order->getKey())->delete();
         if (!empty($validated['order_items'])) {
             foreach ($validated['order_items'] as $item) {
                 OrderItems::create([

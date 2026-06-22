@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->uuid('product_id')->primary();
+            $table->uuid('vendor_id')->nullable();
             $table->string('product_name', 150);
             $table->string('product_code', 50)->nullable();
             $table->string('product_sku', 100)->nullable();

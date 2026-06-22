@@ -11,9 +11,23 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('memberships')) {
-            return;
-        }
+        Schema::create('memberships', function (Blueprint $table) {
+            $table->uuid('membership_id')->primary();
+            $table->string('membership_code', 20);
+            $table->string('membership_name', 100);
+            $table->string('membership_description', 255)->nullable();
+            $table->uuid('membership_type_id');
+            $table->string('membership_type', 10);
+            $table->decimal('membership_price', 10, 2)->default(0.00);
+            $table->integer('duration')->default(0);
+            $table->string('duration_unit', 10)->default('month');
+            $table->date('membership_start_date')->nullable();
+            $table->date('membership_end_date')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->integer('sort_order')->default(0);
+            $table->boolean('best_value')->default(false);
+            $table->timestamps();
+        });
     }
 
     /**

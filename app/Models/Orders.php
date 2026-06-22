@@ -15,8 +15,9 @@ class Orders extends Model
         'user_id',
         'order_no',
         'order_date',
+        'order_description',
         'total_price',
-        'total_tax',
+        'total_charges',
         'total_discount',
         'total_payment',
         'shipping_method',
@@ -28,6 +29,20 @@ class Orders extends Model
     ];
 
     public $timestamps = true;
+
+    protected $appends = [
+        'total_charges',
+    ];
+
+    public function getTotalChargesAttribute()
+    {
+        return $this->attributes['total_charges'] ?? null;
+    }
+
+    public function setTotalChargesAttribute($value): void
+    {
+        $this->attributes['total_charges'] = $value;
+    }
 
     public function orderItems()
     {

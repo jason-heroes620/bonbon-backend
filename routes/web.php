@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoriesController;
+use App\Http\Controllers\ChargesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscountsController;
 use App\Http\Controllers\EvCategoriesController;
@@ -13,11 +14,16 @@ use App\Http\Controllers\MembershipTypesController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\PaymentsController;
+use App\Http\Controllers\CompartmentController;
+use App\Http\Controllers\ContractsController;
 use App\Http\Controllers\ProductDiscountsController;
 use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\ReferralsController;
 use App\Http\Controllers\ReferralReportsController;
 use App\Http\Controllers\KolController;
+use App\Http\Controllers\RacksController;
+use App\Http\Controllers\TendersController;
+use App\Http\Controllers\TenderCompartmentsController;
 use App\Http\Controllers\TaxesController;
 use App\Http\Controllers\TransactionTypesController;
 use App\Http\Controllers\UserController;
@@ -53,6 +59,7 @@ Route::get('/login', function () {
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::match(['get', 'post'], '/contracts/payment-return', [ContractsController::class, 'paymentReturn'])->name('contracts.payment-return');
 Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
     ->name('verify-email.verify');
 Route::get('/forgot-password', function () {
@@ -70,6 +77,7 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Vendors
     Route::get('/vendors', [VendorsController::class, 'index'])->name('vendors.index');
     Route::get('/vendors/all', [VendorsController::class, 'showAll'])->name('vendors.all');
     Route::get('/vendors/create', [VendorsController::class, 'create'])->name('vendors.create');
@@ -78,6 +86,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/vendors/{vendor}', [VendorsController::class, 'update'])->name('vendors.update');
     Route::get('/getVendorlist', [VendorsController::class, 'getVendorList'])->name('vendors.list');
 
+    // Vouchers
     Route::get('/vouchers', [VouchersController::class, 'index'])->name('vouchers.index');
     Route::get('/vouchers/all', [VouchersController::class, 'showAll'])->name('vouchers.all');
     Route::get('/vouchers/export', [VouchersController::class, 'export'])->name('vouchers.export');
@@ -86,6 +95,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/vouchers/{voucher}', [VouchersController::class, 'edit'])->name('vouchers.edit');
     Route::put('/vouchers/{voucher}', [VouchersController::class, 'update'])->name('vouchers.update');
 
+    // Lucky Draw
     Route::get('/lucky-draw/sessions', [LucyDrawEntriesController::class, 'sessionsPage'])->name('lucky_draw.sessions');
     Route::get('/lucky-draw/sessions/all', [LucyDrawEntriesController::class, 'sessionsAll'])->name('lucky_draw.sessions_all');
     Route::get('/lucky-draw/sessions/create', [LucyDrawEntriesController::class, 'createSessionPage'])->name('lucky_draw.sessions.create');
@@ -96,6 +106,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/lucky-draw/{sessionId}/complete', [LucyDrawEntriesController::class, 'completeSession'])->name('lucky_draw.complete');
     Route::get('/lucky-draw/{sessionId}/winners', [LucyDrawEntriesController::class, 'winners'])->name('lucky_draw.winners');
 
+    // Events
     Route::get('/events', [EventsController::class, 'index'])->name('events.index');
     Route::get('/events/all', [EventsController::class, 'showAll'])->name('events.all');
     Route::get('/events/create', [EventsController::class, 'create'])->name('events.create');
@@ -103,6 +114,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/events/{event}', [EventsController::class, 'edit'])->name('events.edit');
     Route::put('/events/{event}', [EventsController::class, 'update'])->name('events.update');
 
+    // Products
     Route::get('/products', [ProductsController::class, 'index'])->name('products.index');
     Route::get('/products/all', [ProductsController::class, 'showAll'])->name('products.all');
     Route::get('/products/create', [ProductsController::class, 'create'])->name('products.create');
@@ -112,6 +124,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/products/{product}', [ProductsController::class, 'destroy'])->name('products.destroy');
     Route::get('/getProductList', [ProductsController::class, 'getProductList'])->name('products.list');
 
+    // Product Discounts
     Route::get('/product-discounts', [ProductDiscountsController::class, 'index'])->name('product_discounts.index');
     Route::get('/product-discounts/all', [ProductDiscountsController::class, 'showAll'])->name('product_discounts.all');
     Route::get('/product-discounts/create', [ProductDiscountsController::class, 'create'])->name('product_discounts.create');
@@ -129,6 +142,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/discounts/{discount}', [DiscountsController::class, 'edit'])->name('discounts.edit');
     Route::put('/discounts/{discount}', [DiscountsController::class, 'update'])->name('discounts.update');
 
+    // Memberships
     Route::get('/memberships', [MembershipsController::class, 'index'])->name('memberships.index');
     Route::get('/memberships/all', [MembershipsController::class, 'showAll'])->name('memberships.all');
     Route::get('/memberships/create', [MembershipsController::class, 'create'])->name('memberships.create');
@@ -138,6 +152,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/memberships/{membership}', [MembershipsController::class, 'destroy'])->name('memberships.destroy');
     Route::get('/getMembershipList', [MembershipsController::class, 'getMembershipList'])->name('memberships.list');
 
+    // Membership Types
     Route::get('/membership-types', [MembershipTypesController::class, 'index'])->name('membership_types.index');
     Route::get('/membership-types/all', [MembershipTypesController::class, 'showAll'])->name('membership_types.all');
     Route::get('/membership-types/create', [MembershipTypesController::class, 'create'])->name('membership_types.create');
@@ -145,6 +160,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/membership-types/{membershipType}', [MembershipTypesController::class, 'edit'])->name('membership_types.edit');
     Route::put('/membership-types/{membershipType}', [MembershipTypesController::class, 'update'])->name('membership_types.update');
 
+    // Transaction Types
     Route::get('/transaction-types', [TransactionTypesController::class, 'index'])->name('transaction_types.index');
     Route::get('/transaction-types/all', [TransactionTypesController::class, 'showAll'])->name('transaction_types.all');
     Route::get('/transaction-types/create', [TransactionTypesController::class, 'create'])->name('transaction_types.create');
@@ -152,6 +168,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/transaction-types/{transactionType}', [TransactionTypesController::class, 'edit'])->name('transaction_types.edit');
     Route::put('/transaction-types/{transactionType}', [TransactionTypesController::class, 'update'])->name('transaction_types.update');
 
+    // Categories
     Route::get('/categories', [CategoriesController::class, 'index'])->name('categories.index');
     Route::get('/categories/all', [CategoriesController::class, 'showAll'])->name('categories.all');
     Route::get('/categories/create', [CategoriesController::class, 'create'])->name('categories.create');
@@ -161,6 +178,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/categories/{category}', [CategoriesController::class, 'destroy'])->name('categories.destroy');
     Route::get('/getCategoryList', [CategoriesController::class, 'getCategoryList'])->name('categories.list');
 
+    // EV Categories
     Route::get('/ev-categories', [EvCategoriesController::class, 'index'])->name('ev_categories.index');
     Route::get('/ev-categories/all', [EvCategoriesController::class, 'showAll'])->name('ev_categories.all');
     Route::get('/ev-categories/create', [EvCategoriesController::class, 'create'])->name('ev_categories.create');
@@ -170,14 +188,25 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/ev-categories/{evCategory}', [EvCategoriesController::class, 'destroy'])->name('ev_categories.destroy');
     Route::get('/getEvCategoryList', [EvCategoriesController::class, 'getEvCategoryList'])->name('ev_categories.list');
 
+    // Taxes
     Route::get('/taxes', [TaxesController::class, 'index'])->name('taxes.index');
     Route::get('/taxes/all', [TaxesController::class, 'showAll'])->name('taxes.all');
     Route::get('/taxes/create', [TaxesController::class, 'create'])->name('taxes.create');
     Route::post('/taxes/create', [TaxesController::class, 'store'])->name('taxes.store');
     Route::get('/taxes/{tax}', [TaxesController::class, 'edit'])->name('taxes.edit');
     Route::put('/taxes/{tax}', [TaxesController::class, 'update'])->name('taxes.update');
+
+    // Charges
+    Route::get('/charges', [ChargesController::class, 'index'])->name('charges.index');
+    Route::get('/charges/all', [ChargesController::class, 'showAll'])->name('charges.all');
+    Route::get('/charges/create', [ChargesController::class, 'create'])->name('charges.create');
+    Route::post('/charges/create', [ChargesController::class, 'store'])->name('charges.store');
+    Route::get('/charges/{charge}', [ChargesController::class, 'edit'])->name('charges.edit');
+    Route::put('/charges/{charge}', [ChargesController::class, 'update'])->name('charges.update');
+    Route::delete('/charges/{charge}', [ChargesController::class, 'destroy'])->name('charges.destroy');
     Route::delete('/taxes/{tax}', [TaxesController::class, 'destroy'])->name('taxes.destroy');
 
+    // Orders
     Route::get('/orders', [OrdersController::class, 'index'])->name('orders.index');
     Route::get('/orders/all', [OrdersController::class, 'showAll'])->name('orders.all');
     Route::get('/orders/create', [OrdersController::class, 'create'])->name('orders.create');
@@ -185,6 +214,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/orders/{order}', [OrdersController::class, 'edit'])->name('orders.edit');
     Route::put('/orders/{order}', [OrdersController::class, 'update'])->name('orders.update');
 
+    // Payments
     Route::get('/payments', [PaymentsController::class, 'index'])->name('payments.index');
     Route::get('/payments/all', [PaymentsController::class, 'showAll'])->name('payments.all');
     Route::get('/payments/create', [PaymentsController::class, 'create'])->name('payments.create');
@@ -192,6 +222,59 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/payments/{payment}', [PaymentsController::class, 'edit'])->name('payments.edit');
     Route::put('/payments/{payment}', [PaymentsController::class, 'update'])->name('payments.update');
 
+    // Racks
+    Route::get('/racks', [RacksController::class, 'index'])->name('racks.index');
+    Route::get('/racks/all', [RacksController::class, 'showAll'])->name('racks.all');
+    Route::get('/racks/create', [RacksController::class, 'create'])->name('racks.create');
+    Route::post('/racks/create', [RacksController::class, 'store'])->name('racks.store');
+    Route::get('/racks/{rack}', [RacksController::class, 'edit'])->name('racks.edit');
+    Route::put('/racks/{rack}', [RacksController::class, 'update'])->name('racks.update');
+    Route::delete('/racks/{rack}', [RacksController::class, 'destroy'])->name('racks.destroy');
+
+    // Compartments (per rack)
+    Route::get('/racks/{rack}/compartments', [CompartmentController::class, 'edit'])->name('racks.compartments.edit');
+    Route::post('/racks/{rack}/compartments', [CompartmentController::class, 'update'])->name('racks.compartments.update');
+
+    // Tenders
+    Route::get('/tenders', [TendersController::class, 'index'])->name('tenders.index');
+    Route::get('/tenders/all', [TendersController::class, 'showAll'])->name('tenders.all');
+    Route::get('/available-racks', [TendersController::class, 'availabilityIndex'])->name('available-racks.index');
+    Route::get('/available-racks/all', [TendersController::class, 'availabilityAll'])->name('available-racks.all');
+    Route::get('/available-racks/{rack}', [TendersController::class, 'availabilityShow'])->name('available-racks.show');
+    Route::post('/available-racks/{rack}/bid', [TendersController::class, 'availabilityBid'])->name('available-racks.bid');
+    Route::get('/tenders-summary', [TendersController::class, 'summaryIndex'])->name('tenders-summary.index');
+    Route::get('/tenders-summary/all', [TendersController::class, 'summaryAll'])->name('tenders-summary.all');
+    Route::get('/tenders-summary/{rack}', [TendersController::class, 'summaryShow'])->name('tenders-summary.show');
+    Route::post('/tenders-summary/{rack}/select', [TendersController::class, 'summarySelect'])->name('tenders-summary.select');
+    Route::post('/tenders-summary/{rack}/unallocate', [TendersController::class, 'summaryUnallocate'])->name('tenders-summary.unallocate');
+    Route::post('/tenders-summary/{rack}/assign-vendor', [TendersController::class, 'summaryAssignVendor'])->name('tenders-summary.assign-vendor');
+    Route::post('/tenders-summary/{rack}/manual-allocate', [TendersController::class, 'summaryManualAllocate'])->name('tenders-summary.manual-allocate');
+    Route::get('/tenders/create', [TendersController::class, 'create'])->name('tenders.create');
+    Route::post('/tenders/create', [TendersController::class, 'store'])->name('tenders.store');
+    Route::get('/tenders/{tender}', [TendersController::class, 'edit'])->name('tenders.edit');
+    Route::put('/tenders/{tender}', [TendersController::class, 'update'])->name('tenders.update');
+    Route::delete('/tenders/{tender}', [TendersController::class, 'destroy'])->name('tenders.destroy');
+
+    // Tender Compartments
+    Route::get('/tender-compartments', [TenderCompartmentsController::class, 'index'])->name('tender_compartments.index');
+    Route::get('/tender-compartments/all', [TenderCompartmentsController::class, 'showAll'])->name('tender_compartments.all');
+    Route::get('/tender-compartments/create', [TenderCompartmentsController::class, 'create'])->name('tender_compartments.create');
+    Route::post('/tender-compartments/create', [TenderCompartmentsController::class, 'store'])->name('tender_compartments.store');
+    Route::get('/tender-compartments/{tenderCompartment}', [TenderCompartmentsController::class, 'edit'])->name('tender_compartments.edit');
+    Route::put('/tender-compartments/{tenderCompartment}', [TenderCompartmentsController::class, 'update'])->name('tender_compartments.update');
+    Route::delete('/tender-compartments/{tenderCompartment}', [TenderCompartmentsController::class, 'destroy'])->name('tender_compartments.destroy');
+
+    // Contracts
+    Route::get('/contracts', [ContractsController::class, 'index'])->name('contracts.index');
+    Route::get('/contracts/all', [ContractsController::class, 'showAll'])->name('contracts.all');
+    Route::get('/contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
+    Route::post('/contracts/{contract}/stocks', [ContractsController::class, 'storeStock'])->name('contracts.stocks.store');
+    Route::delete('/contracts/{contract}/stocks/{stock}', [ContractsController::class, 'destroyStock'])->name('contracts.stocks.destroy');
+    Route::put('/contracts/{contract}/stocks/{stock}/products/{stockProduct}', [ContractsController::class, 'updateStockProduct'])->name('contracts.stocks.products.update');
+    Route::delete('/contracts/{contract}/stocks/{stock}/products/{stockProduct}', [ContractsController::class, 'destroyStockProduct'])->name('contracts.stocks.products.destroy');
+    Route::post('/contracts/{contract}/pay', [ContractsController::class, 'pay'])->name('contracts.pay');
+
+    // Users
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/all', [UserController::class, 'showAll'])->name('users.all');
     Route::get('/users/options', [UserController::class, 'options'])->name('users.options');
@@ -201,14 +284,17 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/users/{user}/referral-code', [UserController::class, 'updateReferralCode'])->name('users.referral_code.update');
     Route::post('/users/{user}/resend-verification', [UserController::class, 'resendVerificationEmail'])->name('users.resend_verification');
 
+    // User Interest List
     Route::get('/user-interest-list', [UserInterestListController::class, 'index'])->name('user_interest_list.index');
     Route::get('/user-interest-list/all', [UserInterestListController::class, 'showAll'])->name('user_interest_list.all');
 
+    // Kol
     Route::get('/kol', [KolController::class, 'index'])->name('kol.index');
     Route::get('/kol/all', [KolController::class, 'showAll'])->name('kol.all');
     Route::get('/kol/{user}', [KolController::class, 'show'])->name('kol.show');
     Route::get('/kol/{user}/referrals/all', [KolController::class, 'referrals'])->name('kol.referrals.all');
 
+    // Notifications
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/all', [NotificationsController::class, 'showAll'])->name('notifications.all');
     Route::get('/notifications/create', [NotificationsController::class, 'create'])->name('notifications.create');
@@ -218,9 +304,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/notifications/{notification}/send', [NotificationsController::class, 'send'])->name('notifications.send');
     Route::delete('/notifications/{notification}', [NotificationsController::class, 'destroy'])->name('notifications.destroy');
 
+    // Referrals
     Route::get('/referrals', [ReferralsController::class, 'index'])->name('referrals.index');
     Route::get('/referrals/all', [ReferralsController::class, 'showAll'])->name('referrals.all');
 
+    // Reports
     Route::get('/reports/referral-report', [ReferralReportsController::class, 'index'])->name('reports.referral.index');
     Route::get('/reports/referral-report/users', [ReferralReportsController::class, 'users'])->name('reports.referral.users');
     Route::get('/reports/referral-report/data', [ReferralReportsController::class, 'data'])->name('reports.referral.data');

@@ -5,6 +5,7 @@ import type { Payment } from "@/types";
 import type { ColumnDef } from "@tanstack/react-table";
 import { router } from "@inertiajs/react";
 import { Pencil, Plus } from "lucide-react";
+import { format } from "date-fns/format";
 
 export const columns: ColumnDef<Payment>[] = [
     {
@@ -15,7 +16,7 @@ export const columns: ColumnDef<Payment>[] = [
     {
         accessorKey: "payment_date",
         header: "Date",
-        cell: ({ row }) => row.original.payment_date?.slice(0, 10) ?? "",
+        cell: ({ row }) => format(row.original.payment_date, "PPP"),
     },
     {
         accessorKey: "payment_method",

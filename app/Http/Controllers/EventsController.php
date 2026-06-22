@@ -135,7 +135,7 @@ class EventsController extends Controller
         $event->setAttribute('event_images', $eventImages);
         $event->setAttribute(
             'categories',
-            EventCategories::where('event_id', $event->event_id)
+            EventCategories::query()->where('event_id', $event->event_id)
                 ->pluck('category_id')
                 ->toArray(),
         );
@@ -177,7 +177,7 @@ class EventsController extends Controller
 
         $categoryIds = $request->input('categories');
         if (is_array($categoryIds)) {
-            EventCategories::where('event_id', $event->event_id)->delete();
+            EventCategories::query()->where('event_id', $event->event_id)->delete();
             foreach ($categoryIds as $categoryId) {
                 EventCategories::create([
                     'event_id' => $event->event_id,

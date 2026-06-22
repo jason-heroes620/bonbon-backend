@@ -13,8 +13,9 @@ type OrderFormValues = {
     email: string;
     order_no: string;
     order_date: string;
+    order_description?: string | null;
     total_price: number;
-    total_tax: number;
+    total_charges: number;
     total_discount: number;
     total_payment: number;
     shipping_method: string;
@@ -55,8 +56,9 @@ export function OrderForm({
             order_date:
                 order?.order_date?.slice(0, 10) ??
                 new Date().toISOString().slice(0, 10),
+            order_description: order?.order_description ?? "",
             total_price: Number(order?.total_price ?? 0),
-            total_tax: Number(order?.total_tax ?? 0),
+            total_charges: Number(order?.total_charges ?? 0),
             total_discount: Number(order?.total_discount ?? 0),
             total_payment: Number(order?.total_payment ?? 0),
             shipping_method: order?.shipping_method ?? "",
@@ -93,7 +95,6 @@ export function OrderForm({
         },
         shouldUnregister: false,
     });
-
     const [userQuery, setUserQuery] = useState(methods.watch("email") ?? "");
     const [userOptions, setUserOptions] = useState<
         Array<{
@@ -154,7 +155,7 @@ export function OrderForm({
                 sum + Number(it.quantity ?? 0) * Number(it.unit_price ?? 0),
             0,
         );
-        const totalTax = items.reduce(
+        const totalCharges = items.reduce(
             (sum, it) => sum + Number(it.tax ?? 0),
             0,
         );
@@ -162,27 +163,30 @@ export function OrderForm({
             (sum, it) => sum + Number(it.discount ?? 0),
             0,
         );
-        const totalPayment = totalPrice + totalTax - totalDiscount;
+        const totalPayment = totalPrice + totalCharges - totalDiscount;
         return {
             totalPrice,
-            totalTax,
+            totalCharges,
             totalDiscount,
             totalPayment,
         };
     }, [items]);
 
-    useEffect(() => {
-        methods.setValue("total_price", Number(totals.totalPrice.toFixed(2)));
-        methods.setValue("total_tax", Number(totals.totalTax.toFixed(2)));
-        methods.setValue(
-            "total_discount",
-            Number(totals.totalDiscount.toFixed(2)),
-        );
-        methods.setValue(
-            "total_payment",
-            Number(totals.totalPayment.toFixed(2)),
-        );
-    }, [totals]);
+    // useEffect(() => {
+    //     methods.setValue("total_price", Number(totals.totalPrice.toFixed(2)));
+    //     methods.setValue(
+    //         "total_charges",
+    //         Number(totals.totalCharges.toFixed(2)),
+    //     );
+    //     methods.setValue(
+    //         "total_discount",
+    //         Number(totals.totalDiscount.toFixed(2)),
+    //     );
+    //     methods.setValue(
+    //         "total_payment",
+    //         Number(totals.totalPayment.toFixed(2)),
+    //     );
+    // }, [totals]);
 
     const handleSubmit = (values: OrderFormValues) => {
         return new Promise<void>((resolve) => {
@@ -281,6 +285,15 @@ export function OrderForm({
                     />
                 </div>
                 <div className="flex flex-col gap-2">
+                    <Label htmlFor="order_description">Order Description</Label>
+                    <Input
+                        id="order_description"
+                        type="text"
+                        maxLength={255}
+                        {...methods.register("order_description")}
+                    />
+                </div>
+                <div className="flex flex-col gap-2">
                     <Label htmlFor="total_price">Total Price</Label>
                     <Input
                         id="total_price"
@@ -294,14 +307,14 @@ export function OrderForm({
                     />
                 </div>
                 <div className="flex flex-col gap-2">
-                    <Label htmlFor="total_tax">Total Tax</Label>
+                    <Label htmlFor="total_charges">Total Charges</Label>
                     <Input
-                        id="total_tax"
+                        id="total_charges"
                         type="number"
                         step="0.01"
                         min={0}
                         required
-                        {...methods.register("total_tax", {
+                        {...methods.register("total_charges", {
                             valueAsNumber: true,
                         })}
                     />

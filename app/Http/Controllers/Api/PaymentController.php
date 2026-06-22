@@ -11,6 +11,7 @@ use App\Models\Products;
 use App\Models\ReferralEarnings;
 use App\Models\ReferralCodes;
 use App\Models\Referrals;
+use App\Models\TenderCompartments;
 use App\Models\TransactionTypes;
 use App\Models\User;
 use App\Models\UserReferralGifts;
@@ -29,7 +30,7 @@ class PaymentController extends Controller
     protected $tier_one  = 5;
     protected $tier_two  = 10;
 
-    protected $creditService;
+    protected CreditService $creditService;
 
     public function __construct(CreditService $creditService)
     {
@@ -44,7 +45,7 @@ class PaymentController extends Controller
         $validator = Validator::make($request->all(), [
             'amount' => ['required', 'numeric', 'min:0'],
             'product' => ['nullable', 'string', 'max:255'],
-            'total_tax' => ['nullable', 'numeric', 'min:0'],
+            'total_charges' => ['nullable', 'numeric', 'min:0'],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'total_payment' => ['nullable', 'numeric', 'min:0'],
             'shipping_method' => ['nullable', 'string', 'max:50'],
@@ -106,8 +107,9 @@ class PaymentController extends Controller
                 'user_id' => $request->user()->user_id,
                 'order_no' => $refNo,
                 'order_date' => now()->toDateString(),
+                'order_description' => $request->input('product') ?? '',
                 'total_price' => $totalPrice,
-                'total_tax' => (float) ($request->input('total_tax') ?? 0),
+                'total_charges' => (float) ($request->input('total_charges') ?? $request->input('total_charges') ?? 0),
                 'total_discount' => (float) (($request->input('discount_value') ?? 0) + ($request->input('promo_discount') ?? 0)),
                 'total_payment' => $totalPayment,
                 'shipping_method' => $request->input('shipping_method') ?? null,
@@ -166,6 +168,11 @@ class PaymentController extends Controller
             // Handle API failures gracefully
             return response("FAILED")->header('Content-Type', 'text/plain');
         }
+
+        if ($request->has('Xfield1') && $request->Xfield1 === 'Contracts') {
+            return $this->handleContractsCallback($request);
+        }
+
         try {
             if (!$this->verifySignature($request) || (string) $request->Status !== "1") {
                 return response("FAILED")->header('Content-Type', 'text/plain');
@@ -239,6 +246,7 @@ class PaymentController extends Controller
                             'referral_code' => $referralCode,
                         ]);
                 }
+
                 // update user membership to inactive before creating new one
                 UserMemberships::query()
                     ->where('user_id', $user->user_id)
@@ -343,6 +351,68 @@ class PaymentController extends Controller
                     }
                 }
             }
+
+            return response("RECEIVEOK")->header('Content-Type', 'text/plain');
+        } catch (\Exception $e) {
+            Log::error($e->getMessage());
+            return response("FAILED")->header('Content-Type', 'text/plain');
+        }
+    }
+
+    private function handleContractsCallback(Request $request)
+    {
+        try {
+            if (!$this->verifySignature($request) || (string) $request->Status !== "1") {
+                return response("FAILED")->header('Content-Type', 'text/plain');
+            }
+
+            $order = Orders::query()->where('order_no', $request->RefNo)->first();
+            $contractId = (string) ($request->Xfield2 ?? '');
+
+            if (!$order || $contractId === '') {
+                return response("FAILED")->header('Content-Type', 'text/plain');
+            }
+
+            $contract = TenderCompartments::query()
+                ->where('tender_compartment_id', $contractId)
+                ->first();
+
+            if (!$contract) {
+                return response("FAILED")->header('Content-Type', 'text/plain');
+            }
+
+            DB::transaction(function () use ($request, $order, $contract) {
+                $order->update([
+                    'order_status' => 'completed',
+                ]);
+
+                Payments::updateOrCreate(
+                    [
+                        'order_no' => $request->RefNo,
+                    ],
+                    [
+                        'order_no' => $request->RefNo,
+                        'ref_no' => $request->RefNo,
+                        'transaction_id' => $request->TransId,
+                        'payment_amount' => (float) $request->Amount,
+                        'payment_date' => $request->TranDate,
+                        'issuing_bank' => $request->S_bankname,
+                        'cc_name' => $request->CCName,
+                        'cc_number' => $request->CCNo,
+                        'payment_status' => $request->Status,
+                        'payment_description' => 'Contract payment: ' . (string) $contract->tender_compartment_id,
+                    ]
+                );
+
+                $startDate = now();
+                $endDate = now()->copy()->addMonthsNoOverflow((int) $contract->durations);
+
+                $contract->update([
+                    'tender_status' => 'paid',
+                    'tender_start_date' => $startDate,
+                    'tender_end_date' => $endDate,
+                ]);
+            });
 
             return response("RECEIVEOK")->header('Content-Type', 'text/plain');
         } catch (\Exception $e) {

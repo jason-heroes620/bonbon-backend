@@ -16,8 +16,9 @@ return new class extends Migration
             $table->uuid('user_id');
             $table->string('order_no', 20);
             $table->date('order_date');
+            $table->string('order_description')->nullable();
             $table->decimal('total_price', 10, 2);
-            $table->decimal('total_tax', 10, 2);
+            $table->decimal('total_charges', 10, 2);
             $table->decimal('total_discount', 10, 2);
             $table->decimal('total_payment', 10, 2);
             $table->string('shipping_method', 50)->nullable();

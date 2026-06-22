@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Categories;
 use App\Models\Products;
 use App\Models\Taxes;
+use App\Models\Vendors;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class ProductsController extends Controller
@@ -17,7 +19,14 @@ class ProductsController extends Controller
 
     public function showAll(Request $request)
     {
+        // if role is vendor, filter by vendor_id
         $query = Products::query();
+        Log::info($request->user()->role);
+        if ($request->user()->role === 'vendor') {
+            // get vendor_id from user
+            $vendorId = Vendors::query()->where('user_id', $request->user()->user_id)->value('vendor_id');
+            $query = $query->where('vendor_id', $vendorId);
+        }
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -104,6 +113,13 @@ class ProductsController extends Controller
         $primaryCategoryId = count($categoryIds) > 0 ? $categoryIds[0] : null;
         $validated['category_id'] = $primaryCategoryId;
 
+        // if user role is a vendor, add vendor_id to validated
+        if ($request->user()->role === 'vendor') {
+            // get vendor_id from user
+            $vendorId = Vendors::query()->where('user_id', $request->user()->user_id)->value('vendor_id');
+            $validated['vendor_id'] = $vendorId;
+        }
+
         $product = Products::create($validated);
         $product->categories()->sync($categoryIds);
 
@@ -171,7 +187,7 @@ class ProductsController extends Controller
 
     public function destroy(Products $product)
     {
-        $product->delete();
+        Products::query()->delete($product);
 
         return redirect()->route('products.index')->with([
             'success' => 'Product deleted successfully',

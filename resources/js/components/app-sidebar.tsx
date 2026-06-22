@@ -12,6 +12,7 @@ import {
     Receipt,
     Percent,
     BarChart3,
+    Gavel,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
@@ -121,6 +122,28 @@ const allItems: {
         ],
     },
     {
+        title: "Racks & Tenders",
+        icon: Gavel,
+        items: [
+            {
+                title: "Racks",
+                url: "/racks",
+            },
+            {
+                title: "Available Racks",
+                url: "/available-racks",
+            },
+            {
+                title: "Tender Summary",
+                url: "/tenders-summary",
+            },
+            {
+                title: "My Contracts",
+                url: "/contracts",
+            },
+        ],
+    },
+    {
         title: "Reports",
         icon: BarChart3,
         items: [
@@ -191,6 +214,10 @@ const allItems: {
                 title: "Taxes",
                 url: "/taxes",
             },
+            {
+                title: "Charges",
+                url: "/charges",
+            },
         ],
     },
 ];
@@ -204,7 +231,13 @@ export function AppSidebar() {
         if (role === "vendor") {
             return allItems
                 .filter((item) =>
-                    ["Dashboard", "Vendors", "Vouchers"].includes(item.title),
+                    [
+                        "Dashboard",
+                        "Vendors",
+                        "Products",
+                        "Vouchers",
+                        "Racks & Tenders",
+                    ].includes(item.title),
                 )
                 .map((item) => {
                     if (item.title === "Vendors" && item.items?.length) {

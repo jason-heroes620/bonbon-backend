@@ -308,9 +308,7 @@ export function EventForm({
                                         onSelect={(d) =>
                                             field.onChange(d ?? null)
                                         }
-                                        disabled={(date) =>
-                                            date < new Date("1900-01-01")
-                                        }
+                                        disabled={(date) => date < new Date()}
                                         required
                                     />
                                 </PopoverContent>

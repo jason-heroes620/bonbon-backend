@@ -42,6 +42,7 @@ return [
     'ipay88' => [
         'key' => env('MERCHANT_KEY'),
         'code' => env('MERCHANT_CODE'),
+        'entry_url' => env('IPAY88_ENTRY_URL', 'https://payment.ipay88.com.my/epayment/entry.asp'),
     ],
     'monday' => [
         'token' => env('MONDAY_TOKEN'),

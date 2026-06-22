@@ -178,7 +178,7 @@ class ReferralPaymentFlowTest extends TestCase
         $createPaymentResponse = $this->postJson('/api/payments/create', [
             'amount' => 10.00,
             'subtotal' => 10.00,
-            'total_tax' => 0,
+            'total_charges' => 0,
             'discount_value' => 0,
             'total_payment' => 10.00,
             'products' => [
@@ -450,7 +450,7 @@ class ReferralPaymentFlowTest extends TestCase
         $createPaymentResponse = $this->postJson('/api/payments/create', [
             'amount' => 10.00,
             'subtotal' => 10.00,
-            'total_tax' => 0,
+            'total_charges' => 0,
             'discount_value' => 0,
             'total_payment' => 10.00,
             'products' => [

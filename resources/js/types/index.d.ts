@@ -164,6 +164,30 @@ export type Tax = {
     is_active: boolean;
 };
 
+export type Charge = {
+    charges_id: string;
+    charges_type: string;
+    charges_name: string;
+    charges_rate: string;
+    charges_description: string;
+    charges_status: boolean;
+    charges_start_date: string;
+    charges_end_date: string;
+    sort_order: number;
+};
+
+export type Contract = {
+    tender_compartment_id: string;
+    rack_name: string;
+    location_name: string;
+    vendor_location_name: string;
+    compartment_label: string;
+    vendor_name?: string | null;
+    tender_status: "selected" | "paid";
+    tender_start_date?: string | Date | null;
+    tender_end_date?: string | Date | null;
+};
+
 export type Event = {
     event_id: string;
     event_name: string;
@@ -241,8 +265,9 @@ export type Order = {
     email: string;
     order_no: string;
     order_date: string;
+    order_description?: string | null;
     total_price: string;
-    total_tax: string;
+    total_charges: string;
     total_discount: string;
     total_payment: string;
     shipping_method: string;
@@ -275,6 +300,77 @@ export type Payment = {
     cc_name: string;
     cc_number: string;
     payment_status: number;
+};
+
+export type Rack = {
+    rack_id: string;
+    vendor_location_id: string;
+    rack_name: string;
+    rack_type?: string | null;
+    rack_capacity?: string | null;
+    rack_rows: string;
+    rack_columns: string;
+    rack_status: "active" | "inactive";
+    vendor_name?: string | null;
+    vendor_location_name?: string | null;
+};
+
+export type Tender = {
+    tender_id: string;
+    rack_id: string;
+    tender_status: "active" | "inactive";
+    rack_name?: string | null;
+    vendor_location_name?: string | null;
+    created_at?: string | null;
+};
+
+export type TenderAvailability = {
+    tender_id: string;
+    rack_id: string;
+    rack_name: string;
+    vendor_location_id: string;
+    vendor_location_name: string;
+    open_compartments_count: number;
+    tender_status: "active" | "inactive";
+};
+
+export type RackAvailability = {
+    rack_id: string;
+    rack_name: string;
+    vendor_location_id: string;
+    vendor_location_name: string;
+    open_compartments_count: number;
+    rack_status: "active" | "inactive";
+};
+
+export type TenderCompartment = {
+    tender_compartment_id: string;
+    rack_id?: string;
+    compartment_id: string;
+    vendor_id: string;
+    bid_price: string;
+    durations: number;
+    tender_status: "pending" | "selected" | "paid" | "expired" | "rejected";
+    selected_at?: string | null;
+    tender_start_date?: string | null;
+    tender_end_date?: string | null;
+    vendor_name?: string | null;
+    rack_name?: string | null;
+    compartment_label?: string | null;
+    vendor_location_name?: string | null;
+};
+
+export type Compartment = {
+    compartment_id: string;
+    rack_id: string;
+    label: string;
+    row_index: number;
+    column_index: number;
+    size_dimensions?: string | null;
+    min_price: string;
+    min_month: number;
+    compartment_status: "open" | "reviewing" | "allocated" | "closed";
+    is_active: boolean;
 };
 
 export interface ApiResponse<T> {
