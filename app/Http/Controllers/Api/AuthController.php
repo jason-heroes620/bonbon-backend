@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\UserInterestList;
 use App\Models\UserReferralGifts;
 use App\Models\UserMemberships;
+use App\Models\Vendors;
 use App\Services\CreditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -103,6 +104,14 @@ class AuthController extends Controller
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
+        $profile = Vendors::query()
+            ->select(['vendor_name', 'email', 'contact_no'])
+            ->where('user_id', $user->user_id)->first();
+        if (!$profile) {
+            throw ValidationException::withMessages([
+                'email' => ['Account is inactive. Please verify your email.'],
+            ]);
+        }
 
         $deviceName = $validated['device_name'] ?? 'api';
         $token = $user->createToken($deviceName)->plainTextToken;
@@ -111,6 +120,7 @@ class AuthController extends Controller
             'token' => $token,
             'token_type' => 'Bearer',
             'user' => $user,
+            'profile' => $profile,
         ]);
     }
 
