@@ -105,7 +105,7 @@ class AuthController extends Controller
             ]);
         }
         $profile = Vendors::query()
-            ->select(['vendor_name', 'email', 'contact_no'])
+            ->select(['vendor_id', 'vendor_name', 'email', 'contact_no'])
             ->where('user_id', $user->user_id)->first();
         if (!$profile) {
             throw ValidationException::withMessages([
