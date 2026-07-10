@@ -3,8 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Cart;
+use App\Models\CartItem;
+use App\Models\CompartmentStockProductTransaction;
+use App\Models\DiscountProducts;
+use App\Models\Discounts;
+use App\Models\EventRegistration;
 use App\Models\Memberships;
 use App\Models\OrderItems;
+use App\Models\OrderPickup;
+use App\Models\OrderPickupItem;
 use App\Models\Orders;
 use App\Models\Payments;
 use App\Models\Products;
@@ -12,11 +20,13 @@ use App\Models\ReferralEarnings;
 use App\Models\ReferralCodes;
 use App\Models\Referrals;
 use App\Models\TenderCompartments;
+use App\Models\Taxes;
 use App\Models\TransactionTypes;
 use App\Models\User;
 use App\Models\UserReferralGifts;
 use App\Models\UserMemberships;
 use App\Services\CreditService;
+use App\Services\ProductPricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -31,22 +41,62 @@ class PaymentController extends Controller
     protected $tier_two  = 10;
 
     protected CreditService $creditService;
+    protected ProductPricingService $pricingService;
 
-    public function __construct(CreditService $creditService)
+    public function __construct(CreditService $creditService, ProductPricingService $pricingService)
     {
         $this->creditService = $creditService;
+        $this->pricingService = $pricingService;
+    }
+
+    public function quotePricing(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'total_charges' => ['nullable', 'numeric', 'min:0'],
+            'discount_value' => ['nullable', 'numeric', 'min:0'],
+            'promo_discount' => ['nullable', 'numeric', 'min:0'],
+            'wallet_credit_used' => ['nullable', 'numeric', 'min:0'],
+            'products' => ['required', 'array', 'min:1'],
+            'products.*.product_id' => ['required', 'uuid', 'exists:products,product_id'],
+            'products.*.quantity' => ['required', 'integer', 'min:1'],
+            'products.*.uom' => ['required', 'string', 'max:50'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $pricing = $this->calculateOrderPricing($request);
+        if (!$pricing['ok']) {
+            return response()->json([
+                'message' => $pricing['message'] ?? 'Unable to calculate pricing.',
+                'errors' => $pricing['errors'] ?? null,
+            ], 422);
+        }
+
+        $amountRaw = number_format((float) $pricing['totals']['total_payment'], 2, '.', '');
+
+        return response()->json([
+            'data' => [
+                'items' => $pricing['items'],
+                'totals' => $pricing['totals'],
+                'amount' => $amountRaw,
+                'currency' => 'MYR',
+            ],
+        ]);
     }
 
     public function createPayment(Request $request)
     {
-        Log::info('Create payment request');
-        Log::info($request->all());
-
         $validator = Validator::make($request->all(), [
-            'amount' => ['required', 'numeric', 'min:0'],
+            'amount' => ['nullable', 'numeric', 'min:0'],
             'product' => ['nullable', 'string', 'max:255'],
             'total_charges' => ['nullable', 'numeric', 'min:0'],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
+            'promo_discount' => ['nullable', 'numeric', 'min:0'],
             'total_payment' => ['nullable', 'numeric', 'min:0'],
             'shipping_method' => ['nullable', 'string', 'max:50'],
             'shipping_address' => ['nullable', 'string', 'max:255'],
@@ -57,10 +107,10 @@ class PaymentController extends Controller
             'products.*.product_id' => ['required', 'uuid', 'exists:products,product_id'],
             'products.*.quantity' => ['required', 'integer', 'min:1'],
             'products.*.uom' => ['required', 'string', 'max:50'],
-            'products.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'products.*.unit_price' => ['nullable', 'numeric', 'min:0'],
             'products.*.tax' => ['nullable', 'numeric', 'min:0'],
             'products.*.discount_value' => ['nullable', 'numeric', 'min:0'],
-            'products.*.amount' => ['required', 'numeric', 'min:0'],
+            'products.*.amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         if ($validator->fails()) {
@@ -76,32 +126,72 @@ class PaymentController extends Controller
         $merchantKey = config('services.ipay88.key');
 
         $refNo = $this->generateOrderNo();
-        $amountRaw = (string) $request->input('amount');
-        $amount = str_replace(['.', ','], '', $amountRaw); // Format: 100.00 -> 10000
         $currency = "MYR";
 
-        // Signature = MerchantKey + MerchantCode + RefNo + Amount + Currency
-        $payload = $merchantKey . $merchantCode . $refNo . $amount . $currency;
+        $pricingBaseRequest = $request->duplicate();
+        $pricingBaseRequest->merge([
+            'discount_value' => 0,
+            'promo_discount' => 0,
+        ]);
 
-        // CRITICAL: Log the string to your storage/logs/laravel.log file
-        // Use bin2hex or wrap in quotes so you can see if there are trailing spaces
-        Log::info("PAYLOAD_TO_HASH: '" . $payload . "'");
-        Log::info("PAYLOAD_HEX_DUMP: " . bin2hex($payload));
+        $pricingBase = $this->calculateOrderPricing($pricingBaseRequest);
+        if (!$pricingBase['ok']) {
+            return response()->json([
+                'message' => $pricingBase['message'] ?? 'Unable to calculate pricing.',
+                'errors' => $pricingBase['errors'] ?? null,
+            ], 422);
+        }
+
+        $promoDiscount = 0.0;
+        $discountCode = trim((string) ($request->input('discount_code') ?? ''));
+        if ($discountCode !== '') {
+            $discountResult = $this->resolvePromoDiscountFromCode(
+                $discountCode,
+                (float) $pricingBase['totals']['total_payment'],
+                $request->input('products', []),
+            );
+            if (!$discountResult['ok']) {
+                return response()->json([
+                    'message' => $discountResult['message'] ?? 'Invalid discount code.',
+                ], 422);
+            }
+            $promoDiscount = (float) ($discountResult['discount_value'] ?? 0);
+        }
+
+        $pricingRequest = $request->duplicate();
+        $pricingRequest->merge([
+            'discount_value' => 0,
+            'promo_discount' => $promoDiscount,
+        ]);
+
+        $pricing = $this->calculateOrderPricing($pricingRequest);
+        if (!$pricing['ok']) {
+            return response()->json([
+                'message' => $pricing['message'] ?? 'Unable to calculate pricing.',
+                'errors' => $pricing['errors'] ?? null,
+            ], 422);
+        }
+
+        if (((float) $pricing['totals']['total_payment']) <= 0) {
+            return response()->json([
+                'message' => 'Total payment must be greater than 0.',
+            ], 422);
+        }
+
+        $amountRaw = number_format((float) $pricing['totals']['total_payment'], 2, '.', '');
+        $amount = str_replace(['.', ','], '', $amountRaw);
+
+        $payload = $merchantKey . $merchantCode . $refNo . $amount . $currency;
 
         // cannot change this algorithm, important
         $signature = hash_hmac('sha512', $payload, $merchantKey);
-        Log::info('signature');
-        Log::info($signature);
 
-        DB::transaction(function () use ($request, $refNo) {
-            Log::info('Create payment request', $request->all());
-            $totalPayment = $request->input('amount') !== null
-                ? (float) $request->input('amount')
-                : (float) $request->input('total_payment');
-
-            $totalPrice = $request->input('subtotal') !== null
-                ? (float) $request->input('subtotal')
-                : $totalPayment;
+        DB::transaction(function () use ($request, $refNo, $pricing, $discountCode) {
+            $totalPayment = (float) $pricing['totals']['total_payment'];
+            $totalPrice = (float) $pricing['totals']['subtotal'];
+            $totalCharges = (float) $pricing['totals']['total_charges'];
+            $totalDiscount = (float) $pricing['totals']['total_discount'];
+            $walletCreditUsed = (float) $pricing['totals']['wallet_credit_used'];
 
             $order = Orders::create([
                 'user_id' => $request->user()->user_id,
@@ -109,38 +199,47 @@ class PaymentController extends Controller
                 'order_date' => now()->toDateString(),
                 'order_description' => $request->input('product') ?? '',
                 'total_price' => $totalPrice,
-                'total_charges' => (float) ($request->input('total_charges') ?? $request->input('total_charges') ?? 0),
-                'total_discount' => (float) (($request->input('discount_value') ?? 0) + ($request->input('promo_discount') ?? 0)),
+                'total_charges' => $totalCharges,
+                'total_discount' => $totalDiscount,
                 'total_payment' => $totalPayment,
                 'shipping_method' => $request->input('shipping_method') ?? null,
                 'shipping_address' => $request->input('shipping_address') ?? null,
                 'billing_address' => $request->input('billing_address') ?? null,
-                'discount_code' => $request->input('discount_code') ?? null,
-                'wallet_credit_used' => (float) ($request->input('wallet_credit_used') ?? 0),
+                'discount_code' => $discountCode !== '' ? $discountCode : null,
+                'wallet_credit_used' => $walletCreditUsed,
                 'order_status' => 'pending',
             ]);
 
-            foreach ($request->input('products') as $item) {
+            foreach ($pricing['items'] as $item) {
                 OrderItems::create([
                     'order_id' => $order->order_id,
                     'product_id' => $item['product_id'],
+                    'line_type' => 'product',
+                    'source_id' => $item['product_id'],
+                    'line_name' => (string) ($item['product_name'] ?? ''),
+                    'line_description' => null,
                     'quantity' => (int) $item['quantity'],
                     'uom' => $item['uom'],
                     'unit_price' => (float) $item['unit_price'],
-                    'tax' => (float) ($item['tax'] ?? 0),
-                    'discount' => (float) ($item['discount_value'] ?? 0),
-                    'total_price' => (float) $item['amount'],
+                    'tax' => (float) $item['tax'],
+                    'discount' => (float) $item['discount'],
+                    'total_price' => (float) $item['total_price'],
                 ]);
             }
         });
 
+        $prodDesc = trim((string) ($request->input('product') ?? ''));
+        if ($prodDesc === '') {
+            $prodDesc = 'BonBon Checkout';
+        }
+
         return response()->json([
             'merchantCode' => $merchantCode,
             'refNo'        => $refNo,
-            'amount'       => $request->input('amount'),
+            'amount'       => $amountRaw,
             'currency'     => $currency,
             'signature'    => $signature,
-            'prodDesc'     => $request->input('product') ?? '',
+            'prodDesc'     => $prodDesc,
             'userName'     => $request->user()->last_name . " " . $request->user()->first_name,
             'userEmail'    => $request->user()->email,
             'responseUrl'  => url('/api/payments/frontend-callback'),
@@ -148,6 +247,208 @@ class PaymentController extends Controller
             // 'responseUrl'  => 'https://generically-mediatorial-sharen.ngrok-free.dev/api/payments/frontend-callback',
             // 'backendUrl'   => 'https://generically-mediatorial-sharen.ngrok-free.dev/api/payments/backend-callback',
         ]);
+    }
+
+    private function resolvePromoDiscountFromCode(string $code, float $amount, array $products): array
+    {
+        $code = trim($code);
+        if ($code === '') {
+            return [
+                'ok' => true,
+                'discount_value' => 0.0,
+            ];
+        }
+
+        $discount = Discounts::query()
+            ->where('discount_code', $code)
+            ->first();
+
+        if (!$discount) {
+            return [
+                'ok' => false,
+                'message' => 'Discount code not found',
+            ];
+        }
+
+        if (!$discount->is_active) {
+            return [
+                'ok' => false,
+                'message' => 'Discount code is inactive',
+            ];
+        }
+
+        $today = now()->toDateString();
+        if ((string) $discount->discount_start_date > $today || (string) $discount->discount_end_date < $today) {
+            return [
+                'ok' => false,
+                'message' => 'Discount code is not valid for this date',
+            ];
+        }
+
+        if (!$discount->is_unlimited) {
+            $usageLimit = (int) ($discount->discount_usage_limit ?? 0);
+            if ($usageLimit > 0) {
+                $completedUsages = Orders::query()
+                    ->where('discount_code', $discount->discount_code)
+                    ->where('order_status', 'completed')
+                    ->count();
+
+                if ($completedUsages >= $usageLimit) {
+                    return [
+                        'ok' => false,
+                        'message' => 'Usage limit reached',
+                    ];
+                }
+            }
+        }
+
+        $productIds = collect($products)
+            ->pluck('product_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (($discount->applies_to ?? 'all') !== 'all') {
+            $eligible = DiscountProducts::query()
+                ->where('discount_id', $discount->discount_id)
+                ->whereIn('product_id', $productIds)
+                ->exists();
+
+            if (!$eligible) {
+                return [
+                    'ok' => true,
+                    'discount_value' => 0.0,
+                ];
+            }
+        }
+
+        $originalAmount = max(0.0, round($amount, 2));
+        $discountAmount = (float) ($discount->discount_amount ?? 0);
+
+        if ((string) $discount->discount_type === 'P') {
+            $finalAmount = $originalAmount - ($originalAmount * ($discountAmount / 100));
+        } else {
+            $finalAmount = $originalAmount - $discountAmount;
+        }
+
+        if ($finalAmount < 0) {
+            $finalAmount = 0;
+        }
+
+        return [
+            'ok' => true,
+            'discount_value' => round($originalAmount - $finalAmount, 2),
+        ];
+    }
+
+    private function calculateOrderPricing(Request $request): array
+    {
+        $items = $request->input('products', []);
+        if (!is_array($items) || count($items) === 0) {
+            return [
+                'ok' => false,
+                'message' => 'Products are required.',
+            ];
+        }
+
+        $totalCharges = (float) ($request->input('total_charges') ?? 0);
+        $walletCreditUsed = (float) ($request->input('wallet_credit_used') ?? 0);
+        $orderLevelDiscount = (float) (($request->input('discount_value') ?? 0) + ($request->input('promo_discount') ?? 0));
+
+        $subtotal = 0.0;
+        $taxTotal = 0.0;
+        $productDiscountTotal = 0.0;
+        $resolvedItems = [];
+        $errors = [];
+
+        foreach ($items as $index => $line) {
+            $productId = (string) ($line['product_id'] ?? '');
+            $quantity = (int) ($line['quantity'] ?? 0);
+            $uom = (string) ($line['uom'] ?? 'unit');
+
+            if ($productId === '' || $quantity <= 0) {
+                $errors["products.$index"] = ['Invalid product line.'];
+                continue;
+            }
+
+            $product = Products::query()->where('product_id', $productId)->first();
+            if (!$product || !$product->is_active) {
+                $errors["products.$index.product_id"] = ['Product is inactive or not found.'];
+                continue;
+            }
+
+            $pricing = $this->pricingService->resolvePricing($product, $quantity);
+            $unitPrice = (float) $pricing['final_unit_price'];
+            $lineDiscount = (float) $pricing['discount_total'];
+
+            $lineSubtotal = round($unitPrice * $quantity, 2);
+
+            $taxRate = 0.0;
+            if ($product->is_taxable) {
+                $taxRow = Taxes::query()->where('tax_rate_id', $product->tax_rate_id)->first();
+                $taxRate = $taxRow ? (float) $taxRow->tax_rate : 0.0;
+            }
+
+            $lineTax = round($lineSubtotal * ($taxRate / 100), 2);
+            $lineTotal = round($lineSubtotal + $lineTax, 2);
+
+            $subtotal += $lineSubtotal;
+            $taxTotal += $lineTax;
+            $productDiscountTotal += $lineDiscount;
+
+            $resolvedItems[] = [
+                'product_id' => $productId,
+                'product_name' => (string) $product->product_name,
+                'quantity' => $quantity,
+                'uom' => $uom,
+                'unit_price' => round($unitPrice, 2),
+                'discount' => round($lineDiscount, 2),
+                'tax' => round($lineTax, 2),
+                'total_price' => round($lineTotal, 2),
+            ];
+        }
+
+        if (!empty($errors)) {
+            return [
+                'ok' => false,
+                'message' => 'Pricing validation failed.',
+                'errors' => $errors,
+            ];
+        }
+
+        $subtotal = round($subtotal, 2);
+        $taxTotal = round($taxTotal, 2);
+        $productDiscountTotal = round($productDiscountTotal, 2);
+        $orderLevelDiscount = round($orderLevelDiscount, 2);
+        $totalCharges = round($totalCharges, 2);
+        $walletCreditUsed = round($walletCreditUsed, 2);
+
+        $totalDiscount = round($productDiscountTotal + $orderLevelDiscount, 2);
+        $preWalletTotal = round($subtotal + $taxTotal + $totalCharges - $orderLevelDiscount, 2);
+        if ($preWalletTotal < 0) {
+            $preWalletTotal = 0;
+        }
+
+        $totalPayment = round($preWalletTotal - $walletCreditUsed, 2);
+        if ($totalPayment < 0) {
+            $totalPayment = 0;
+        }
+
+        return [
+            'ok' => true,
+            'items' => $resolvedItems,
+            'totals' => [
+                'subtotal' => $subtotal,
+                'tax_total' => $taxTotal,
+                'product_discount_total' => $productDiscountTotal,
+                'order_level_discount' => $orderLevelDiscount,
+                'total_discount' => $totalDiscount,
+                'total_charges' => $totalCharges,
+                'wallet_credit_used' => $walletCreditUsed,
+                'total_payment' => $totalPayment,
+            ],
+        ];
     }
 
     // This handles the Server-to-Server notification
@@ -183,11 +484,19 @@ class PaymentController extends Controller
                 return response("FAILED")->header('Content-Type', 'text/plain');
             }
 
-            $order->update([
-                'order_status' => 'completed',
-            ]);
+            $pendingCart = Cart::query()
+                ->where('user_id', $order->user_id)
+                ->where('cart_status', 'pending_payment')
+                ->orderByDesc('created_at')
+                ->first();
 
-            Payments::updateOrCreate(
+            if ($pendingCart) {
+                $pendingCart->update([
+                    'cart_status' => 'checked_out',
+                ]);
+            }
+
+            $payment = Payments::updateOrCreate(
                 [
                     'order_no' => $request->RefNo,
                 ],
@@ -204,11 +513,32 @@ class PaymentController extends Controller
                 ]
             );
 
+            $pickupCreated = false;
+            if ($pendingCart) {
+                $pickupCreated = $this->fulfillProductPickupOrder($order, $pendingCart, (string) $order->user_id);
+            }
+
+            $order->update([
+                'order_status' => $pickupCreated ? 'processing' : 'completed',
+            ]);
+
+            EventRegistration::query()
+                ->where('order_id', $order->order_id)
+                ->whereIn('registration_status', ['pending_payment'])
+                ->update([
+                    'registration_status' => 'confirmed',
+                    'confirmed_at' => now(),
+                    'payment_id' => $payment->payment_id ?? null,
+                ]);
+
             $orderItems = OrderItems::query()
                 ->where('order_id', $order->order_id)
                 ->get();
 
             foreach ($orderItems as $item) {
+                if (empty($item->product_id)) {
+                    continue;
+                }
                 $product = Products::query()->where('product_id', $item->product_id)->first();
                 if (!$product) {
                     continue;
@@ -421,6 +751,202 @@ class PaymentController extends Controller
         }
     }
 
+    private function fulfillProductPickupOrder(Orders $order, Cart $pendingCart, string $actorUserId): bool
+    {
+        $cartItems = CartItem::query()
+            ->where('cart_id', $pendingCart->cart_id)
+            ->where('line_type', 'product')
+            ->get()
+            ->keyBy('source_id');
+
+        if ($cartItems->isEmpty()) {
+            return false;
+        }
+
+        $orderItems = OrderItems::query()
+            ->where('order_id', $order->order_id)
+            ->where('line_type', 'product')
+            ->get();
+
+        if ($orderItems->isEmpty()) {
+            return false;
+        }
+
+        $firstPickupMeta = null;
+        foreach ($orderItems as $orderItem) {
+            $cartItem = $cartItems->get((string) $orderItem->source_id);
+            $meta = (array) ($cartItem?->metadata_json ?? []);
+            if (!empty($meta['compartment_stock_product_id']) && !empty($meta['vendor_location_id'])) {
+                $firstPickupMeta = $meta;
+                break;
+            }
+        }
+
+        if (!$firstPickupMeta) {
+            return false;
+        }
+
+        $pickup = OrderPickup::query()->firstOrCreate(
+            ['order_id' => $order->order_id],
+            [
+                'user_id' => (string) $order->user_id,
+                'vendor_id' => (string) ($firstPickupMeta['vendor_id'] ?? ''),
+                'vendor_location_id' => (int) $firstPickupMeta['vendor_location_id'],
+                'fulfillment_method' => 'pickup',
+                'pickup_status' => 'pending_pickup',
+                'pickup_code' => strtoupper(Str::random(12)),
+                'pickup_payload_json' => null,
+                'pickup_signature_hash' => null,
+                'qr_issued_at' => now(),
+            ]
+        );
+
+        foreach ($orderItems as $orderItem) {
+            $cartItem = $cartItems->get((string) $orderItem->source_id);
+            if (!$cartItem) {
+                continue;
+            }
+
+            $meta = (array) ($cartItem->metadata_json ?? []);
+            $compartmentStockProductId = (string) ($meta['compartment_stock_product_id'] ?? '');
+            $compartmentStockId = (string) ($meta['compartment_stock_id'] ?? '');
+            $vendorLocationId = (int) ($meta['vendor_location_id'] ?? 0);
+
+            if ($compartmentStockProductId === '' || $compartmentStockId === '' || $vendorLocationId <= 0) {
+                continue;
+            }
+
+            $stockRow = DB::table('compartment_stock_products as csp')
+                ->join('compartment_stocks as cs', 'cs.compartment_stock_id', '=', 'csp.compartment_stock_id')
+                ->join('tender_compartments as tc', 'tc.tender_compartment_id', '=', 'cs.tender_compartment_id')
+                ->join('compartments as compartments', 'compartments.compartment_id', '=', 'tc.compartment_id')
+                ->join('racks as racks', 'racks.rack_id', '=', 'compartments.rack_id')
+                ->join('vendor_locations as vl', 'vl.id', '=', 'racks.vendor_location_id')
+                ->join('vendors as vendors', 'vendors.vendor_id', '=', 'vl.vendor_id')
+                ->where('csp.compartment_stock_product_id', $compartmentStockProductId)
+                ->where('csp.compartment_stock_id', $compartmentStockId)
+                ->where('csp.product_id', (string) $orderItem->product_id)
+                ->where('vl.id', $vendorLocationId)
+                ->lockForUpdate()
+                ->select([
+                    'csp.compartment_stock_product_id',
+                    'csp.compartment_stock_id',
+                    'csp.quantity',
+                    'compartments.compartment_id',
+                    'compartments.label as compartment_name',
+                    'racks.rack_id',
+                    'racks.rack_name',
+                    'vl.id as vendor_location_id',
+                    'vl.location_name as vendor_location_name',
+                    'vendors.vendor_id',
+                    'vendors.vendor_name',
+                ])
+                ->first();
+
+            if (!$stockRow) {
+                throw new \RuntimeException('Pickup stock row not found for order ' . $order->order_no);
+            }
+
+            $orderedQty = (int) $orderItem->quantity;
+            $currentQty = (int) $stockRow->quantity;
+            if ($currentQty < $orderedQty) {
+                throw new \RuntimeException('Insufficient pickup stock for order ' . $order->order_no);
+            }
+
+            DB::table('compartment_stock_products')
+                ->where('compartment_stock_product_id', $compartmentStockProductId)
+                ->update([
+                    'quantity' => $currentQty - $orderedQty,
+                    'updated_at' => now(),
+                ]);
+
+            OrderPickupItem::query()->updateOrCreate(
+                [
+                    'order_pickup_id' => $pickup->order_pickup_id,
+                    'order_item_id' => $orderItem->order_item_id,
+                ],
+                [
+                    'product_id' => (string) $orderItem->product_id,
+                    'compartment_stock_id' => $compartmentStockId,
+                    'compartment_stock_product_id' => $compartmentStockProductId,
+                    'rack_id' => (string) ($meta['rack_id'] ?? $stockRow->rack_id ?? ''),
+                    'compartment_id' => (string) ($meta['compartment_id'] ?? $stockRow->compartment_id ?? ''),
+                    'ordered_quantity' => $orderedQty,
+                    'picked_up_quantity' => 0,
+                    'product_name' => (string) ($orderItem->line_name ?? 'Product'),
+                    'vendor_name' => (string) ($meta['vendor_name'] ?? $stockRow->vendor_name ?? ''),
+                    'vendor_location_name' => (string) ($meta['pickup_location_name'] ?? $stockRow->vendor_location_name ?? ''),
+                    'rack_name' => (string) ($meta['rack_name'] ?? $stockRow->rack_name ?? ''),
+                    'compartment_name' => (string) ($meta['compartment_name'] ?? $stockRow->compartment_name ?? ''),
+                ]
+            );
+
+            CompartmentStockProductTransaction::query()->create([
+                'compartment_stock_product_transaction_id' => (string) Str::uuid(),
+                'transaction_quantity' => $orderedQty,
+                'compartment_stock_qr_session_id' => null,
+                'compartment_stock_id' => $compartmentStockId,
+                'compartment_stock_product_id' => $compartmentStockProductId,
+                'vendor_id' => (string) ($stockRow->vendor_id ?? ''),
+                'rack_owner_vendor_id' => (string) ($stockRow->vendor_id ?? ''),
+                'generated_by_user_id' => $actorUserId,
+                'received_by_user_id' => null,
+                'transaction_type' => 'purchase_pickup',
+                'transaction_status' => 'confirmed',
+                'prepared_quantity' => $currentQty,
+                'received_quantity' => null,
+                'quantity_delta' => -1 * $orderedQty,
+                'actor_user_id' => $actorUserId,
+                'actor_vendor_id' => (string) ($stockRow->vendor_id ?? ''),
+                'event_source' => 'order_pickup',
+                'event_source_id' => (string) $pickup->order_pickup_id,
+                'vendor_location_id' => $vendorLocationId,
+                'rack_id' => (string) ($meta['rack_id'] ?? $stockRow->rack_id ?? ''),
+                'compartment_id' => (string) ($meta['compartment_id'] ?? $stockRow->compartment_id ?? ''),
+                'product_id' => (string) $orderItem->product_id,
+                'description' => 'Purchase pickup allocation for order ' . (string) $order->order_no,
+                'confirmed_at' => now(),
+            ]);
+        }
+
+        $payload = $this->buildPickupPayload($pickup);
+        $signature = $this->signPickupPayload($payload);
+        $pickup->update([
+            'pickup_payload_json' => array_merge($payload, ['signature' => $signature]),
+            'pickup_signature_hash' => hash('sha256', $signature),
+            'qr_issued_at' => now(),
+        ]);
+
+        return true;
+    }
+
+    private function buildPickupPayload(OrderPickup $pickup): array
+    {
+        return [
+            'order_pickup_id' => (string) $pickup->order_pickup_id,
+            'order_id' => (string) $pickup->order_id,
+            'user_id' => (string) $pickup->user_id,
+            'vendor_id' => (string) $pickup->vendor_id,
+            'vendor_location_id' => (int) $pickup->vendor_location_id,
+            'pickup_code' => (string) $pickup->pickup_code,
+            'ts' => now()->timestamp,
+        ];
+    }
+
+    private function signPickupPayload(array $payload): string
+    {
+        $canonical = $payload;
+        unset($canonical['signature']);
+        ksort($canonical);
+
+        return hash_hmac('sha256', json_encode($canonical, JSON_UNESCAPED_SLASHES), $this->pickupQrSecret());
+    }
+
+    private function pickupQrSecret(): string
+    {
+        return (string) (env('QR_SECRET') ?: config('app.key'));
+    }
+
     public function verifySignature(Request $request)
     {
         $merchantKey = config('services.ipay88.key');
@@ -472,6 +998,10 @@ class PaymentController extends Controller
             ->select('total_payment', 'total_discount', 'order_id')
             ->where('order_no', $refNo)
             ->first();
+        if (!$order) {
+            return response()->json(['error' => 'Order not found'], 404);
+        }
+
         $order->payment = Payments::query()
             ->select('payment_method', 'created_at', 'transaction_id')
             ->where('order_no', $refNo)
@@ -480,12 +1010,37 @@ class PaymentController extends Controller
 
         $order->products = OrderItems::query()
             ->leftJoin('products', 'order_items.product_id', '=', 'products.product_id')
-            ->select('products.product_name', 'order_items.quantity')
+            ->selectRaw("
+                CASE
+                    WHEN order_items.line_name IS NOT NULL AND order_items.line_name <> '' THEN order_items.line_name
+                    ELSE products.product_name
+                END as product_name
+            ")
+            ->addSelect('order_items.quantity', 'order_items.line_type')
             ->where('order_id', $order->order_id)
             ->get();
 
-        if (!$order) {
-            return response()->json(['error' => 'Order not found'], 404);
+        $pickup = OrderPickup::query()
+            ->where('order_id', $order->order_id)
+            ->first([
+                'order_pickup_id',
+                'pickup_status',
+                'vendor_location_id',
+                'picked_up_at',
+            ]);
+
+        if ($pickup) {
+            $locationName = DB::table('vendor_locations')
+                ->where('id', $pickup->vendor_location_id)
+                ->value('location_name');
+
+            $order->pickup = [
+                'order_pickup_id' => (string) $pickup->order_pickup_id,
+                'pickup_status' => (string) $pickup->pickup_status,
+                'vendor_location_id' => (int) $pickup->vendor_location_id,
+                'vendor_location_name' => $locationName ? (string) $locationName : null,
+                'picked_up_at' => $pickup->picked_up_at ? (string) $pickup->picked_up_at : null,
+            ];
         }
 
         return response()->json($order);

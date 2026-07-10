@@ -1,14 +1,21 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CompartmentStocksController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\DiscountController;
 use App\Http\Controllers\Api\EventCheckInController;
+use App\Http\Controllers\Api\EventRsvpController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\EventsController;
 use App\Http\Controllers\Api\LDAuthController;
 use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PurchasePickupController;
+use App\Http\Controllers\Api\ProductPricingTiersController;
+use App\Http\Controllers\Api\ProductsController;
 use App\Http\Controllers\Api\PushTokensController;
+use App\Http\Controllers\Api\RacksController;
 use App\Http\Controllers\Api\VendorsController;
 use App\Http\Controllers\Api\VouchersController;
 use App\Http\Controllers\Api\NotificationsController;
@@ -17,6 +24,7 @@ use App\Http\Controllers\Api\UserPetsController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\RegisterLuckyDrawController;
+use App\Http\Controllers\UserAddressesController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +52,12 @@ Route::middleware(['auth:sanctum'])->group(
 
         // Account
         Route::get('/me', [AuthController::class, 'me']);
+        Route::put('/me/profile', [AuthController::class, 'updateProfile']);
+        Route::get('/me/addresses', [UserAddressesController::class, 'index']);
+        Route::get('/me/addresses/{user_address_id}', [UserAddressesController::class, 'show']);
+        Route::post('/me/addresses', [UserAddressesController::class, 'store']);
+        Route::put('/me/addresses/{user_address_id}', [UserAddressesController::class, 'update']);
+        Route::delete('/me/addresses/{user_address_id}', [UserAddressesController::class, 'destroy']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::delete('/account', [AuthController::class, 'destroy']);
 
@@ -58,9 +72,23 @@ Route::middleware(['auth:sanctum'])->group(
 
         // Order Detail
         Route::get('/orders/{refNo}', [PaymentController::class, 'orderDetail']);
+        Route::get('/my-purchases', [PurchasePickupController::class, 'index']);
+        Route::get('/my-purchases/{order_pickup_id}', [PurchasePickupController::class, 'show']);
 
         // Payment
+        Route::post('/pricing/quote', [PaymentController::class, 'quotePricing']);
         Route::post('/payments/create', [PaymentController::class, 'createPayment']);
+
+        // Cart / Mixed Checkout
+        Route::get('/cart', [CartController::class, 'show']);
+        Route::post('/cart/items', [CartController::class, 'upsertItem']);
+        Route::delete('/cart/items/{cart_item_id}', [CartController::class, 'removeItem']);
+        Route::post('/cart/checkout', [CartController::class, 'checkout']);
+
+        // Event RSVP (Questionnaire + Seat Hold)
+        Route::get('/events/{event_id}/questionnaires', [EventRsvpController::class, 'questionnaires']);
+        Route::post('/events/{event_id}/rsvp/start', [EventRsvpController::class, 'start']);
+        Route::post('/events/{event_id}/rsvp/answers', [EventRsvpController::class, 'submitAnswers']);
 
         // discount
         Route::post('/discounts/validate', [DiscountController::class, 'validateDiscount']);
@@ -82,12 +110,64 @@ Route::middleware(['auth:sanctum'])->group(
         // Vendor Profile
         Route::get('/merchant/profile', [VendorsController::class, 'merchantProfile']);
 
+        Route::get('/products/{product_id}/pricing-tiers', [ProductPricingTiersController::class, 'index']);
+        Route::post('/products/{product_id}/pricing-tiers', [ProductPricingTiersController::class, 'store']);
+        Route::put('/products/{product_id}/pricing-tiers/{product_pricing_tier_id}', [ProductPricingTiersController::class, 'update']);
+        Route::delete('/products/{product_id}/pricing-tiers/{product_pricing_tier_id}', [ProductPricingTiersController::class, 'destroy']);
+
         // Vendor Vouchers Redeem
         Route::get('/user-vouchers/{voucher_id}/{user_id}', [VouchersController::class, 'userVoucher']);
         Route::post('/user-vouchers/{voucher_id}/{user_id}/redeem', [VouchersController::class, 'redeem']);
 
         Route::post('/lucky-draw/register-ticket', [RegisterLuckyDrawController::class, 'registerUser']);
         Route::post('/event-check-in', [EventCheckInController::class, 'checkIn']);
+
+        // vendor location racks
+        Route::get('/vendors/{vendor_id}/racks', [RacksController::class, 'vendorRacks']);
+        Route::get('/vendors/{vendor_id}/compartment-stocks/prepared', [RacksController::class, 'vendorPreparedCompartmentStocks']);
+        Route::get('/racks/{rack_id}/stock-products', [RacksController::class, 'rackStockProducts']);
+        Route::post(
+            '/vendors/{vendor_id}/compartment-stocks/{compartment_stock_product_id}/qr-sessions',
+            [CompartmentStocksController::class, 'storeQrSession']
+        );
+        Route::post(
+            '/vendors/{vendor_id}/compartment-stocks/{compartment_stock_product_id}/remove',
+            [CompartmentStocksController::class, 'removeStockProduct']
+        );
+        Route::get(
+            '/compartment-stock-qr-sessions/{compartment_stock_qr_session_id}',
+            [CompartmentStocksController::class, 'showQrSession']
+        );
+        Route::post(
+            '/compartment-stock-qr-sessions/{compartment_stock_qr_session_id}/revoke',
+            [CompartmentStocksController::class, 'revokeQrSession']
+        );
+        Route::post(
+            '/rack-owner/compartment-stock-qr/validate',
+            [CompartmentStocksController::class, 'validateQr']
+        );
+        Route::post(
+            '/rack-owner/compartment-stock-qr/confirm',
+            [CompartmentStocksController::class, 'confirmReceive']
+        );
+        Route::post('/merchant/pickups/validate', [PurchasePickupController::class, 'validateQr']);
+        Route::post('/merchant/pickups/{order_pickup_id}/confirm', [PurchasePickupController::class, 'confirm']);
+        Route::get(
+            '/rack-owner/compartment-stock-transactions',
+            [CompartmentStocksController::class, 'history']
+        );
+        Route::get(
+            '/admin/compartment-stock-transactions',
+            [CompartmentStocksController::class, 'adminIndex']
+        );
+        Route::get(
+            '/admin/compartment-stock-transactions/{stock_product_transaction_id}',
+            [CompartmentStocksController::class, 'adminShow']
+        );
+        Route::post(
+            '/admin/compartment-stock-products/purchase',
+            [CompartmentStocksController::class, 'adminRecordPurchase']
+        );
     }
 );
 
@@ -104,6 +184,11 @@ Route::middleware('guest')->group(
         Route::get('/vendors', [VendorsController::class, 'vendors']);
         Route::get('/getVendor/{vendor_id}', [VendorsController::class, 'vendor']);
         Route::get('/vendor-categories', [VendorsController::class, 'vendorCategories']);
+
+        // Products
+        Route::get('/products', [ProductsController::class, 'index']);
+        Route::get('/products/{product_id}', [ProductsController::class, 'show']);
+        Route::get('/product-categories', [ProductsController::class, 'categories']);
     }
 );
 
