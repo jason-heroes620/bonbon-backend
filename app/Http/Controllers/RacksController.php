@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Compartments;
 use App\Models\Racks;
 use App\Models\VendorLocation;
+use App\Models\Vendors;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -19,6 +20,8 @@ class RacksController extends Controller
 
     public function showAll(Request $request)
     {
+        $user = $request->user();
+
         $query = Racks::query()
             ->leftJoin('vendor_locations as vendor_locations', 'racks.vendor_location_id', '=', 'vendor_locations.id')
             ->leftJoin('vendors as vendors', 'vendor_locations.vendor_id', '=', 'vendors.vendor_id')
@@ -27,6 +30,15 @@ class RacksController extends Controller
                 'vendor_locations.location_name as vendor_location_name',
                 'vendors.vendor_name',
             ]);
+
+        if ($user->role === 'vendor') {
+            $vendorLocationIds = Vendors::query()
+                ->leftJoin('vendor_locations', 'vendors.vendor_id', '=', 'vendor_locations.vendor_id')
+                ->where('user_id', $user->user_id)
+                ->pluck('vendor_locations.id')->toArray();
+            $query->whereIn('racks.vendor_location_id', $vendorLocationIds);
+        }
+
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('compartment_stock_product_transactions', function (Blueprint $table) {
             $table->uuid('compartment_stock_product_transaction_id')->primary();
             $table->integer('transaction_quantity', 4)->autoIncrement(false);
-            $table->string('description', 50)->nullable();
+            $table->string('description', 100)->nullable();
             $table->timestamps();
         });
     }
@@ -24,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('compartment_product_transactions');
+        Schema::dropIfExists('compartment_stock_product_transactions');
     }
 };

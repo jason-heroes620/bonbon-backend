@@ -17,7 +17,7 @@ configureEcho({
     broadcaster: "reverb",
 });
 
-const appName = import.meta.env.VITE_APP_NAME || "Heroes";
+const appName = import.meta.env.VITE_APP_NAME || "BonBon";
 
 function AppWrapper({ App, props }: any) {
     const { flash } = props.initialPage.props;

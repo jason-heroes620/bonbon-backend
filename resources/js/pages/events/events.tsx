@@ -14,6 +14,26 @@ export const columns: ColumnDef<Event>[] = [
         cell: ({ row }) => row.original.event_name,
     },
     {
+        accessorKey: "registration_type",
+        header: "Mode",
+        cell: ({ row }) =>
+            row.original.registration_type === "paid" ? "Paid" : "Free",
+    },
+    {
+        accessorKey: "base_price",
+        header: "Base Price",
+        cell: ({ row }) =>
+            row.original.registration_type === "paid"
+                ? `MYR ${Number(row.original.base_price ?? 0).toFixed(2)}`
+                : "-",
+    },
+    {
+        accessorKey: "seat_limit",
+        header: "Seats",
+        cell: ({ row }) =>
+            row.original.is_unlimited_seats ? "Unlimited" : row.original.seat_limit ?? "-",
+    },
+    {
         accessorKey: "event_start_date",
         header: "Start",
         cell: ({ row }) =>

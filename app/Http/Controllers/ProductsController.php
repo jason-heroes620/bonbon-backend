@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Categories;
+use App\Models\ProductImages;
 use App\Models\Products;
 use App\Models\Taxes;
 use App\Models\Vendors;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ProductsController extends Controller
@@ -20,8 +24,14 @@ class ProductsController extends Controller
     public function showAll(Request $request)
     {
         // if role is vendor, filter by vendor_id
-        $query = Products::query();
-        Log::info($request->user()->role);
+        $query = Products::query()
+            ->with('primaryImage')
+            ->withCount([
+                'pricingTiers as active_pricing_tiers_count' => function ($q) {
+                    $q->where('is_active', true);
+                },
+            ]);
+
         if ($request->user()->role === 'vendor') {
             // get vendor_id from user
             $vendorId = Vendors::query()->where('user_id', $request->user()->user_id)->value('vendor_id');
@@ -105,10 +115,12 @@ class ProductsController extends Controller
             'sale_price' => ['required', 'numeric', 'min:0'],
             'is_active' => ['required', 'boolean'],
             'is_unlimited' => ['required', 'boolean'],
+            'images' => ['nullable', 'array'],
+            'images.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:ratio=1/1,max_width=2048,max_height=2048'],
         ]);
 
         $categoryIds = $validated['category_ids'] ?? [];
-        unset($validated['category_ids']);
+        unset($validated['category_ids'], $validated['images']);
 
         $primaryCategoryId = count($categoryIds) > 0 ? $categoryIds[0] : null;
         $validated['category_id'] = $primaryCategoryId;
@@ -120,8 +132,13 @@ class ProductsController extends Controller
             $validated['vendor_id'] = $vendorId;
         }
 
-        $product = Products::create($validated);
-        $product->categories()->sync($categoryIds);
+        $product = null;
+
+        DB::transaction(function () use ($validated, $categoryIds, $request, &$product) {
+            $product = Products::create($validated);
+            $product->categories()->sync($categoryIds);
+            $this->syncProductImages($request, $product);
+        });
 
         return redirect()->route('products.index')->with([
             'success' => 'Product created successfully',
@@ -141,7 +158,12 @@ class ProductsController extends Controller
             ->get();
 
         return Inertia::render('products/edit', [
-            'product' => $product,
+            'product' => $product->load([
+                'images' => fn($q) => $q
+                    ->where('is_active', true)
+                    ->orderByDesc('is_primary')
+                    ->orderBy('created_at'),
+            ]),
             'categories' => $categories,
             'taxRates' => $taxRates,
             'selectedCategoryIds' => $product->categories()->pluck('categories.category_id')->toArray(),
@@ -169,16 +191,23 @@ class ProductsController extends Controller
             'sale_price' => ['required', 'numeric', 'min:0'],
             'is_active' => ['required', 'boolean'],
             'is_unlimited' => ['required', 'boolean'],
+            'images' => ['nullable', 'array'],
+            'images.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:ratio=1/1,max_width=2048,max_height=2048'],
+            'removed_image_ids' => ['nullable', 'array'],
+            'removed_image_ids.*' => ['uuid'],
         ]);
 
         $categoryIds = $validated['category_ids'] ?? [];
-        unset($validated['category_ids']);
+        unset($validated['category_ids'], $validated['images'], $validated['removed_image_ids']);
 
         $primaryCategoryId = count($categoryIds) > 0 ? $categoryIds[0] : null;
         $validated['category_id'] = $primaryCategoryId;
 
-        $product->update($validated);
-        $product->categories()->sync($categoryIds);
+        DB::transaction(function () use ($validated, $categoryIds, $request, $product) {
+            $product->update($validated);
+            $product->categories()->sync($categoryIds);
+            $this->syncProductImages($request, $product, $request->input('removed_image_ids', []));
+        });
 
         return redirect()->route('products.index')->with([
             'success' => 'Product updated successfully',
@@ -187,7 +216,7 @@ class ProductsController extends Controller
 
     public function destroy(Products $product)
     {
-        Products::query()->delete($product);
+        $product->delete();
 
         return redirect()->route('products.index')->with([
             'success' => 'Product deleted successfully',
@@ -214,5 +243,191 @@ class ProductsController extends Controller
             });
 
         return response()->json($products);
+    }
+
+    private function syncProductImages(Request $request, Products $product, array $removedImageIds = []): void
+    {
+        $activeImages = $product->images()
+            ->where('is_active', true)
+            ->orderByDesc('is_primary')
+            ->orderBy('created_at')
+            ->get();
+
+        if (!empty($removedImageIds)) {
+            $imagesToRemove = $product->images()
+                ->whereIn('product_image_id', $removedImageIds)
+                ->get();
+
+            foreach ($imagesToRemove as $image) {
+                $this->deleteProductImageFiles($image);
+                $image->delete();
+            }
+
+            $activeImages = $activeImages
+                ->reject(fn($image) => in_array($image->product_image_id, $removedImageIds, true))
+                ->values();
+        }
+
+        $uploads = $request->file('images', []);
+        foreach ($uploads as $index => $file) {
+            if (!$file instanceof UploadedFile) {
+                continue;
+            }
+
+            $stored = $this->storeProductImage(
+                $product,
+                $file,
+                $activeImages->isEmpty() && $index === 0,
+            );
+            $activeImages->push($stored);
+        }
+
+        if ($activeImages->isNotEmpty() && !$activeImages->contains(fn($image) => (bool) $image->is_primary)) {
+            $firstImage = $activeImages->first();
+            $product->images()->where('product_image_id', $firstImage->product_image_id)->update([
+                'is_primary' => true,
+            ]);
+        }
+    }
+
+    private function deleteProductImageFiles(ProductImages $image): void
+    {
+        $paths = array_filter([
+            $image->image_path,
+            $image->mobile_image_path,
+        ]);
+
+        if (!empty($paths)) {
+            Storage::disk('public')->delete($paths);
+        }
+    }
+
+    private function storeProductImage(Products $product, UploadedFile $file, bool $isPrimary): ProductImages
+    {
+        $uuid = (string) Str::uuid();
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg');
+        $originalPath = "products/{$product->product_id}/original/{$uuid}.{$extension}";
+
+        Storage::disk('public')->putFileAs(
+            "products/{$product->product_id}/original",
+            $file,
+            "{$uuid}.{$extension}",
+        );
+
+        [$width, $height] = array_pad((array) getimagesize($file->getRealPath()), 2, null);
+        $optimized = $this->buildMobileOptimizedImage($file);
+        $mobilePath = "products/{$product->product_id}/mobile/{$uuid}.{$optimized['extension']}";
+        Storage::disk('public')->put($mobilePath, $optimized['binary']);
+
+        return ProductImages::create([
+            'product_id' => $product->product_id,
+            'image_url' => Storage::url($originalPath),
+            'image_path' => $originalPath,
+            'mobile_image_url' => Storage::url($mobilePath),
+            'mobile_image_path' => $mobilePath,
+            'is_active' => true,
+            'is_primary' => $isPrimary,
+            'image_width' => $width ? (int) $width : null,
+            'image_height' => $height ? (int) $height : null,
+            'file_size_bytes' => $file->getSize(),
+            'mobile_file_size_bytes' => strlen($optimized['binary']),
+        ]);
+    }
+
+    private function buildMobileOptimizedImage(UploadedFile $file): array
+    {
+        $realPath = $file->getRealPath();
+        if ($realPath === false) {
+            throw new \RuntimeException('Unable to access uploaded image.');
+        }
+
+        $imageInfo = getimagesize($realPath);
+        if ($imageInfo === false) {
+            throw new \RuntimeException('Unable to read uploaded image.');
+        }
+
+        [$srcWidth, $srcHeight] = $imageInfo;
+        $mime = (string) ($imageInfo['mime'] ?? '');
+        $source = match ($mime) {
+            'image/jpeg' => imagecreatefromjpeg($realPath),
+            'image/png' => imagecreatefrompng($realPath),
+            'image/webp' => function_exists('imagecreatefromwebp') ? imagecreatefromwebp($realPath) : false,
+            default => false,
+        };
+
+        if ($source === false) {
+            throw new \RuntimeException('Unsupported product image format.');
+        }
+
+        $bestBinary = null;
+        $bestExtension = function_exists('imagewebp') ? 'webp' : 'jpg';
+        $maxBytes = 200 * 2048;
+        $scaleSteps = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4];
+        $qualitySteps = function_exists('imagewebp')
+            ? [82, 76, 70, 64, 58, 52, 46]
+            : [82, 76, 70, 64, 58, 52, 46];
+
+        foreach ($scaleSteps as $scale) {
+            $targetWidth = max(1, (int) round($srcWidth * $scale));
+            $targetHeight = max(1, (int) round($srcHeight * $scale));
+            $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
+            imagealphablending($canvas, false);
+            imagesavealpha($canvas, true);
+            $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+            imagefilledrectangle($canvas, 0, 0, $targetWidth, $targetHeight, $transparent);
+            imagecopyresampled(
+                $canvas,
+                $source,
+                0,
+                0,
+                0,
+                0,
+                $targetWidth,
+                $targetHeight,
+                $srcWidth,
+                $srcHeight,
+            );
+
+            foreach ($qualitySteps as $quality) {
+                ob_start();
+                if (function_exists('imagewebp')) {
+                    imagewebp($canvas, null, $quality);
+                    $extension = 'webp';
+                } else {
+                    $white = imagecreatetruecolor($targetWidth, $targetHeight);
+                    $background = imagecolorallocate($white, 255, 255, 255);
+                    imagefilledrectangle($white, 0, 0, $targetWidth, $targetHeight, $background);
+                    imagecopy($white, $canvas, 0, 0, 0, 0, $targetWidth, $targetHeight);
+                    imagejpeg($white, null, $quality);
+                    imagedestroy($white);
+                    $extension = 'jpg';
+                }
+                $binary = (string) ob_get_clean();
+
+                if ($bestBinary === null || strlen($binary) < strlen($bestBinary)) {
+                    $bestBinary = $binary;
+                    $bestExtension = $extension;
+                }
+
+                if (strlen($binary) <= $maxBytes) {
+                    imagedestroy($canvas);
+                    imagedestroy($source);
+
+                    return [
+                        'binary' => $binary,
+                        'extension' => $extension,
+                    ];
+                }
+            }
+
+            imagedestroy($canvas);
+        }
+
+        imagedestroy($source);
+
+        return [
+            'binary' => (string) $bestBinary,
+            'extension' => $bestExtension,
+        ];
     }
 }

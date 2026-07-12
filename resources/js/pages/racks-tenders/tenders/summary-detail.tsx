@@ -791,13 +791,13 @@ export default function TenderSummaryDetail({
                                                     <td className="px-4 py-2 text-sm whitespace-nowrap">
                                                         {format(
                                                             b.tender_start_date,
-                                                            "d MMM, yyyy",
+                                                            "d MMM, y",
                                                         ) ?? "-"}
                                                     </td>
                                                     <td className="px-4 py-2 text-sm whitespace-nowrap">
                                                         {format(
                                                             b.tender_end_date,
-                                                            "d MMM, yyyy",
+                                                            "d MMM, y",
                                                         ) ?? "-"}
                                                     </td>
                                                 </tr>
@@ -871,13 +871,13 @@ export default function TenderSummaryDetail({
                                                     <td className="px-4 py-2 text-sm whitespace-nowrap">
                                                         {format(
                                                             b.tender_start_date,
-                                                            "d MMM, yyyy",
+                                                            "d MMM, y",
                                                         ) ?? "-"}
                                                     </td>
                                                     <td className="px-4 py-2 text-sm whitespace-nowrap">
                                                         {format(
                                                             b.tender_end_date,
-                                                            "d MMM, yyyy",
+                                                            "d MMM, y",
                                                         ) ?? "-"}
                                                     </td>
                                                 </tr>

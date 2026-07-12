@@ -8,6 +8,7 @@ use App\Models\EventCategories;
 use App\Models\Events;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class EventsController extends Controller
@@ -78,6 +79,14 @@ class EventsController extends Controller
             'location_latitude' => ['required', 'numeric'],
             'location_longitude' => ['required', 'numeric'],
             'place_id' => ['required', 'string', 'max:255'],
+            'registration_type' => ['required', 'in:free,paid'],
+            'base_price' => ['required', 'numeric', 'min:0'],
+            'is_unlimited_seats' => ['required', 'boolean'],
+            'seat_limit' => ['nullable', 'integer', 'min:1'],
+            'seat_hold_minutes' => ['required', 'integer', 'min:1'],
+            'rsvp_open_at' => ['nullable', 'date'],
+            'rsvp_close_at' => ['nullable', 'date'],
+            'require_questionnaire' => ['required', 'boolean'],
             'is_published' => ['required', 'boolean'],
             'is_active' => ['required', 'boolean'],
             'categories' => ['nullable', 'array'],
@@ -86,6 +95,8 @@ class EventsController extends Controller
             'event_images' => ['nullable', 'array'],
             'event_images.*' => ['image', 'max:4096'],
         ]);
+
+        $this->validateCommerceFields($validated);
 
         $event = Events::create($validated);
 
@@ -159,6 +170,14 @@ class EventsController extends Controller
             'location_latitude' => ['required', 'numeric'],
             'location_longitude' => ['required', 'numeric'],
             'place_id' => ['required', 'string', 'max:255'],
+            'registration_type' => ['required', 'in:free,paid'],
+            'base_price' => ['required', 'numeric', 'min:0'],
+            'is_unlimited_seats' => ['required', 'boolean'],
+            'seat_limit' => ['nullable', 'integer', 'min:1'],
+            'seat_hold_minutes' => ['required', 'integer', 'min:1'],
+            'rsvp_open_at' => ['nullable', 'date'],
+            'rsvp_close_at' => ['nullable', 'date'],
+            'require_questionnaire' => ['required', 'boolean'],
             'is_published' => ['required', 'boolean'],
             'is_active' => ['required', 'boolean'],
             'categories' => ['nullable', 'array'],
@@ -172,6 +191,8 @@ class EventsController extends Controller
             'disabled_event_image_ids.*' => ['integer'],
             'disabled_event_image_ids_present' => ['nullable', 'boolean'],
         ]);
+
+        $this->validateCommerceFields($validated);
 
         $event->update($validated);
 
@@ -258,6 +279,48 @@ class EventsController extends Controller
         $relative = ltrim(str_replace('/storage/', '', $url), '/');
         if ($relative !== $url) {
             Storage::disk('public')->delete($relative);
+        }
+    }
+
+    private function validateCommerceFields(array $validated): void
+    {
+        $registrationType = (string) ($validated['registration_type'] ?? 'free');
+        $basePrice = (float) ($validated['base_price'] ?? 0);
+        $unlimitedSeats = (bool) ($validated['is_unlimited_seats'] ?? true);
+        $seatLimit = $validated['seat_limit'] ?? null;
+        $rsvpOpenAt = $validated['rsvp_open_at'] ?? null;
+        $rsvpCloseAt = $validated['rsvp_close_at'] ?? null;
+
+        if ($registrationType === 'paid' && $basePrice <= 0) {
+            throw ValidationException::withMessages([
+                'base_price' => 'Base price must be greater than 0 for paid events.',
+            ]);
+        }
+
+        if ($registrationType === 'free' && $basePrice != 0.0) {
+            throw ValidationException::withMessages([
+                'base_price' => 'Base price must be 0 for free events.',
+            ]);
+        }
+
+        if (!$unlimitedSeats) {
+            if ($seatLimit === null || (int) $seatLimit <= 0) {
+                throw ValidationException::withMessages([
+                    'seat_limit' => 'Seat limit is required when unlimited seats is off.',
+                ]);
+            }
+        }
+
+        if ($unlimitedSeats && $seatLimit !== null) {
+            throw ValidationException::withMessages([
+                'seat_limit' => 'Seat limit must be empty when unlimited seats is on.',
+            ]);
+        }
+
+        if ($rsvpOpenAt !== null && $rsvpCloseAt !== null && strtotime((string) $rsvpOpenAt) >= strtotime((string) $rsvpCloseAt)) {
+            throw ValidationException::withMessages([
+                'rsvp_close_at' => 'RSVP close time must be after RSVP open time.',
+            ]);
         }
     }
 }

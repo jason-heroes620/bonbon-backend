@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Products extends Model
 {
@@ -51,5 +53,32 @@ class Products extends Model
             'product_id',
             'category_id',
         );
+    }
+
+    public function pricingTiers(): HasMany
+    {
+        return $this->hasMany(
+            ProductPricingTier::class,
+            'product_id',
+            'product_id',
+        );
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(
+            ProductImages::class,
+            'product_id',
+            'product_id',
+        );
+    }
+
+    public function primaryImage(): HasOne
+    {
+        return $this->hasOne(
+            ProductImages::class,
+            'product_id',
+            'product_id',
+        )->where('is_primary', true);
     }
 }

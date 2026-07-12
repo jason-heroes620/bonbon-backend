@@ -16,5 +16,8 @@ class CompartmentStocks extends Model
     protected $fillable = [
         'tender_compartment_id',
         'status',
+        'confirmed_received_at',
+        'confirmed_received_by_user_id',
+        'confirmation_source',
     ];
 }

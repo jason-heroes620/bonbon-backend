@@ -9,6 +9,7 @@ use App\Models\ReferralCodes;
 use App\Models\Referrals;
 use App\Models\TransactionTypes;
 use App\Models\User;
+use App\Models\UserDetails;
 use App\Models\UserInterestList;
 use App\Models\UserReferralGifts;
 use App\Models\UserMemberships;
@@ -19,7 +20,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -59,6 +62,7 @@ class AuthController extends Controller
             ], 403);
         }
 
+        $user = $this->hydrateUserProfile($user);
         $user->membership = $this->getUserMembership($user->user_id);
         [$user->referral_gifts_earned, $user->referral_gifts_claimed] = $this->getUserReferralGiftCounts($user->user_id);
 
@@ -79,6 +83,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
+        $user = $this->hydrateUserProfile($user);
         $user->membership = $this->getUserMembership($user->user_id);
         [$user->referral_gifts_earned, $user->referral_gifts_claimed] = $this->getUserReferralGiftCounts($user->user_id);
 
@@ -99,6 +104,7 @@ class AuthController extends Controller
             ->where('email', $validated['email'])
             ->where('role', 'vendor')
             ->first();
+
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
@@ -106,7 +112,10 @@ class AuthController extends Controller
         }
         $profile = Vendors::query()
             ->select(['vendor_id', 'vendor_name', 'email', 'contact_no'])
-            ->where('user_id', $user->user_id)->first();
+            ->where('user_id', $user->user_id)
+            ->where('is_active', true)
+            ->first();
+
         if (!$profile) {
             throw ValidationException::withMessages([
                 'email' => ['Account is inactive. Please verify your email.'],
@@ -426,6 +435,105 @@ class AuthController extends Controller
         ]);
     }
 
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $currentYear = (int) now()->format('Y');
+        $validated = $request->validate([
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'contact_no' => ['nullable', 'string', 'max:20'],
+            'birth_year' => ['nullable', 'integer', 'digits:4', 'min:1900', 'max:' . $currentYear],
+        ]);
+
+        DB::transaction(function () use ($user, $validated) {
+            $user->update([
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+                'contact_no' => $validated['contact_no'] ?? null,
+            ]);
+
+            $birthYear = $validated['birth_year'] ?? null;
+            if ($birthYear === null) {
+                UserDetails::query()
+                    ->where('user_id', $user->user_id)
+                    ->delete();
+
+                return;
+            }
+
+            $details = UserDetails::query()
+                ->where('user_id', $user->user_id)
+                ->first();
+
+            if ($details) {
+                $details->update([
+                    'birth_year' => $birthYear,
+                ]);
+
+                return;
+            }
+
+            UserDetails::query()->create([
+                'user_detail_id' => (string) Str::uuid(),
+                'user_id' => (string) $user->user_id,
+                'birth_year' => $birthYear,
+            ]);
+        });
+
+        $freshUser = $this->hydrateUserProfile($user->fresh());
+        $freshUser->membership = $this->getUserMembership($freshUser->user_id);
+        [$freshUser->referral_gifts_earned, $freshUser->referral_gifts_claimed] = $this->getUserReferralGiftCounts($freshUser->user_id);
+
+        return response()->json([
+            'message' => 'Profile updated successfully.',
+            'user' => $freshUser,
+        ]);
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $validated = $request->validate([
+            'current_password' => ['required', 'string'],
+            'new_password' => [
+                'required',
+                'string',
+                'max:255',
+                'different:current_password',
+                Password::min(8)
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols(),
+            ],
+            'new_password_confirmation' => ['required', 'same:new_password'],
+        ], [
+            'new_password.different' => 'The new password must be different from your current password.',
+        ]);
+
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['The current password is incorrect.'],
+            ]);
+        }
+
+        $user->update([
+            'password' => Hash::make($validated['new_password']),
+        ]);
+
+        return response()->json([
+            'message' => 'Password updated successfully.',
+        ]);
+    }
+
     public function deleteUser(Request $request)
     {
         $validated = $request->validate([
@@ -463,6 +571,15 @@ class AuthController extends Controller
             ->first();
 
         return $membership;
+    }
+
+    private function hydrateUserProfile(User $user): User
+    {
+        $user->birth_year = UserDetails::query()
+            ->where('user_id', $user->user_id)
+            ->value('birth_year');
+
+        return $user;
     }
 
     private function getUserMembershipType(string $user_id): ?string

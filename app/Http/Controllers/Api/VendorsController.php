@@ -61,7 +61,7 @@ class VendorsController extends Controller
         }
 
         $vendors = VendorLocation::query()
-            ->join('vendors', 'vendors.vendor_id', '=', 'vendor_locations.vendor_id')
+            ->leftJoin('vendors', 'vendors.vendor_id', '=', 'vendor_locations.vendor_id')
             ->where('vendors.is_active', 'active')
             ->when($distanceKm !== null, function ($q) use ($latitude, $longitude, $distanceKm) {
                 $this->applyBoundingBox($q, $latitude, $longitude, $distanceKm);
@@ -261,7 +261,7 @@ class VendorsController extends Controller
     public function merchantProfile(Request $request)
     {
         $vendor = Vendors::query()
-            ->select('vendor_name', 'contact_no')
+            ->select(['vendor_id', 'vendor_name', 'contact_no', 'email'])
             ->where('user_id', $request->user()?->user_id)
             ->where('is_active', 'active')
             ->first();

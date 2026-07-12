@@ -8,7 +8,11 @@ use App\Http\Controllers\ChargesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscountsController;
 use App\Http\Controllers\EvCategoriesController;
+use App\Http\Controllers\EventAnalyticsController;
 use App\Http\Controllers\EventsController;
+use App\Http\Controllers\EventPricingRulesController;
+use App\Http\Controllers\EventQuestionnairesController;
+use App\Http\Controllers\EventRegistrationsController;
 use App\Http\Controllers\MembershipsController;
 use App\Http\Controllers\MembershipTypesController;
 use App\Http\Controllers\NotificationsController;
@@ -17,7 +21,9 @@ use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\CompartmentController;
 use App\Http\Controllers\ContractsController;
 use App\Http\Controllers\ProductDiscountsController;
+use App\Http\Controllers\ProductPricingTiersController;
 use App\Http\Controllers\ProductsController;
+use App\Http\Controllers\QuestionTemplatesController;
 use App\Http\Controllers\ReferralsController;
 use App\Http\Controllers\ReferralReportsController;
 use App\Http\Controllers\KolController;
@@ -113,6 +119,31 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/events/create', [EventsController::class, 'store'])->name('events.store');
     Route::get('/events/{event}', [EventsController::class, 'edit'])->name('events.edit');
     Route::put('/events/{event}', [EventsController::class, 'update'])->name('events.update');
+    Route::get('/events/{event}/pricing-rules', [EventPricingRulesController::class, 'index'])->name('events.pricing_rules.index');
+    Route::post('/events/{event}/pricing-rules', [EventPricingRulesController::class, 'store'])->name('events.pricing_rules.store');
+    Route::put('/events/{event}/pricing-rules/{rule}', [EventPricingRulesController::class, 'update'])->name('events.pricing_rules.update');
+    Route::delete('/events/{event}/pricing-rules/{rule}', [EventPricingRulesController::class, 'destroy'])->name('events.pricing_rules.destroy');
+    Route::get('/events/{event}/questionnaires', [EventQuestionnairesController::class, 'index'])->name('events.questionnaires.index');
+    Route::post('/events/{event}/questionnaires/custom', [EventQuestionnairesController::class, 'storeCustom'])->name('events.questionnaires.custom.store');
+    Route::post('/events/{event}/questionnaires/attach-templates', [EventQuestionnairesController::class, 'attachTemplates'])->name('events.questionnaires.attach_templates');
+    Route::put('/events/{event}/questionnaires/{question}', [EventQuestionnairesController::class, 'update'])->name('events.questionnaires.update');
+    Route::delete('/events/{event}/questionnaires/{question}', [EventQuestionnairesController::class, 'destroy'])->name('events.questionnaires.destroy');
+    Route::post('/events/{event}/questionnaires/{question}/options', [EventQuestionnairesController::class, 'storeOption'])->name('events.questionnaires.options.store');
+    Route::put('/events/{event}/questionnaires/{question}/options/{option}', [EventQuestionnairesController::class, 'updateOption'])->name('events.questionnaires.options.update');
+    Route::delete('/events/{event}/questionnaires/{question}/options/{option}', [EventQuestionnairesController::class, 'destroyOption'])->name('events.questionnaires.options.destroy');
+    Route::get('/events/{event}/registrations', [EventRegistrationsController::class, 'index'])->name('events.registrations.index');
+    Route::get('/events/{event}/analytics', [EventAnalyticsController::class, 'summary'])->name('events.analytics.summary');
+    Route::get('/events/{event}/analytics/export', [EventAnalyticsController::class, 'exportAnswers'])->name('events.analytics.export');
+
+    // Question Templates
+    Route::get('/question-templates', [QuestionTemplatesController::class, 'index'])->name('question_templates.index');
+    Route::get('/question-templates/all', [QuestionTemplatesController::class, 'showAll'])->name('question_templates.all');
+    Route::get('/question-templates/list', [QuestionTemplatesController::class, 'list'])->name('question_templates.list');
+    Route::get('/question-templates/create', [QuestionTemplatesController::class, 'create'])->name('question_templates.create');
+    Route::post('/question-templates/create', [QuestionTemplatesController::class, 'store'])->name('question_templates.store');
+    Route::get('/question-templates/{questionTemplate}', [QuestionTemplatesController::class, 'edit'])->name('question_templates.edit');
+    Route::put('/question-templates/{questionTemplate}', [QuestionTemplatesController::class, 'update'])->name('question_templates.update');
+    Route::delete('/question-templates/{questionTemplate}', [QuestionTemplatesController::class, 'destroy'])->name('question_templates.destroy');
 
     // Products
     Route::get('/products', [ProductsController::class, 'index'])->name('products.index');
@@ -123,6 +154,10 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/products/{product}', [ProductsController::class, 'update'])->name('products.update');
     Route::delete('/products/{product}', [ProductsController::class, 'destroy'])->name('products.destroy');
     Route::get('/getProductList', [ProductsController::class, 'getProductList'])->name('products.list');
+    Route::get('/products/{product}/pricing-tiers', [ProductPricingTiersController::class, 'index'])->name('products.pricing_tiers.index');
+    Route::post('/products/{product}/pricing-tiers', [ProductPricingTiersController::class, 'store'])->name('products.pricing_tiers.store');
+    Route::put('/products/{product}/pricing-tiers/{tier}', [ProductPricingTiersController::class, 'update'])->name('products.pricing_tiers.update');
+    Route::delete('/products/{product}/pricing-tiers/{tier}', [ProductPricingTiersController::class, 'destroy'])->name('products.pricing_tiers.destroy');
 
     // Product Discounts
     Route::get('/product-discounts', [ProductDiscountsController::class, 'index'])->name('product_discounts.index');

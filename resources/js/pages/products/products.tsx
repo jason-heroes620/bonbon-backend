@@ -28,6 +28,14 @@ export const columns: ColumnDef<Product>[] = [
         cell: ({ row }) => row.original.sale_price,
     },
     {
+        accessorKey: "pricing",
+        header: "Pricing",
+        cell: ({ row }) => {
+            const n = row.original.active_pricing_tiers_count ?? 0;
+            return n > 0 ? `Tiered (${n})` : "Base";
+        },
+    },
+    {
         accessorKey: "stock_quantity",
         header: "Stock",
         cell: ({ row }) => row.original.stock_quantity,

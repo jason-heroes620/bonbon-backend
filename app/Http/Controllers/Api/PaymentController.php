@@ -1020,6 +1020,43 @@ class PaymentController extends Controller
             ->where('order_id', $order->order_id)
             ->get();
 
+        $order->event_registrations = EventRegistration::query()
+            ->join('events', 'event_registrations.event_id', '=', 'events.event_id')
+            ->where('event_registrations.order_id', $order->order_id)
+            ->orderBy('events.event_start_date')
+            ->orderBy('events.event_start_time')
+            ->get([
+                'event_registrations.event_registration_id',
+                'event_registrations.event_id',
+                'event_registrations.registration_status',
+                'event_registrations.quantity',
+                'event_registrations.price_paid',
+                'event_registrations.confirmed_at',
+                'events.event_name',
+                'events.event_start_date',
+                'events.event_start_time',
+                'events.event_end_time',
+                'events.event_location',
+                'events.location_name',
+            ])
+            ->map(function ($registration) {
+                return [
+                    'event_registration_id' => (string) $registration->event_registration_id,
+                    'event_id' => (string) $registration->event_id,
+                    'registration_status' => (string) $registration->registration_status,
+                    'quantity' => (int) ($registration->quantity ?? 1),
+                    'price_paid' => (float) ($registration->price_paid ?? 0),
+                    'confirmed_at' => $registration->confirmed_at ? (string) $registration->confirmed_at : null,
+                    'event_name' => (string) $registration->event_name,
+                    'event_start_date' => $registration->event_start_date ? (string) $registration->event_start_date : null,
+                    'event_start_time' => $registration->event_start_time ? (string) $registration->event_start_time : null,
+                    'event_end_time' => $registration->event_end_time ? (string) $registration->event_end_time : null,
+                    'event_location' => $registration->event_location ? (string) $registration->event_location : null,
+                    'location_name' => $registration->location_name ? (string) $registration->location_name : null,
+                ];
+            })
+            ->values();
+
         $pickup = OrderPickup::query()
             ->where('order_id', $order->order_id)
             ->first([

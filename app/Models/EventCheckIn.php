@@ -11,5 +11,8 @@ class EventCheckIn extends Model
     protected $fillable = [
         'user_id',
         'event_id',
+        'event_registration_id',
+        'checked_in_by_user_id',
+        'check_in_source',
     ];
 }

@@ -130,6 +130,37 @@ export type Product = {
     sale_price: string;
     is_active: boolean;
     is_unlimited: boolean;
+    active_pricing_tiers_count?: number;
+    images?: ProductImage[];
+    primary_image?: ProductImage | null;
+    primaryImage?: ProductImage | null;
+};
+
+export type ProductImage = {
+    product_image_id: string;
+    product_id: string;
+    image_url: string;
+    image_path: string;
+    mobile_image_url?: string | null;
+    mobile_image_path?: string | null;
+    is_active: boolean;
+    is_primary: boolean;
+    image_width?: number | null;
+    image_height?: number | null;
+    file_size_bytes?: number | null;
+    mobile_file_size_bytes?: number | null;
+};
+
+export type ProductPricingTier = {
+    product_pricing_tier_id: string;
+    product_id: string;
+    pricing_mode: "unit_price" | "percentage_discount";
+    min_qty: number;
+    unit_price?: string | null;
+    discount_percent?: string | null;
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
 };
 
 export type Category = {
@@ -208,6 +239,14 @@ export type Event = {
     location_latitude: string;
     location_longitude: string;
     place_id: string;
+    registration_type?: "free" | "paid";
+    base_price?: string;
+    is_unlimited_seats?: boolean;
+    seat_limit?: number | null;
+    seat_hold_minutes?: number;
+    rsvp_open_at?: string | null;
+    rsvp_close_at?: string | null;
+    require_questionnaire?: boolean;
     is_published: boolean;
     is_active: boolean;
 };
@@ -245,7 +284,11 @@ export type EvCategory = {
 export type OrderItem = {
     order_item_id: string;
     order_id: string;
-    product_id: string;
+    product_id: string | null;
+    line_type?: "product" | "event";
+    source_id?: string | null;
+    line_name?: string;
+    line_description?: string | null;
     quantity: number;
     uom: string;
     unit_price: string;
@@ -257,6 +300,32 @@ export type OrderItem = {
         product_name: string;
         uom: string;
     } | null;
+};
+
+export type QuestionTemplate = {
+    question_template_id: string;
+    created_by_user_id?: string | null;
+    question_label: string;
+    question_help_text?: string | null;
+    question_type:
+        | "short_text"
+        | "long_text"
+        | "single_select"
+        | "multi_select"
+        | "yes_no";
+    is_required_default: boolean;
+    is_active: boolean;
+    options?: {
+        event_question_option_id?: string;
+        question_template_id?: string;
+        event_questionnaire_id?: string | null;
+        option_label: string;
+        option_value: string;
+        sort_order: number;
+        is_active: boolean;
+    }[];
+    created_at?: string;
+    updated_at?: string;
 };
 
 export type Order = {

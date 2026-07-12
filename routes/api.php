@@ -53,6 +53,7 @@ Route::middleware(['auth:sanctum'])->group(
         // Account
         Route::get('/me', [AuthController::class, 'me']);
         Route::put('/me/profile', [AuthController::class, 'updateProfile']);
+        Route::put('/me/password', [AuthController::class, 'updatePassword']);
         Route::get('/me/addresses', [UserAddressesController::class, 'index']);
         Route::get('/me/addresses/{user_address_id}', [UserAddressesController::class, 'show']);
         Route::post('/me/addresses', [UserAddressesController::class, 'store']);
@@ -87,8 +88,11 @@ Route::middleware(['auth:sanctum'])->group(
 
         // Event RSVP (Questionnaire + Seat Hold)
         Route::get('/events/{event_id}/questionnaires', [EventRsvpController::class, 'questionnaires']);
+        Route::get('/events/{event_id}/registration', [EventRsvpController::class, 'showRegistration']);
         Route::post('/events/{event_id}/rsvp/start', [EventRsvpController::class, 'start']);
         Route::post('/events/{event_id}/rsvp/answers', [EventRsvpController::class, 'submitAnswers']);
+        Route::get('/events/{event_id}/check-in-qr', [EventCheckInController::class, 'showQr']);
+        Route::get('/event-check-in/events', [EventCheckInController::class, 'listEvents']);
 
         // discount
         Route::post('/discounts/validate', [DiscountController::class, 'validateDiscount']);
@@ -120,7 +124,8 @@ Route::middleware(['auth:sanctum'])->group(
         Route::post('/user-vouchers/{voucher_id}/{user_id}/redeem', [VouchersController::class, 'redeem']);
 
         Route::post('/lucky-draw/register-ticket', [RegisterLuckyDrawController::class, 'registerUser']);
-        Route::post('/event-check-in', [EventCheckInController::class, 'checkIn']);
+        Route::post('/event-check-in/validate', [EventCheckInController::class, 'validateQr']);
+        Route::post('/event-check-in/{event_registration_id}/confirm', [EventCheckInController::class, 'confirm']);
 
         // vendor location racks
         Route::get('/vendors/{vendor_id}/racks', [RacksController::class, 'vendorRacks']);

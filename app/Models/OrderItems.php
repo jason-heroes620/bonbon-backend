@@ -14,6 +14,10 @@ class OrderItems extends Model
     protected $fillable = [
         'order_id',
         'product_id',
+        'line_type',
+        'source_id',
+        'line_name',
+        'line_description',
         'quantity',
         'uom',
         'unit_price',
@@ -22,6 +26,13 @@ class OrderItems extends Model
         'total_price',
     ];
     public $timestamps = true;
+
+    protected $casts = [
+        'unit_price' => 'decimal:2',
+        'tax' => 'decimal:2',
+        'discount' => 'decimal:2',
+        'total_price' => 'decimal:2',
+    ];
 
     public function order(): BelongsTo
     {

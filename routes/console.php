@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 use App\Models\Memberships;
 use App\Models\ReferralCodes;
 use App\Models\Referrals;
+use App\Models\EventRegistration;
+use App\Models\Cart;
 use App\Models\User;
 use App\Models\UserInterestList;
 use App\Models\MembershipTypes;
@@ -23,6 +25,35 @@ use App\Models\UserMemberships;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('events:expire-holds', function () {
+    $now = now();
+
+    $affected = EventRegistration::query()
+        ->whereIn('registration_status', ['draft', 'pending_payment'])
+        ->whereNotNull('seat_hold_expires_at')
+        ->where('seat_hold_expires_at', '<=', $now)
+        ->update([
+            'registration_status' => 'expired',
+            'expired_at' => $now,
+        ]);
+
+    $this->info("Expired holds: {$affected}");
+})->purpose('Expire draft/pending event registrations whose seat hold has elapsed.');
+
+Artisan::command('carts:expire', function () {
+    $now = now();
+
+    $affected = Cart::query()
+        ->where('cart_status', 'active')
+        ->whereNotNull('expires_at')
+        ->where('expires_at', '<=', $now)
+        ->update([
+            'cart_status' => 'abandoned',
+        ]);
+
+    $this->info("Expired carts: {$affected}");
+})->purpose('Mark active carts as abandoned when expires_at has elapsed.');
 
 Artisan::command('test:register-interest-list', function () {
     $assert = function (bool $condition, string $message): void {

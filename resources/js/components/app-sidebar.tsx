@@ -211,6 +211,10 @@ const allItems: {
                 url: "/ev-categories",
             },
             {
+                title: "Questionnaire Templates",
+                url: "/question-templates",
+            },
+            {
                 title: "Taxes",
                 url: "/taxes",
             },
