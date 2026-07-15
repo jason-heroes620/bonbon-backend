@@ -63,6 +63,12 @@ class EventCheckInController extends Controller
             ], 404);
         }
 
+        if (!$event->require_registration) {
+            return response()->json([
+                'message' => 'Registration is not enabled for this event.',
+            ], 422);
+        }
+
         $registration = EventRegistration::query()
             ->where('event_id', $event->event_id)
             ->where('user_id', (string) $request->user()->user_id)

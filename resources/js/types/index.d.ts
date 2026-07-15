@@ -239,6 +239,7 @@ export type Event = {
     location_latitude: string;
     location_longitude: string;
     place_id: string;
+    require_registration?: boolean;
     registration_type?: "free" | "paid";
     base_price?: string;
     is_unlimited_seats?: boolean;

@@ -27,6 +27,18 @@ class EventRsvpController extends Controller
             ], 404);
         }
 
+        if (!$event->require_registration) {
+            return response()->json([
+                'message' => 'Registration is not enabled for this event.',
+            ], 422);
+        }
+
+        if (!$event->require_registration) {
+            return response()->json([
+                'message' => 'Registration is not enabled for this event.',
+            ], 422);
+        }
+
         $registration = EventRegistration::query()
             ->where('event_id', $event->event_id)
             ->where('user_id', (string) $request->user()->user_id)
@@ -52,6 +64,12 @@ class EventRsvpController extends Controller
             return response()->json([
                 'message' => 'Event not found.',
             ], 404);
+        }
+
+        if (!$event->require_registration) {
+            return response()->json([
+                'message' => 'Registration is not enabled for this event.',
+            ], 422);
         }
 
         $questions = EventQuestionnaire::query()
@@ -86,6 +104,12 @@ class EventRsvpController extends Controller
                 return response()->json([
                     'message' => 'Event not found.',
                 ], 404);
+            }
+
+            if (!$event->require_registration) {
+                return response()->json([
+                    'message' => 'Registration is not enabled for this event.',
+                ], 422);
             }
 
             $this->assertEventRsvpWindow($event);

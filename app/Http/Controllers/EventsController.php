@@ -79,6 +79,7 @@ class EventsController extends Controller
             'location_latitude' => ['required', 'numeric'],
             'location_longitude' => ['required', 'numeric'],
             'place_id' => ['required', 'string', 'max:255'],
+            'require_registration' => ['required', 'boolean'],
             'registration_type' => ['required', 'in:free,paid'],
             'base_price' => ['required', 'numeric', 'min:0'],
             'is_unlimited_seats' => ['required', 'boolean'],
@@ -96,6 +97,7 @@ class EventsController extends Controller
             'event_images.*' => ['image', 'max:4096'],
         ]);
 
+        $validated = $this->normalizeCommerceFields($validated);
         $this->validateCommerceFields($validated);
 
         $event = Events::create($validated);
@@ -170,6 +172,7 @@ class EventsController extends Controller
             'location_latitude' => ['required', 'numeric'],
             'location_longitude' => ['required', 'numeric'],
             'place_id' => ['required', 'string', 'max:255'],
+            'require_registration' => ['required', 'boolean'],
             'registration_type' => ['required', 'in:free,paid'],
             'base_price' => ['required', 'numeric', 'min:0'],
             'is_unlimited_seats' => ['required', 'boolean'],
@@ -192,6 +195,7 @@ class EventsController extends Controller
             'disabled_event_image_ids_present' => ['nullable', 'boolean'],
         ]);
 
+        $validated = $this->normalizeCommerceFields($validated);
         $this->validateCommerceFields($validated);
 
         $event->update($validated);
@@ -284,6 +288,10 @@ class EventsController extends Controller
 
     private function validateCommerceFields(array $validated): void
     {
+        if (!(bool) ($validated['require_registration'] ?? false)) {
+            return;
+        }
+
         $registrationType = (string) ($validated['registration_type'] ?? 'free');
         $basePrice = (float) ($validated['base_price'] ?? 0);
         $unlimitedSeats = (bool) ($validated['is_unlimited_seats'] ?? true);
@@ -322,5 +330,23 @@ class EventsController extends Controller
                 'rsvp_close_at' => 'RSVP close time must be after RSVP open time.',
             ]);
         }
+    }
+
+    private function normalizeCommerceFields(array $validated): array
+    {
+        if ((bool) ($validated['require_registration'] ?? false)) {
+            return $validated;
+        }
+
+        $validated['registration_type'] = 'free';
+        $validated['base_price'] = 0;
+        $validated['is_unlimited_seats'] = true;
+        $validated['seat_limit'] = null;
+        $validated['seat_hold_minutes'] = 15;
+        $validated['rsvp_open_at'] = null;
+        $validated['rsvp_close_at'] = null;
+        $validated['require_questionnaire'] = false;
+
+        return $validated;
     }
 }

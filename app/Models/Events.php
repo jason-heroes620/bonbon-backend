@@ -25,6 +25,7 @@ class Events extends Model
         'location_latitude',
         'location_longitude',
         'place_id',
+        'require_registration',
         'registration_type',
         'base_price',
         'is_unlimited_seats',
@@ -43,6 +44,7 @@ class Events extends Model
     protected $casts = [
         'is_published' => 'boolean',
         'is_active' => 'boolean',
+        'require_registration' => 'boolean',
         'is_unlimited_seats' => 'boolean',
         'require_questionnaire' => 'boolean',
         'base_price' => 'decimal:2',

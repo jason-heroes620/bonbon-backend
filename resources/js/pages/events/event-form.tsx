@@ -45,6 +45,7 @@ type EventFormValues = {
     event_end_time: string;
     event_location: string;
     event_description: string;
+    require_registration: boolean;
     registration_type: "free" | "paid";
     base_price: string;
     is_unlimited_seats: boolean;
@@ -157,6 +158,9 @@ export function EventForm({
             event_end_time: event?.event_end_time ?? "",
             event_location: event?.event_location ?? "",
             event_description: event?.event_description ?? "",
+            require_registration: Boolean(
+                (event as any)?.require_registration ?? false,
+            ),
             registration_type: (event as any)?.registration_type ?? "free",
             base_price:
                 (event as any)?.base_price !== undefined &&
@@ -204,6 +208,7 @@ export function EventForm({
     const selectedImage = methods.watch("event_image");
     const startDate = methods.watch("event_start_date");
     const endDate = methods.watch("event_end_date");
+    const requireRegistration = methods.watch("require_registration");
     const registrationType = methods.watch("registration_type");
     const isUnlimitedSeats = methods.watch("is_unlimited_seats");
     const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
@@ -289,9 +294,9 @@ export function EventForm({
     };
 
     useEffect(() => {
-        if (!canManageCommerce) return;
+        if (!canManageCommerce || !requireRegistration) return;
         fetchPricingRules();
-    }, [canManageCommerce, event?.event_id]);
+    }, [canManageCommerce, event?.event_id, requireRegistration]);
 
     const startEditRule = (rule: EventPricingRuleRow) => {
         setEditingRuleId(rule.event_pricing_rule_id);
@@ -457,10 +462,10 @@ export function EventForm({
     };
 
     useEffect(() => {
-        if (!canManageCommerce) return;
+        if (!canManageCommerce || !requireRegistration) return;
         fetchQuestionTemplates();
         fetchQuestions();
-    }, [canManageCommerce, event?.event_id]);
+    }, [canManageCommerce, event?.event_id, requireRegistration]);
 
     const attachTemplatesToEvent = async () => {
         if (!event?.event_id) return;
@@ -512,6 +517,43 @@ export function EventForm({
             });
         }
     }, [endDate, methods, startDate]);
+
+    useEffect(() => {
+        if (!requireRegistration) {
+            methods.setValue("registration_type", "free", {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+            methods.setValue("base_price", "0", {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+            methods.setValue("is_unlimited_seats", true, {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+            methods.setValue("seat_limit", "", {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+            methods.setValue("seat_hold_minutes", "15", {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+            methods.setValue("rsvp_open_at", "", {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+            methods.setValue("rsvp_close_at", "", {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+            methods.setValue("require_questionnaire", false, {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+        }
+    }, [methods, requireRegistration]);
 
     useEffect(() => {
         if (registrationType === "free") {
@@ -590,6 +632,7 @@ export function EventForm({
             location_latitude: loc?.latitude ?? 0,
             location_longitude: loc?.longitude ?? 0,
             place_id: loc?.place_id || "",
+            require_registration: Boolean(values.require_registration),
             registration_type: values.registration_type,
             base_price: Number(values.base_price || 0),
             is_unlimited_seats: Boolean(values.is_unlimited_seats),
@@ -852,124 +895,150 @@ export function EventForm({
                     />
                 </div>
 
-                <div className="flex md:grid grid-cols-2 gap-4 md:col-span-2 border rounded-md p-4">
-                    <div className="flex flex-col gap-2">
-                        <Label>Registration Type</Label>
-                        <Controller
-                            name="registration_type"
-                            control={methods.control}
-                            render={({ field }) => (
-                                <Select
-                                    value={field.value}
-                                    onValueChange={(v) =>
-                                        field.onChange(v as "free" | "paid")
-                                    }
-                                >
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="free">
-                                            Free
-                                        </SelectItem>
-                                        <SelectItem value="paid">
-                                            Paid
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            )}
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <Label htmlFor="base_price">Base Price (MYR)</Label>
-                        <Input
-                            id="base_price"
-                            type="number"
-                            inputMode="decimal"
-                            step="0.01"
-                            min={0}
-                            disabled={registrationType === "free"}
-                            className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                            {...methods.register("base_price")}
-                        />
-                    </div>
-
-                    <div className="flex items-center space-x-2 md:col-span-2">
+                <div className="flex flex-col gap-4 md:col-span-2 border rounded-md p-4">
+                    <div className="flex items-center space-x-2">
                         <input
                             type="checkbox"
-                            id="is_unlimited_seats"
+                            id="require_registration"
                             className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                            {...methods.register("is_unlimited_seats")}
+                            {...methods.register("require_registration")}
                         />
-                        <Label htmlFor="is_unlimited_seats">
-                            Unlimited Seats
+                        <Label htmlFor="require_registration">
+                            Require Registration
                         </Label>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                        <Label htmlFor="seat_limit">Seat Limit</Label>
-                        <Input
-                            id="seat_limit"
-                            type="number"
-                            inputMode="numeric"
-                            step="1"
-                            min={1}
-                            disabled={isUnlimitedSeats}
-                            className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                            {...methods.register("seat_limit")}
-                        />
-                    </div>
+                    {requireRegistration ? (
+                        <div className="flex md:grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-2">
+                                <Label>Registration Type</Label>
+                                <Controller
+                                    name="registration_type"
+                                    control={methods.control}
+                                    render={({ field }) => (
+                                        <Select
+                                            value={field.value}
+                                            onValueChange={(v) =>
+                                                field.onChange(
+                                                    v as "free" | "paid",
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="free">
+                                                    Free
+                                                </SelectItem>
+                                                <SelectItem value="paid">
+                                                    Paid
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+                            </div>
 
-                    <div className="flex flex-col gap-2">
-                        <Label htmlFor="seat_hold_minutes">
-                            Seat Hold (Minutes)
-                        </Label>
-                        <Input
-                            id="seat_hold_minutes"
-                            type="number"
-                            inputMode="numeric"
-                            step="1"
-                            min={1}
-                            className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                            {...methods.register("seat_hold_minutes")}
-                        />
-                    </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="base_price">
+                                    Base Price (MYR)
+                                </Label>
+                                <Input
+                                    id="base_price"
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.01"
+                                    min={0}
+                                    disabled={registrationType === "free"}
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...methods.register("base_price")}
+                                />
+                            </div>
 
-                    <div className="flex flex-col gap-2">
-                        <Label htmlFor="rsvp_open_at">RSVP Open At</Label>
-                        <Input
-                            id="rsvp_open_at"
-                            type="datetime-local"
-                            className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                            {...methods.register("rsvp_open_at")}
-                        />
-                    </div>
+                            <div className="flex items-center space-x-2 md:col-span-2">
+                                <input
+                                    type="checkbox"
+                                    id="is_unlimited_seats"
+                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                                    {...methods.register("is_unlimited_seats")}
+                                />
+                                <Label htmlFor="is_unlimited_seats">
+                                    Unlimited Seats
+                                </Label>
+                            </div>
 
-                    <div className="flex flex-col gap-2">
-                        <Label htmlFor="rsvp_close_at">RSVP Close At</Label>
-                        <Input
-                            id="rsvp_close_at"
-                            type="datetime-local"
-                            className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                            {...methods.register("rsvp_close_at")}
-                        />
-                    </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="seat_limit">Seat Limit</Label>
+                                <Input
+                                    id="seat_limit"
+                                    type="number"
+                                    inputMode="numeric"
+                                    step="1"
+                                    min={1}
+                                    disabled={isUnlimitedSeats}
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...methods.register("seat_limit")}
+                                />
+                            </div>
 
-                    <div className="flex items-center space-x-2 md:col-span-2">
-                        <input
-                            type="checkbox"
-                            id="require_questionnaire"
-                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                            {...methods.register("require_questionnaire")}
-                        />
-                        <Label htmlFor="require_questionnaire">
-                            Require Questionnaire Before Join/Payment
-                        </Label>
-                    </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="seat_hold_minutes">
+                                    Seat Hold (Minutes)
+                                </Label>
+                                <Input
+                                    id="seat_hold_minutes"
+                                    type="number"
+                                    inputMode="numeric"
+                                    step="1"
+                                    min={1}
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...methods.register("seat_hold_minutes")}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="rsvp_open_at">
+                                    RSVP Open At
+                                </Label>
+                                <Input
+                                    id="rsvp_open_at"
+                                    type="datetime-local"
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...methods.register("rsvp_open_at")}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="rsvp_close_at">
+                                    RSVP Close At
+                                </Label>
+                                <Input
+                                    id="rsvp_close_at"
+                                    type="datetime-local"
+                                    className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                    {...methods.register("rsvp_close_at")}
+                                />
+                            </div>
+
+                            <div className="flex items-center space-x-2 md:col-span-2">
+                                <input
+                                    type="checkbox"
+                                    id="require_questionnaire"
+                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                                    {...methods.register(
+                                        "require_questionnaire",
+                                    )}
+                                />
+                                <Label htmlFor="require_questionnaire">
+                                    Require Questionnaire Before Join/Payment
+                                </Label>
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
 
-                {canManageCommerce ? (
+                {canManageCommerce && requireRegistration ? (
                     <div className="md:col-span-2 border rounded-md p-4">
                         <div className="flex items-center justify-between gap-2">
                             <div className="text-sm font-semibold">
@@ -1301,7 +1370,7 @@ export function EventForm({
                     </div>
                 ) : null}
 
-                {canManageCommerce ? (
+                {canManageCommerce && requireRegistration ? (
                     <div className="md:col-span-2 border rounded-md p-4">
                         <div className="flex items-center justify-between gap-2">
                             <div className="text-sm font-semibold">
