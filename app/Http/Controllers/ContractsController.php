@@ -481,6 +481,7 @@ class ContractsController extends Controller
         OrderItems::query()->create([
             'order_id' => $orders->order_id,
             'product_id' => $orderProduct->product_id,
+            'line_type' => 'contract',           
             'quantity' => $contractRecord->durations,
             'uom' => 'months',
             'unit_price' => $contractRecord->bid_price,
