@@ -14,6 +14,7 @@ use App\Models\Vendors;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -508,9 +509,13 @@ class ContractsController extends Controller
         $amount = number_format($totalPayment, 2, '.', '');
         $amountForSignature = str_replace(['.', ','], '', $amount);
         $currency = 'MYR';
+        $payload = $merchantKey . $merchantCode . $refNo . $amountForSignature . $currency;
+        Log::info($amountForSignature);
+        Log::info($payload);
+
         $signature = hash_hmac(
             'sha512',
-            $merchantKey . $merchantCode . $refNo . $amountForSignature . $currency,
+            $payload,
             $merchantKey
         );
 
@@ -534,7 +539,7 @@ class ContractsController extends Controller
 
     public function paymentReturn(Request $request)
     {
-        $contractId = (string) ($request->input('Xfield2') ?? '');
+        $contractId = (string) ($request->input('Xfield1') ?? '');
         $status = (string) ($request->input('Status') ?? '');
 
         if ($contractId === '') {
