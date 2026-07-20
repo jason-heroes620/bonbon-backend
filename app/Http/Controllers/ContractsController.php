@@ -481,7 +481,8 @@ class ContractsController extends Controller
         OrderItems::query()->create([
             'order_id' => $orders->order_id,
             'product_id' => $orderProduct->product_id,
-            'line_type' => 'contract',           
+            'line_type' => 'contract',
+            'line_name' => $contractRecord->product_description . ' - ' . (string) $contractRecord->rack_name . ' / ' . (string) $contractRecord->compartment_label . ' ( ' . Carbon::parse($contractRecord->tender_start_date)->format('d M Y') . ' - ' . Carbon::parse($contractRecord->tender_end_date)->format('d M Y') . ' )',
             'quantity' => $contractRecord->durations,
             'uom' => 'months',
             'unit_price' => $contractRecord->bid_price,
