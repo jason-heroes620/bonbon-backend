@@ -531,9 +531,11 @@ class ContractsController extends Controller
                 'ProdDesc' => 'Contract payment - ' . (string) $contractRecord->rack_name . ' / ' . (string) $contractRecord->compartment_label,
                 'UserName' => trim((string) $user->last_name . ' ' . (string) $user->first_name),
                 'UserEmail' => (string) $user->email,
+                'UserContact' => (string)$user->contact_no,
                 'ResponseURL' => route('contracts.payment-return'),
                 'BackendURL' => url('/api/payments/backend-callback'),
                 'Signature' => $signature,
+                'SignatureType' => 'HMACSHA512',
                 'Xfield1' => 'Contracts',
             ],
         ]);
