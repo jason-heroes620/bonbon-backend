@@ -463,7 +463,7 @@ class ContractsController extends Controller
             'user_id' => $user->user_id,
             'order_no' => $refNo,
             'order_date' => now()->toDateString(),
-            'order_description' => $contractRecord->product_description . ' - ' . (string) $contractRecord->rack_name . ' / ' . (string) $contractRecord->compartment_label . ' ( ' . Carbon::parse($contractRecord->tender_start_date)->format('d M Y') . ' - ' . Carbon::parse($contractRecord->tender_end_date)->format('d M Y') . ' )',
+            'order_description' => $contractRecord->product_description . ' - ' . (string) $contractRecord->rack_name . ' / ' . (string) $contractRecord->compartment_label . ' ( ' . Carbon::parse($contractRecord->tender_start_date)->format('d M Y') . ' - ' . Carbon::parse($contractRecord->tender_start_date)->addMonths($contractRecord->durations)->subDay(1)->format('d M Y') . ' )',
             'total_price' => round($subtotal, 2),
             'total_charges' => round($totalCharges, 2),
             'total_discount' => 0,
@@ -482,6 +482,7 @@ class ContractsController extends Controller
         OrderItems::query()->create([
             'order_id' => $orders->order_id,
             'product_id' => $orderProduct->product_id,
+            'source_id' => $orderProduct->product_id,
             'line_type' => 'contract',
             'line_name' => $contractRecord->product_description . ' - ' . (string) $contractRecord->rack_name . ' / ' . (string) $contractRecord->compartment_label . ' ( ' . Carbon::parse($contractRecord->tender_start_date)->format('d M Y') . ' - ' . Carbon::parse($contractRecord->tender_end_date)->format('d M Y') . ' )',
             'quantity' => $contractRecord->durations,
@@ -506,7 +507,7 @@ class ContractsController extends Controller
 
         $merchantCode = (string) config('services.ipay88.code');
         $merchantKey = (string) config('services.ipay88.key');
-        $amount = number_format($totalPayment, 2, '.', '');
+        $amount = number_format((float)$totalPayment, 2, '.', '');
         $amountForSignature = str_replace(['.', ','], '', $amount);
         $currency = 'MYR';
         $payload = $merchantKey . $merchantCode . $refNo . $amountForSignature . $currency;
@@ -518,6 +519,7 @@ class ContractsController extends Controller
             $payload,
             $merchantKey
         );
+        Log::info($signature);
 
         return Inertia::render('contracts/payment-redirect', [
             'gatewayUrl' => config('services.ipay88.entry_url', 'https://payment.ipay88.com.my/epayment/entry.asp'),
