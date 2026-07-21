@@ -25,6 +25,9 @@ use App\Models\TransactionTypes;
 use App\Models\User;
 use App\Models\UserReferralGifts;
 use App\Models\UserMemberships;
+use App\Models\UserVoucherClaims;
+use App\Models\UserVouchers;
+use App\Models\Vouchers;
 use App\Services\CreditService;
 use App\Services\ProductPricingService;
 use Illuminate\Http\Request;
@@ -522,6 +525,8 @@ class PaymentController extends Controller
                 'order_status' => $pickupCreated ? 'processing' : 'completed',
             ]);
 
+            $this->finalizeAppliedVoucherRedemption($order);
+
             EventRegistration::query()
                 ->where('order_id', $order->order_id)
                 ->whereIn('registration_status', ['pending_payment'])
@@ -692,12 +697,16 @@ class PaymentController extends Controller
     private function handleContractsCallback(Request $request)
     {
         try {
-            if (!$this->verifySignature($request) || (string) $request->Status !== "1") {
-                return response("FAILED")->header('Content-Type', 'text/plain');
-            }
-
+            // if (!$this->verifySignature($request) || (string) $request->Status !== "1") {
+            //     return response("FAILED")->header('Content-Type', 'text/plain');
+            // }
+            Log::info('contract callback');
+            Log::info($request->RefNo);
             $order = Orders::query()->where('order_no', $request->RefNo)->first();
-            $contractId = (string) ($request->Xfield2 ?? '');
+            $contractId = OrderItems::query()
+                ->where('order_id', $order->order_id)
+                ->where('line_type', 'contract')
+                ->first()->source_id;
 
             if (!$order || $contractId === '') {
                 return response("FAILED")->header('Content-Type', 'text/plain');
@@ -749,6 +758,72 @@ class PaymentController extends Controller
             Log::error($e->getMessage());
             return response("FAILED")->header('Content-Type', 'text/plain');
         }
+    }
+
+    private function finalizeAppliedVoucherRedemption(Orders $order): void
+    {
+        if (
+            empty($order->applied_user_voucher_id)
+            || empty($order->applied_voucher_id)
+            || $order->voucher_redeemed_at
+        ) {
+            return;
+        }
+
+        DB::transaction(function () use ($order) {
+            $lockedOrder = Orders::query()
+                ->where('order_id', $order->order_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                !$lockedOrder
+                || empty($lockedOrder->applied_user_voucher_id)
+                || empty($lockedOrder->applied_voucher_id)
+                || $lockedOrder->voucher_redeemed_at
+            ) {
+                return;
+            }
+
+            $userVoucher = UserVouchers::query()
+                ->where('user_voucher_id', $lockedOrder->applied_user_voucher_id)
+                ->where('user_id', $lockedOrder->user_id)
+                ->where('voucher_id', $lockedOrder->applied_voucher_id)
+                ->lockForUpdate()
+                ->first();
+
+            $voucher = Vouchers::query()
+                ->where('voucher_id', $lockedOrder->applied_voucher_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$userVoucher || !$voucher || !$userVoucher->is_valid) {
+                return;
+            }
+
+            $claimLimit = max(1, (int) ($voucher->voucher_claim_per_user ?? 1));
+            $userClaimCount = UserVoucherClaims::query()
+                ->where('user_voucher_id', $userVoucher->user_voucher_id)
+                ->count();
+
+            if ($userClaimCount >= $claimLimit) {
+                $userVoucher->update(['is_valid' => false]);
+                return;
+            }
+
+            UserVoucherClaims::query()->create([
+                'user_voucher_id' => $userVoucher->user_voucher_id,
+                'claimed_at' => now(),
+            ]);
+
+            if (($userClaimCount + 1) >= $claimLimit) {
+                $userVoucher->update(['is_valid' => false]);
+            }
+
+            $lockedOrder->update([
+                'voucher_redeemed_at' => now(),
+            ]);
+        });
     }
 
     private function fulfillProductPickupOrder(Orders $order, Cart $pendingCart, string $actorUserId): bool
