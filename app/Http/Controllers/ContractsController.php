@@ -510,7 +510,7 @@ class ContractsController extends Controller
         $amount = number_format((float)$totalPayment, 2, '.', '');
         $amountForSignature = str_replace(['.', ','], '', $amount);
         $currency = 'MYR';
-        $payload = $merchantKey . $merchantCode . $refNo . $amountForSignature . $currency;
+        $payload = $merchantKey . $merchantCode . $refNo . $amountForSignature . $currency . 'Contracts';
         Log::info($amountForSignature);
         Log::info($payload);
 
