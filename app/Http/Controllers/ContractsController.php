@@ -522,7 +522,7 @@ class ContractsController extends Controller
         Log::info($signature);
 
         return Inertia::render('contracts/payment-redirect', [
-            'gatewayUrl' => config('services.ipay88.entry_url', 'https://payment.ipay88.com.my/epayment/entry.asp'),
+            'gatewayUrl' => 'https://payment.ipay88.com.my/epayment/entry.asp',
             'fields' => [
                 'MerchantCode' => $merchantCode,
                 'RefNo' => $refNo,
@@ -532,7 +532,7 @@ class ContractsController extends Controller
                 'UserName' => trim((string) $user->last_name . ' ' . (string) $user->first_name),
                 'UserEmail' => (string) $user->email,
                 'UserContact' => (string)$user->contact_no,
-                'ResponseURL' => route('contracts.payment-return'),
+                'ResponseURL' => url('/api/payments/frontend-callback'),
                 'BackendURL' => url('/api/payments/backend-callback'),
                 'Signature' => $signature,
                 'SignatureType' => 'HMACSHA512',

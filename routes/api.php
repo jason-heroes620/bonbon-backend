@@ -82,6 +82,7 @@ Route::middleware(['auth:sanctum'])->group(
 
         // Cart / Mixed Checkout
         Route::get('/cart', [CartController::class, 'show']);
+        Route::post('/cart/voucher', [CartController::class, 'applyVoucher']);
         Route::post('/cart/items', [CartController::class, 'upsertItem']);
         Route::delete('/cart/items/{cart_item_id}', [CartController::class, 'removeItem']);
         Route::post('/cart/checkout', [CartController::class, 'checkout']);
@@ -222,6 +223,9 @@ Route::post('/payments/frontend-callback', function (Request $request) {
 
     if ($request->has('Xfield1') && $request->Xfield1 === 'Events') {
         return redirect()->away("https://events.bonbon.com.my/api/payments/" . $request->RefNo);
+    }
+    if ($request->has('Xfield1') && $request->Xfield1 === 'Contracts') {
+        return redirect()->away("https://merchant.bonbon.com.my/contracts/payment-return");
     }
 
     Log::info('User-Agent: ' . $userAgent);
