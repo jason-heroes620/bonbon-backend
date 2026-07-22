@@ -541,20 +541,26 @@ class ContractsController extends Controller
         ]);
     }
 
-    public function paymentReturn(Request $request)
+    public function paymentReturn(Request $request, $refNo)
     {
-        $contractId = (string) ($request->input('Xfield1') ?? '');
+        // $contractId = (string) ($request->input('Xfield1') ?? '');
+        $contractId = Orders::query()
+        ->leftJoin('order_items', 'orders.order_id', 'order_items.order_id')
+        ->where('orders.order_no', $refNo)
+        ->where('order_items.line_type', 'contract')
+        ->first()->source_id;
+
         $status = (string) ($request->input('Status') ?? '');
 
-        if ($contractId === '') {
-            return redirect()->route('contracts.index')->with([
-                'error' => 'Unable to locate the contract payment.',
-            ]);
-        }
+        // if ($contractId === '') {
+        //     return redirect()->route('contracts.index')->with([
+        //         'error' => 'Unable to locate the contract payment.',
+        //     ]);
+        // }
 
         if ($status === '1') {
             return redirect()->route('contracts.show', $contractId)->with([
-                'success' => 'Payment submitted successfully. Contract status will update once confirmation is received.',
+                'success' => 'Payment submitted successfully.',
             ]);
         }
 

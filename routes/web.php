@@ -65,7 +65,7 @@ Route::get('/login', function () {
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-Route::match(['get', 'post'], '/contracts/payment-return', [ContractsController::class, 'paymentReturn'])->name('contracts.payment-return');
+Route::match(['get', 'post'], '/contracts/payment-return/{refNo)', [ContractsController::class, 'paymentReturn'])->name('contracts.payment-return');
 Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
     ->name('verify-email.verify');
 Route::get('/forgot-password', function () {

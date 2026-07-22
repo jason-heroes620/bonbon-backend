@@ -225,7 +225,7 @@ Route::post('/payments/frontend-callback', function (Request $request) {
         return redirect()->away("https://events.bonbon.com.my/api/payments/" . $request->RefNo);
     }
     if ($request->has('Xfield1') && $request->Xfield1 === 'Contracts') {
-        return redirect()->away("https://merchant.bonbon.com.my/contracts/payment-return");
+        return redirect()->away("https://merchant.bonbon.com.my/contracts/payment-return/" . $request->RefNo . "?status=" . $status);
     }
 
     Log::info('User-Agent: ' . $userAgent);
