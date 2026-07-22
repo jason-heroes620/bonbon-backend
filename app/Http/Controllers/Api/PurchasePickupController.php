@@ -333,6 +333,8 @@ class PurchasePickupController extends Controller
             ->map(fn($item) => [
                 'product_name' => (string) $item->product_name,
                 'ordered_quantity' => (int) $item->ordered_quantity,
+                'rack_name' => $item->rack_name ? (string) $item->rack_name : null,
+                'compartment_name' => $item->compartment_name ? (string) $item->compartment_name : null,
             ])
             ->values();
 
