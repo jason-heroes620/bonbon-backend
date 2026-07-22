@@ -541,14 +541,14 @@ class ContractsController extends Controller
         ]);
     }
 
-    public function paymentReturn(Request $request, $refNo)
+    public function paymentReturn(Request $request, string $refNo)
     {
         // $contractId = (string) ($request->input('Xfield1') ?? '');
         $contractId = Orders::query()
-        ->leftJoin('order_items', 'orders.order_id', 'order_items.order_id')
-        ->where('orders.order_no', $refNo)
-        ->where('order_items.line_type', 'contract')
-        ->first()->source_id;
+            ->leftJoin('order_items', 'orders.order_id', 'order_items.order_id')
+            ->where('orders.order_no', $refNo)
+            ->where('order_items.line_type', 'contract')
+            ->first()->source_id;
 
         $status = (string) ($request->input('Status') ?? '');
 
