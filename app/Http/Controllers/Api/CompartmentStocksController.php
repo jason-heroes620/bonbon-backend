@@ -324,148 +324,195 @@ class CompartmentStocksController extends Controller
 
         $isAdmin = $this->isAdmin($request);
         $currentVendorId = $this->currentVendorId($request);
+        $userId = $request->user()?->user_id;
+
+        // [LOG 1: Entry Point] Log request initiation
+        Log::info('[ConfirmReceive] Handoff confirmation initiated', [
+            'compartment_stock_qr_session_id' => $validated['compartment_stock_qr_session_id'],
+            'user_id' => $userId,
+            'is_admin' => $isAdmin,
+            'vendor_id' => $currentVendorId,
+        ]);
 
         if (!$isAdmin && !$currentVendorId) {
+            Log::warning('[ConfirmReceive] Permission denied: Access is restricted to vendors or administrators.', [
+                'user_id' => $userId,
+            ]);
             return response()->json([
                 'message' => 'Vendor access is required.',
             ], 403);
         }
 
-        $result = DB::transaction(function () use ($validated, $request, $currentVendorId, $isAdmin) {
-            $session = CompartmentStockQrSession::query()
-                ->whereKey($validated['compartment_stock_qr_session_id'])
-                ->lockForUpdate()
-                ->first();
+        try {
+            $result = DB::transaction(function () use ($validated, $request, $currentVendorId, $isAdmin, $userId) {
+                $session = CompartmentStockQrSession::query()
+                    ->whereKey($validated['compartment_stock_qr_session_id'])
+                    ->lockForUpdate()
+                    ->first();
 
-            if (!$session) {
-                return [
-                    'type' => 'error',
-                    'status' => 404,
-                    'message' => 'QR session not found.',
-                ];
-            }
+                if (!$session) {
+                    Log::warning('[ConfirmReceive] QR Session not found', [
+                        'session_id' => $validated['compartment_stock_qr_session_id'],
+                    ]);
+                    return [
+                        'type' => 'error',
+                        'status' => 404,
+                        'message' => 'QR session not found.',
+                    ];
+                }
 
-            $now = Carbon::now('UTC');
+                $now = Carbon::now('UTC');
 
-            if ((string) $session->status === 'active' && $session->expires_at && Carbon::parse($session->expires_at, 'UTC')->isPast()) {
-                $session->update([
-                    'status' => 'expired',
+                // Update session to expired if past expires_at
+                if ((string) $session->status === 'active' && $session->expires_at && Carbon::parse($session->expires_at, 'UTC')->isPast()) {
+                    $session->update([
+                        'status' => 'expired',
+                        'updated_at' => $now,
+                    ]);
+
+                    Log::info('[ConfirmReceive] QR session marked as expired', [
+                        'session_id' => $session->compartment_stock_qr_session_id,
+                        'expires_at' => $session->expires_at,
+                    ]);
+
+                    return [
+                        'type' => 'error',
+                        'status' => 422,
+                        'message' => 'This QR code has expired.',
+                    ];
+                }
+
+                // [LOG 2: Specific check for already expired sessions]
+                if ((string) $session->status === 'expired') {
+                    Log::info('[ConfirmReceive] Attempted to scan an already expired QR code', [
+                        'session_id' => $session->compartment_stock_qr_session_id,
+                    ]);
+                    return [
+                        'type' => 'error',
+                        'status' => 422,
+                        'message' => 'This QR code has expired.',
+                    ];
+                }
+
+                if (!$isAdmin && (string) $currentVendorId !== (string) $session->rack_owner_vendor_id) {
+                    Log::warning('[ConfirmReceive] Access forbidden: User is not the rack owner.', [
+                        'session_id' => $session->compartment_stock_qr_session_id,
+                        'current_vendor_id' => $currentVendorId,
+                        'rack_owner_vendor_id' => $session->rack_owner_vendor_id,
+                    ]);
+                    return [
+                        'type' => 'error',
+                        'status' => 403,
+                        'message' => 'You are not the rack owner for this handoff.',
+                    ];
+                }
+
+                $stock = CompartmentStocks::query()
+                    ->whereKey($session->compartment_stock_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                $product = DB::table('compartment_stock_products')
+                    ->where('compartment_stock_product_id', $session->compartment_stock_product_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$stock || !$product) {
+                    Log::error('[ConfirmReceive] Missing database records for stock or product', [
+                        'session_id' => $session->compartment_stock_qr_session_id,
+                        'stock_id' => $session->compartment_stock_id,
+                        'stock_exists' => (bool)$stock,
+                        'product_id' => $session->compartment_stock_product_id,
+                        'product_exists' => (bool)$product,
+                    ]);
+                    return [
+                        'type' => 'error',
+                        'status' => 404,
+                        'message' => 'Compartment stock details not found.',
+                    ];
+                }
+
+                $context = $this->fetchSessionContextById((string) $session->compartment_stock_qr_session_id);
+
+                // [LOG 3: Context validation warning]
+                if (!$context) {
+                    Log::warning('[ConfirmReceive] Context details not found for active QR session. Proceeding with fallback metadata.', [
+                        'session_id' => $session->compartment_stock_qr_session_id,
+                    ]);
+                }
+
+                // Check for duplicate confirmations
+                if ((string) $session->status === 'consumed' || (string) $stock->status === 'completed') {
+                    // Check if they are inconsistent (e.g. one is consumed but the other is not)
+                    if ((string) $session->status !== (string) $stock->status) {
+                        Log::warning('[ConfirmReceive] Session and stock status are out of sync.', [
+                            'session_id' => $session->compartment_stock_qr_session_id,
+                            'session_status' => $session->status,
+                            'stock_id' => $stock->compartment_stock_id,
+                            'stock_status' => $stock->status,
+                        ]);
+                    }
+
+                    $existing = CompartmentStockProductTransaction::query()
+                        ->where('compartment_stock_qr_session_id', $session->compartment_stock_qr_session_id)
+                        ->first();
+
+                    Log::info('[ConfirmReceive] Duplicate receipt confirmation requested', [
+                        'session_id' => $session->compartment_stock_qr_session_id,
+                        'transaction_id' => $existing?->compartment_stock_product_transaction_id,
+                    ]);
+
+                    return [
+                        'type' => 'duplicate',
+                        'status' => 409,
+                        'message' => 'This stock handoff has already been confirmed.',
+                        'data' => $this->formatConfirmResult($existing, $context),
+                    ];
+                }
+
+                if ((string) $session->status !== 'active') {
+                    Log::warning('[ConfirmReceive] Operation rejected: QR session is not active.', [
+                        'session_id' => $session->compartment_stock_qr_session_id,
+                        'status' => $session->status,
+                    ]);
+                    return [
+                        'type' => 'error',
+                        'status' => 409,
+                        'message' => 'This QR session is no longer active.',
+                    ];
+                }
+
+                if ((string) $stock->status !== 'prepared') {
+                    Log::warning('[ConfirmReceive] Operation rejected: Stock is not in prepared status.', [
+                        'stock_id' => $stock->compartment_stock_id,
+                        'status' => $stock->status,
+                    ]);
+                    return [
+                        'type' => 'error',
+                        'status' => 409,
+                        'message' => 'This stock item is no longer in prepared status.',
+                    ];
+                }
+
+                $stock->update([
+                    'status' => 'completed',
+                    'confirmed_received_at' => $now,
+                    'confirmed_received_by_user_id' => $userId,
+                    'confirmation_source' => 'merchant_qr',
                     'updated_at' => $now,
                 ]);
 
-                return [
-                    'type' => 'error',
-                    'status' => 422,
-                    'message' => 'This QR code has expired.',
-                ];
-            }
+                $session->update([
+                    'status' => 'consumed',
+                    'consumed_at' => $now,
+                    'consumed_by_user_id' => $userId,
+                    'scanned_at' => $session->scanned_at ?? $now,
+                    'scanned_by_user_id' => $session->scanned_by_user_id ?? $userId,
+                    'updated_at' => $now,
+                ]);
 
-            if (!$isAdmin && (string) $currentVendorId !== (string) $session->rack_owner_vendor_id) {
-                return [
-                    'type' => 'error',
-                    'status' => 403,
-                    'message' => 'You are not the rack owner for this handoff.',
-                ];
-            }
-
-            $stock = CompartmentStocks::query()
-                ->whereKey($session->compartment_stock_id)
-                ->lockForUpdate()
-                ->first();
-
-            $product = DB::table('compartment_stock_products')
-                ->where('compartment_stock_product_id', $session->compartment_stock_product_id)
-                ->lockForUpdate()
-                ->first();
-
-            if (!$stock || !$product) {
-                return [
-                    'type' => 'error',
-                    'status' => 404,
-                    'message' => 'Compartment stock details not found.',
-                ];
-            }
-
-            $context = $this->fetchSessionContextById((string) $session->compartment_stock_qr_session_id);
-
-            if ((string) $session->status === 'consumed' || (string) $stock->status === 'completed') {
-                $existing = CompartmentStockProductTransaction::query()
-                    ->where('compartment_stock_qr_session_id', $session->compartment_stock_qr_session_id)
-                    ->first();
-
-                return [
-                    'type' => 'duplicate',
-                    'status' => 409,
-                    'message' => 'This stock handoff has already been confirmed.',
-                    'data' => $this->formatConfirmResult($existing, $context),
-                ];
-            }
-
-            if ((string) $session->status !== 'active') {
-                return [
-                    'type' => 'error',
-                    'status' => 409,
-                    'message' => 'This QR session is no longer active.',
-                ];
-            }
-
-            if ((string) $stock->status !== 'prepared') {
-                return [
-                    'type' => 'error',
-                    'status' => 409,
-                    'message' => 'This stock item is no longer in prepared status.',
-                ];
-            }
-
-            $stock->update([
-                'status' => 'completed',
-                'confirmed_received_at' => $now,
-                'confirmed_received_by_user_id' => $request->user()->user_id,
-                'confirmation_source' => 'merchant_qr',
-                'updated_at' => $now,
-            ]);
-
-            $session->update([
-                'status' => 'consumed',
-                'consumed_at' => $now,
-                'consumed_by_user_id' => $request->user()->user_id,
-                'scanned_at' => $session->scanned_at ?? $now,
-                'scanned_by_user_id' => $session->scanned_by_user_id ?? $request->user()->user_id,
-                'updated_at' => $now,
-            ]);
-
-            $transaction = CompartmentStockProductTransaction::query()->create([
-                'compartment_stock_product_transaction_id' => (string) Str::uuid(),
-                'transaction_quantity' => (int) $product->quantity,
-                'compartment_stock_qr_session_id' => (string) $session->compartment_stock_qr_session_id,
-                'compartment_stock_id' => (string) $session->compartment_stock_id,
-                'compartment_stock_product_id' => (string) $session->compartment_stock_product_id,
-                'vendor_id' => (string) $session->vendor_id,
-                'rack_owner_vendor_id' => (string) $session->rack_owner_vendor_id,
-                'generated_by_user_id' => (string) $session->generated_by_user_id,
-                'received_by_user_id' => (string) $request->user()->user_id,
-                'transaction_type' => 'stock_receive',
-                'transaction_status' => 'confirmed',
-                'prepared_quantity' => (int) $product->quantity,
-                'received_quantity' => (int) $product->quantity,
-                'quantity_delta' => (int) $product->quantity,
-                'actor_user_id' => (string) $request->user()->user_id,
-                'actor_vendor_id' => (string) $session->rack_owner_vendor_id,
-                'event_source' => 'qr_receive',
-                'event_source_id' => (string) $session->compartment_stock_qr_session_id,
-                'vendor_location_id' => $context && isset($context->vendor_location_id)
-                    ? (int) $context->vendor_location_id
-                    : null,
-                'rack_id' => $context && isset($context->rack_id)
-                    ? (string) $context->rack_id
-                    : null,
-                'compartment_id' => $context && isset($context->compartment_id)
-                    ? (string) $context->compartment_id
-                    : null,
-                'product_id' => $context && isset($context->product_id)
-                    ? (string) $context->product_id
-                    : null,
-                'description' => $context
+                // Construct and safely truncate the description to 100 characters to prevent DB truncation failures
+                $description = $context
                     ? sprintf(
                         'Receipt confirmed for %s in %s / %s / %s.',
                         (string) $context->product_name,
@@ -473,23 +520,80 @@ class CompartmentStocksController extends Controller
                         (string) $context->rack_name,
                         (string) $context->compartment_name
                     )
-                    : 'Receipt confirmed.',
-                'confirmed_at' => $now,
-            ]);
+                    : 'Receipt confirmed.';
 
-            return [
-                'type' => 'success',
-                'status' => 200,
-                'message' => 'Receipt confirmed successfully.',
-                'data' => $this->formatConfirmResult($transaction, $context),
-            ];
-        });
+                if (strlen($description) > 100) {
+                    Log::warning('[ConfirmReceive] Transaction description exceeded 100 chars and was truncated.', [
+                        'original_description' => $description,
+                        'session_id' => $session->compartment_stock_qr_session_id,
+                    ]);
+                    $description = substr($description, 0, 100);
+                }
+
+                $transaction = CompartmentStockProductTransaction::query()->create([
+                    'compartment_stock_product_transaction_id' => (string) Str::uuid(),
+                    'transaction_quantity' => (int) $product->quantity,
+                    'compartment_stock_qr_session_id' => (string) $session->compartment_stock_qr_session_id,
+                    'compartment_stock_id' => (string) $session->compartment_stock_id,
+                    'compartment_stock_product_id' => (string) $session->compartment_stock_product_id,
+                    'vendor_id' => (string) $session->vendor_id,
+                    'rack_owner_vendor_id' => (string) $session->rack_owner_vendor_id,
+                    'generated_by_user_id' => (string) $session->generated_by_user_id,
+                    'received_by_user_id' => (string) $userId,
+                    'transaction_type' => 'stock_receive',
+                    'transaction_status' => 'confirmed',
+                    'prepared_quantity' => (int) $product->quantity,
+                    'received_quantity' => (int) $product->quantity,
+                    'quantity_delta' => (int) $product->quantity,
+                    'actor_user_id' => (string) $userId,
+                    'actor_vendor_id' => (string) $session->rack_owner_vendor_id,
+                    'event_source' => 'qr_receive',
+                    'event_source_id' => (string) $session->compartment_stock_qr_session_id,
+                    'vendor_location_id' => $context && isset($context->vendor_location_id)
+                        ? (int) $context->vendor_location_id
+                        : null,
+                    'rack_id' => $context && isset($context->rack_id)
+                        ? (string) $context->rack_id
+                        : null,
+                    'compartment_id' => $context && isset($context->compartment_id)
+                        ? (string) $context->compartment_id
+                        : null,
+                    'product_id' => $context && isset($context->product_id)
+                        ? (string) $context->product_id
+                        : null,
+                    'description' => $description,
+                    'confirmed_at' => $now,
+                ]);
+
+                Log::info('[ConfirmReceive] Stock handoff successfully confirmed and transaction recorded', [
+                    'session_id' => $session->compartment_stock_qr_session_id,
+                    'transaction_id' => $transaction->compartment_stock_product_transaction_id,
+                    'quantity' => $product->quantity,
+                ]);
+
+                return [
+                    'type' => 'success',
+                    'status' => 200,
+                    'message' => 'Receipt confirmed successfully.',
+                    'data' => $this->formatConfirmResult($transaction, $context),
+                ];
+            });
+        } catch (\Throwable $e) {
+            // [LOG 4: Transaction failures / QueryExceptions]
+            Log::error('[ConfirmReceive] Transaction failed and was rolled back', [
+                'session_id' => $validated['compartment_stock_qr_session_id'],
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e; // Rethrow to roll back the transaction and delegate response to Laravel's exception handler
+        }
 
         return response()->json([
             'message' => $result['message'],
             'data' => $result['data'] ?? null,
         ], $result['status']);
     }
+
 
     public function removeStockProduct(Request $request, string $vendor_id, string $compartment_stock_product_id)
     {
