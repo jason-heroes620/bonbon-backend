@@ -550,7 +550,7 @@ class ContractsController extends Controller
             ->where('order_items.line_type', 'contract')
             ->first()->source_id;
 
-        $status = (string) ($request->input('Status') ?? '');
+        $status = (string) ($request->input('status') ?? '');
 
         // if ($contractId === '') {
         //     return redirect()->route('contracts.index')->with([
