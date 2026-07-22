@@ -235,7 +235,7 @@ class PurchasePickupController extends Controller
                     'users.last_name',
                     'vendor_locations.location_name as vendor_location_name',
                 ]);
-            }
+        }
 
         return response()->json([
             'data' => $this->formatValidationData($pickup),
@@ -329,7 +329,7 @@ class PurchasePickupController extends Controller
         $items = OrderPickupItem::query()
             ->where('order_pickup_id', (string) $pickup->order_pickup_id)
             ->orderBy('created_at')
-            ->get(['product_name', 'ordered_quantity'])
+            ->get(['product_name', 'ordered_quantity', 'rack_name', 'compartment_name'])
             ->map(fn($item) => [
                 'product_name' => (string) $item->product_name,
                 'ordered_quantity' => (int) $item->ordered_quantity,
