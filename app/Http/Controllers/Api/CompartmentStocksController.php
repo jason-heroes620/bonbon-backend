@@ -364,7 +364,7 @@ class CompartmentStocksController extends Controller
                 $now = Carbon::now('UTC');
 
                 // Update session to expired if past expires_at
-                if ((string) $session->status === 'active' && $session->expires_at && Carbon::parse($session->expires_at, 'UTC')->isPast()) {
+                if ((string) $session->status === 'active' && $session->expires_at && $this->parseUtcDatetime($session->expires_at)->isPast()) {
                     $session->update([
                         'status' => 'expired',
                         'updated_at' => $now,
@@ -900,7 +900,7 @@ class CompartmentStocksController extends Controller
                 'quantity_delta' => $item->quantity_delta !== null ? (int) $item->quantity_delta : null,
                 'event_source' => $item->event_source ? (string) $item->event_source : null,
                 'event_source_id' => $item->event_source_id ? (string) $item->event_source_id : null,
-                'confirmed_at' => $item->confirmed_at ? Carbon::parse($item->confirmed_at, 'UTC')->toIso8601String() : null,
+                'confirmed_at' => $item->confirmed_at ? $this->parseUtcDatetime($item->confirmed_at)->toIso8601String() : null,
                 'qr_session_status' => $item->qr_session_status ? (string) $item->qr_session_status : null,
             ])->values(),
             'meta' => [
@@ -975,12 +975,12 @@ class CompartmentStocksController extends Controller
                 'compartment_id' => $transaction->compartment_id ? (string) $transaction->compartment_id : null,
                 'product_id' => $transaction->product_id ? (string) $transaction->product_id : null,
                 'description' => $transaction->description ? (string) $transaction->description : null,
-                'confirmed_at' => $transaction->confirmed_at ? Carbon::parse($transaction->confirmed_at, 'UTC')->toIso8601String() : null,
+                'confirmed_at' => $transaction->confirmed_at ? $this->parseUtcDatetime($transaction->confirmed_at)->toIso8601String() : null,
                 'qr_session_status' => $transaction->qr_session_status ? (string) $transaction->qr_session_status : null,
-                'issued_at' => $transaction->issued_at ? Carbon::parse($transaction->issued_at, 'UTC')->toIso8601String() : null,
-                'expires_at' => $transaction->expires_at ? Carbon::parse($transaction->expires_at, 'UTC')->toIso8601String() : null,
-                'scanned_at' => $transaction->scanned_at ? Carbon::parse($transaction->scanned_at, 'UTC')->toIso8601String() : null,
-                'consumed_at' => $transaction->consumed_at ? Carbon::parse($transaction->consumed_at, 'UTC')->toIso8601String() : null,
+                'issued_at' => $transaction->issued_at ? $this->parseUtcDatetime($transaction->issued_at)->toIso8601String() : null,
+                'expires_at' => $transaction->expires_at ? $this->parseUtcDatetime($transaction->expires_at)->toIso8601String() : null,
+                'scanned_at' => $transaction->scanned_at ? $this->parseUtcDatetime($transaction->scanned_at)->toIso8601String() : null,
+                'consumed_at' => $transaction->consumed_at ? $this->parseUtcDatetime($transaction->consumed_at)->toIso8601String() : null,
             ],
         ]);
     }
@@ -1121,7 +1121,7 @@ class CompartmentStocksController extends Controller
     private function synchronizeSessionStatus(object $session): object
     {
         if ((string) $session->status === 'active' && $session->expires_at) {
-            if (Carbon::parse($session->expires_at, 'UTC')->isPast()) {
+            if ($this->parseUtcDatetime($session->expires_at)->isPast()) {
                 CompartmentStockQrSession::query()
                     ->whereKey($session->compartment_stock_qr_session_id)
                     ->update([
@@ -1147,10 +1147,10 @@ class CompartmentStocksController extends Controller
             'compartment_stock_qr_session_id' => (string) $session->compartment_stock_qr_session_id,
             'status' => (string) $session->status,
             'issued_at' => $session->issued_at
-                ? Carbon::parse($session->issued_at, 'UTC')->toIso8601String()
+                ? $this->parseUtcDatetime($session->issued_at)->toIso8601String()
                 : null,
             'expires_at' => $session->expires_at
-                ? Carbon::parse($session->expires_at, 'UTC')->toIso8601String()
+                ? $this->parseUtcDatetime($session->expires_at)->toIso8601String()
                 : null,
             'qr_value' => $payload ? json_encode($payload, JSON_UNESCAPED_SLASHES) : null,
             'payload' => $payload,
@@ -1185,13 +1185,13 @@ class CompartmentStocksController extends Controller
             'merchant_vendor_name' => $session->merchant_vendor_name ? (string) $session->merchant_vendor_name : null,
             'stock_status' => (string) $session->stock_status,
             'issued_at' => $session->issued_at
-                ? Carbon::parse($session->issued_at, 'UTC')->toIso8601String()
+                ? $this->parseUtcDatetime($session->issued_at)->toIso8601String()
                 : null,
             'expires_at' => $session->expires_at
-                ? Carbon::parse($session->expires_at, 'UTC')->toIso8601String()
+                ? $this->parseUtcDatetime($session->expires_at)->toIso8601String()
                 : null,
             'scanned_at' => $session->scanned_at
-                ? Carbon::parse($session->scanned_at, 'UTC')->toIso8601String()
+                ? $this->parseUtcDatetime($session->scanned_at)->toIso8601String()
                 : null,
         ];
     }
@@ -1215,11 +1215,24 @@ class CompartmentStocksController extends Controller
                 : ($context ? (string) $context->compartment_stock_product_id : null),
             'transaction_status' => (string) ($transaction->transaction_status ?? 'confirmed'),
             'confirmed_at' => $transaction->confirmed_at
-                ? Carbon::parse($transaction->confirmed_at, 'UTC')->toIso8601String()
+                ? $this->parseUtcDatetime($transaction->confirmed_at)->toIso8601String()
                 : null,
             'stock_status' => (string) ($transaction->transaction_status ?? 'confirmed') === 'confirmed'
                 ? 'completed'
                 : ($context ? (string) $context->stock_status : 'completed'),
         ];
+    }
+
+    private function parseUtcDatetime(mixed $datetime): ?Carbon
+    {
+        if (!$datetime) {
+            return null;
+        }
+
+        $stringVal = $datetime instanceof \DateTimeInterface
+            ? $datetime->format('Y-m-d H:i:s')
+            : (string) $datetime;
+
+        return Carbon::parse($stringVal, 'UTC');
     }
 }
