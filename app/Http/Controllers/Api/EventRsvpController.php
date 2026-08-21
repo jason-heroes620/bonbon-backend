@@ -586,4 +586,377 @@ class EventRsvpController extends Controller
             abort(422, 'No seats available for this event.');
         }
     }
+
+    public function startRegistration(Request $request, string $event_id)
+    {
+        $validated = $request->validate([
+            'quantity' => ['nullable', 'integer', 'min:1'],
+            'registrant_key' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $quantity = (int) ($validated['quantity'] ?? 1);
+        $registrantKey = isset($validated['registrant_key']) && trim((string) $validated['registrant_key']) !== ''
+            ? trim((string) $validated['registrant_key'])
+            : (string) \Illuminate\Support\Str::uuid();
+
+        return DB::transaction(function () use ($event_id, $quantity, $registrantKey) {
+            $event = Events::query()->whereKey($event_id)->lockForUpdate()->first();
+            if (!$event || !$event->is_active || !$event->is_published) {
+                return response()->json([
+                    'message' => 'Event not found.',
+                ], 404);
+            }
+
+            if (!$event->require_registration) {
+                return response()->json([
+                    'message' => 'Registration is not enabled for this event.',
+                ], 422);
+            }
+
+            try {
+                $this->assertEventRsvpWindow($event);
+            } catch (\Throwable $e) {
+                $msg = $e->getMessage() ?: 'RSVP window error.';
+                $code = method_exists($e, 'getStatusCode') ? (int) $e->getStatusCode() : 422;
+                return response()->json(['message' => $msg], $code);
+            }
+
+            $excludedRegistrationId = null;
+            $existing = EventRegistration::query()
+                ->where('event_id', $event->event_id)
+                ->where('user_id', $registrantKey)
+                ->lockForUpdate()
+                ->first();
+
+            $isRestart = false;
+            if ($existing) {
+                if ((string) $existing->registration_status === 'confirmed') {
+                    $questions = EventQuestionnaire::query()
+                        ->where('event_id', $event->event_id)
+                        ->where('is_active', true)
+                        ->with(['options' => function ($q) {
+                            $q->where('is_active', true)->orderBy('sort_order');
+                        }])
+                        ->orderBy('sort_order')
+                        ->get();
+
+                    return response()->json([
+                        'data' => [
+                            'event_registration_id' => (string) $existing->event_registration_id,
+                            'event_registration' => [
+                                'event_registration_id' => (string) $existing->event_registration_id,
+                                'registration_status' => (string) $existing->registration_status,
+                                'quantity' => (int) $existing->quantity,
+                            ],
+                            'registrant_key' => $registrantKey,
+                            'questions' => $questions,
+                        ],
+                    ], 422);
+                }
+
+                if ($existing->seat_hold_expires_at && now()->greaterThan($existing->seat_hold_expires_at)) {
+                    $existing->update([
+                        'registration_status' => 'expired',
+                        'expired_at' => now(),
+                    ]);
+                    $existing = $existing->fresh();
+                    $isRestart = true;
+                }
+
+                if ($existing) {
+                    $excludedRegistrationId = (string) $existing->event_registration_id;
+                }
+            }
+
+            if (!$event->is_unlimited_seats) {
+                try {
+                    $this->assertSeatAvailable($event, $quantity, $excludedRegistrationId);
+                } catch (\Throwable $e) {
+                    $msg = $e->getMessage() ?: 'No seats available.';
+                    $code = method_exists($e, 'getStatusCode') ? (int) $e->getStatusCode() : 422;
+                    return response()->json(['message' => $msg], $code);
+                }
+            }
+
+            $seatHoldExpiresAt = null;
+            if ($existing && in_array((string) $existing->registration_status, ['draft', 'pending_payment'], true) && !$isRestart) {
+                $seatHoldExpiresAt = $existing->seat_hold_expires_at;
+            } else {
+                $seatHoldExpiresAt = !$event->is_unlimited_seats ? now()->addMinutes(max(1, (int) $event->seat_hold_minutes)) : null;
+            }
+
+            $nextStatus = $event->registration_type === 'free' && !$event->require_questionnaire ? 'confirmed' : 'draft';
+
+            if ($existing && in_array((string) $existing->registration_status, ['cancelled', 'expired'], true)) {
+                EventRegistrationAnswer::query()
+                    ->where('event_registration_id', $existing->event_registration_id)
+                    ->delete();
+
+                $existing->update([
+                    'cart_item_id' => null,
+                    'order_id' => null,
+                    'payment_id' => null,
+                    'registration_status' => $nextStatus,
+                    'seat_hold_expires_at' => $seatHoldExpiresAt,
+                    'membership_type_at_registration' => null,
+                    'quantity' => $quantity,
+                    'price_before_discount' => 0,
+                    'discount_amount' => 0,
+                    'price_paid' => 0,
+                    'joined_at' => now(),
+                    'confirmed_at' => $nextStatus === 'confirmed' ? now() : null,
+                    'expired_at' => null,
+                ]);
+
+                $registration = $existing->fresh();
+            } elseif ($existing && in_array((string) $existing->registration_status, ['draft', 'pending_payment'], true) && !$isRestart) {
+                $existing->update([
+                    'seat_hold_expires_at' => $seatHoldExpiresAt,
+                    'quantity' => $quantity,
+                    'price_before_discount' => 0,
+                    'discount_amount' => 0,
+                    'price_paid' => 0,
+                    'joined_at' => now(),
+                ]);
+
+                $registration = $existing->fresh();
+            } else {
+                $registration = EventRegistration::create([
+                    'event_id' => $event->event_id,
+                    'user_id' => $registrantKey,
+                    'cart_item_id' => null,
+                    'order_id' => null,
+                    'payment_id' => null,
+                    'registration_status' => $nextStatus,
+                    'seat_hold_expires_at' => $seatHoldExpiresAt,
+                    'membership_type_at_registration' => null,
+                    'quantity' => $quantity,
+                    'price_before_discount' => 0,
+                    'discount_amount' => 0,
+                    'price_paid' => 0,
+                    'joined_at' => now(),
+                    'confirmed_at' => $nextStatus === 'confirmed' ? now() : null,
+                    'expired_at' => null,
+                ]);
+            }
+
+            $questions = EventQuestionnaire::query()
+                ->where('event_id', $event->event_id)
+                ->where('is_active', true)
+                ->with(['options' => function ($q) {
+                    $q->where('is_active', true)->orderBy('sort_order');
+                }])
+                ->orderBy('sort_order')
+                ->get();
+
+            $previousAnswers = [];
+            $answerRows = EventRegistrationAnswer::query()
+                ->where('event_registration_id', $registration->event_registration_id)
+                ->get();
+            if ($answerRows->count() > 0) {
+                $grouped = [];
+                foreach ($answerRows as $row) {
+                    $qid = (string) $row->event_questionnaire_id;
+                    $question = $questions->firstWhere('event_questionnaire_id', $qid);
+                    $type = $question ? (string) $question->question_type_snapshot : null;
+                    if ($type === 'multi_select') {
+                        if (!isset($grouped[$qid])) {
+                            $grouped[$qid] = [
+                                'event_questionnaire_id' => $qid,
+                                'answer_values' => [],
+                            ];
+                        }
+                        if (isset($row->answer_value) && trim((string) $row->answer_value) !== '') {
+                            $grouped[$qid]['answer_values'][] = (string) $row->answer_value;
+                        }
+                    } elseif (in_array($type, ['yes_no', 'single_select'], true)) {
+                        $grouped[$qid] = [
+                            'event_questionnaire_id' => $qid,
+                            'answer_value' => isset($row->answer_value) && trim((string) $row->answer_value) !== ''
+                                ? (string) $row->answer_value
+                                : null,
+                        ];
+                    } else {
+                        $grouped[$qid] = [
+                            'event_questionnaire_id' => $qid,
+                            'answer_text' => isset($row->answer_text) && trim((string) $row->answer_text) !== ''
+                                ? (string) $row->answer_text
+                                : null,
+                        ];
+                    }
+                }
+                $previousAnswers = array_values($grouped);
+            }
+
+            $wasExisting = $existing && !$isRestart;
+
+            return response()->json([
+                'data' => [
+                    'event_registration_id' => (string) $registration->event_registration_id,
+                    'registrant_key' => $registrantKey,
+                    'event_registration' => [
+                        'event_registration_id' => (string) $registration->event_registration_id,
+                        'registration_status' => (string) $registration->registration_status,
+                        'seat_hold_expires_at' => $registration->seat_hold_expires_at ? (string) $registration->seat_hold_expires_at : null,
+                        'quantity' => (int) $registration->quantity,
+                    ],
+                    'questions' => $questions,
+                    'answers' => $previousAnswers,
+                ],
+            ], $wasExisting ? 200 : 201);
+        });
+    }
+
+    public function submitRegistrationAnswers(Request $request, string $event_id)
+    {
+        $validated = $request->validate([
+            'event_registration_id' => ['required', 'uuid'],
+            'answers' => ['required', 'array'],
+            'answers.*.event_questionnaire_id' => ['required', 'uuid'],
+            'answers.*.answer_text' => ['nullable', 'string'],
+            'answers.*.answer_value' => ['nullable', 'string', 'max:255'],
+            'answers.*.answer_values' => ['nullable', 'array'],
+            'answers.*.answer_values.*' => ['string', 'max:255'],
+        ]);
+
+        $event = Events::query()->whereKey($event_id)->first();
+        if (!$event || !$event->is_active || !$event->is_published) {
+            return response()->json([
+                'message' => 'Event not found.',
+            ], 404);
+        }
+
+        $registration = EventRegistration::query()
+            ->whereKey((string) $validated['event_registration_id'])
+            ->where('event_id', $event->event_id)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$registration) {
+            return response()->json([
+                'message' => 'Registration not found.',
+            ], 404);
+        }
+
+        if (in_array((string) $registration->registration_status, ['expired', 'cancelled'], true)) {
+            return response()->json([
+                'message' => 'Registration is no longer active.',
+            ], 422);
+        }
+
+        if ($registration->seat_hold_expires_at && now()->greaterThan($registration->seat_hold_expires_at)) {
+            $registration->update([
+                'registration_status' => 'expired',
+                'expired_at' => now(),
+            ]);
+            return response()->json([
+                'message' => 'Seat hold expired.',
+            ], 422);
+        }
+
+        $questions = EventQuestionnaire::query()
+            ->where('event_id', $event->event_id)
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('event_questionnaire_id');
+
+        $optionMap = EventQuestionOption::query()
+            ->whereIn('event_questionnaire_id', $questions->keys()->all())
+            ->where('is_active', true)
+            ->get()
+            ->groupBy('event_questionnaire_id');
+
+        DB::transaction(function () use ($registration, $validated, $questions, $optionMap) {
+            EventRegistrationAnswer::query()
+                ->where('event_registration_id', $registration->event_registration_id)
+                ->delete();
+
+            foreach ($validated['answers'] as $a) {
+                $qid = (string) $a['event_questionnaire_id'];
+                $question = $questions->get($qid);
+                if (!$question) {
+                    continue;
+                }
+
+                $type = (string) $question->question_type_snapshot;
+                $answerText = isset($a['answer_text']) ? (string) $a['answer_text'] : null;
+                $answerValue = isset($a['answer_value']) ? (string) $a['answer_value'] : null;
+                $answerValues = isset($a['answer_values']) && is_array($a['answer_values']) ? $a['answer_values'] : null;
+
+                if (in_array($type, ['short_text', 'long_text'], true)) {
+                    if ($answerText === null || trim($answerText) === '') {
+                        continue;
+                    }
+                    EventRegistrationAnswer::create([
+                        'event_registration_id' => $registration->event_registration_id,
+                        'event_questionnaire_id' => $qid,
+                        'event_question_option_id' => null,
+                        'answer_text' => $answerText,
+                        'answer_value' => null,
+                    ]);
+                    continue;
+                }
+
+                if (in_array($type, ['yes_no', 'single_select'], true)) {
+                    if ($answerValue === null || trim($answerValue) === '') {
+                        continue;
+                    }
+
+                    $optionId = null;
+                    $options = $optionMap->get($qid) ?? collect();
+                    $match = $options->firstWhere('option_value', $answerValue);
+                    if ($match) {
+                        $optionId = $match->event_question_option_id;
+                    }
+
+                    EventRegistrationAnswer::create([
+                        'event_registration_id' => $registration->event_registration_id,
+                        'event_questionnaire_id' => $qid,
+                        'event_question_option_id' => $optionId,
+                        'answer_text' => null,
+                        'answer_value' => $answerValue,
+                    ]);
+                    continue;
+                }
+
+                if ($type === 'multi_select') {
+                    if (!$answerValues || count($answerValues) === 0) {
+                        continue;
+                    }
+                    foreach ($answerValues as $v) {
+                        $v = (string) $v;
+                        if (trim($v) === '') {
+                            continue;
+                        }
+                        $optionId = null;
+                        $options = $optionMap->get($qid) ?? collect();
+                        $match = $options->firstWhere('option_value', $v);
+                        if ($match) {
+                            $optionId = $match->event_question_option_id;
+                        }
+                        EventRegistrationAnswer::create([
+                            'event_registration_id' => $registration->event_registration_id,
+                            'event_questionnaire_id' => $qid,
+                            'event_question_option_id' => $optionId,
+                            'answer_text' => null,
+                            'answer_value' => $v,
+                        ]);
+                    }
+                }
+            }
+        });
+
+        $nextStatus = 'confirmed';
+        $registration->update([
+            'registration_status' => $nextStatus,
+            'confirmed_at' => now(),
+        ]);
+
+        return response()->json([
+            'data' => [
+                'event_registration_id' => (string) $registration->event_registration_id,
+                'registration_status' => (string) $registration->registration_status,
+            ],
+        ]);
+    }
 }

@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\LDAuthController;
 use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PurchasePickupController;
+use App\Http\Controllers\Api\DeliveryPurchasesController;
 use App\Http\Controllers\Api\ProductPricingTiersController;
 use App\Http\Controllers\Api\ProductsController;
 use App\Http\Controllers\Api\PushTokensController;
@@ -76,16 +77,26 @@ Route::middleware(['auth:sanctum'])->group(
         Route::get('/my-purchases', [PurchasePickupController::class, 'index']);
         Route::get('/my-purchases/{order_pickup_id}', [PurchasePickupController::class, 'show']);
 
+        // My Delivery Purchases (tab)
+        Route::get('/my-delivery-orders', [DeliveryPurchasesController::class, 'index']);
+        Route::get('/my-delivery-orders/{order_id}', [DeliveryPurchasesController::class, 'show']);
+        Route::post('/my-delivery-orders/{order_id}/received', [DeliveryPurchasesController::class, 'markReceived']);
+        Route::get('/my-delivery-orders/{order_id}/tracking', [DeliveryPurchasesController::class, 'tracking']);
+
         // Payment
         Route::post('/pricing/quote', [PaymentController::class, 'quotePricing']);
         Route::post('/payments/create', [PaymentController::class, 'createPayment']);
 
         // Cart / Mixed Checkout
         Route::get('/cart', [CartController::class, 'show']);
+        Route::post('/cart/clear', [CartController::class, 'clear']);
         Route::post('/cart/voucher', [CartController::class, 'applyVoucher']);
         Route::post('/cart/items', [CartController::class, 'upsertItem']);
         Route::delete('/cart/items/{cart_item_id}', [CartController::class, 'removeItem']);
+        Route::post('/cart/delivery/quotes', [CartController::class, 'deliveryQuotes']);
+        Route::post('/cart/delivery/select', [CartController::class, 'selectDeliveryOption']);
         Route::post('/cart/checkout', [CartController::class, 'checkout']);
+        Route::post('/cart/checkout/simulate', [CartController::class, 'simulateCheckoutSuccess']);
 
         // Event RSVP (Questionnaire + Seat Hold)
         Route::get('/events/{event_id}/questionnaires', [EventRsvpController::class, 'questionnaires']);
@@ -191,10 +202,16 @@ Route::middleware('guest')->group(
         Route::get('/getVendor/{vendor_id}', [VendorsController::class, 'vendor']);
         Route::get('/vendor-categories', [VendorsController::class, 'vendorCategories']);
 
+        // Shop by location
+        Route::get('/shop-by-location', [VendorsController::class, 'shopByLocation']);
+
         // Products
         Route::get('/products', [ProductsController::class, 'index']);
         Route::get('/products/{product_id}', [ProductsController::class, 'show']);
         Route::get('/product-categories', [ProductsController::class, 'categories']);
+
+        Route::post('/registration/{event_id}/rsvp/start', [EventRsvpController::class, 'startRegistration']);
+        Route::post('/registration/{event_id}/rsvp/answers', [EventRsvpController::class, 'submitRegistrationAnswers']);
     }
 );
 
