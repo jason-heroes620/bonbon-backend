@@ -5,6 +5,12 @@ import type { Contract } from "@/types";
 import type { ColumnDef } from "@tanstack/react-table";
 import { router } from "@inertiajs/react";
 import { format } from "date-fns";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { TriangleAlert } from "lucide-react";
 
 export const columns: ColumnDef<Contract>[] = [
     {
@@ -41,7 +47,22 @@ export const columns: ColumnDef<Contract>[] = [
     {
         accessorKey: "tender_status",
         header: "Status",
-        cell: ({ row }) => row.original.tender_status,
+        cell: ({ row }) =>
+            row.original.unallocated_reason !== null ? (
+                <div className="flex items-center ">
+                    {row.original.tender_status}
+                    <Tooltip>
+                        <TooltipTrigger className="pl-2 cursor-pointer">
+                            <TriangleAlert size={18} className="text-red-600" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{row.original.unallocated_reason}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+            ) : (
+                row.original.tender_status
+            ),
     },
     {
         accessorKey: "actions",

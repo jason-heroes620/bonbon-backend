@@ -32,6 +32,8 @@ return new class extends Migration
             $table->text('tnc')->nullable();
             $table->text('how_to_use')->nullable();
             $table->integer('voucher_claim_points')->default(0);
+            $table->enum('voucher_type', ['F', 'P'])->nullable();
+            $table->decimal('min_purchase', 8, 2)->nullable();
             $table->timestamps();
         });
     }

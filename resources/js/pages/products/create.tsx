@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { type Option, ProductForm } from "@/pages/products/product-form";
+import type { VendorLocationOption } from "@/types";
 import AppLayout from "@/layouts/AppLayout";
 import { Head, router } from "@inertiajs/react";
 import { ChevronLeft } from "lucide-react";
@@ -7,9 +8,11 @@ import { ChevronLeft } from "lucide-react";
 const CreateProduct = ({
     categories,
     taxRates,
+    vendorLocations,
 }: {
     categories: Option[];
     taxRates: Option[];
+    vendorLocations: VendorLocationOption[];
 }) => {
     return (
         <AppLayout>
@@ -39,6 +42,7 @@ const CreateProduct = ({
                         mode="create"
                         categories={categories}
                         taxRates={taxRates}
+                        vendorLocations={vendorLocations}
                     />
                 </div>
             </div>

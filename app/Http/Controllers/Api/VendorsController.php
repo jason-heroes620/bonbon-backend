@@ -110,8 +110,11 @@ class VendorsController extends Controller
 
             return [
                 'vendor_id' => $row->vendor_id,
+                'vendor_location_id' => $row->vendor_location_id !== null ? (int) $row->vendor_location_id : null,
                 'vendor_name' => $row->vendor_name,
                 'profile_picture' => Storage::url($row->profile_picture),
+                'location_name' => (string) ($row->location_name ?? ''),
+                'address' => (string) ($row->address ?? ''),
                 'city' => $city,
                 'state' => $state,
                 'longitude' => $row->longitude !== null ? (float) $row->longitude : null,
@@ -274,5 +277,133 @@ class VendorsController extends Controller
         return response()->json(
             $vendor,
         );
+    }
+
+    public function shopByLocation(Request $request)
+    {
+        $validated = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'search' => ['nullable', 'string', 'max:150'],
+            'service_type' => ['nullable', 'string', 'in:pickup,delivery'],
+            'distance_km' => ['nullable', function (string $attribute, mixed $value, \Closure $fail) {
+                if ($value === null || $value === '' || (is_string($value) && strtolower($value) === 'all')) {
+                    return;
+                }
+                if (!is_numeric($value) || (float) $value < 0) {
+                    $fail("The {$attribute} must be 'all' or a positive number.");
+                }
+            }],
+            'categories' => ['nullable'],
+        ]);
+
+        $latitude = (float) $validated['latitude'];
+        $longitude = (float) $validated['longitude'];
+        $perPage = (int) ($validated['per_page'] ?? 10);
+        $search = isset($validated['search']) ? trim((string) $validated['search']) : null;
+        $serviceType = $validated['service_type'] ?? 'all';
+
+        $distanceKm = null;
+        if (array_key_exists('distance_km', $validated) && $validated['distance_km'] !== null && strtolower((string)$validated['distance_km']) !== 'all') {
+            $distanceKm = (float) $validated['distance_km'];
+        }
+
+        // Parse categories cleanly
+        $categoryIds = match (true) {
+            is_string($request->input('categories')) => array_filter(array_map('trim', explode(',', $request->input('categories')))),
+            is_array($request->input('categories'))  => array_filter(array_map('strval', $request->input('categories'))),
+            default => [],
+        };
+
+        // Inlined Distance Expression (Inlines sanitized floats to avoid parameter binding offset)
+        $distanceExpr = "ST_Distance_Sphere(POINT({$longitude}, {$latitude}), POINT(vendor_locations.longitude, vendor_locations.latitude)) / 1000";
+
+        $query = VendorLocation::query()
+            ->join('vendors', 'vendors.vendor_id', '=', 'vendor_locations.vendor_id')
+            ->where('vendors.is_active', '=', 'active')
+
+            // Service Type Filters
+            ->when($serviceType === 'pickup', function ($q) {
+                $q->whereExists(function ($sq) {
+                    $sq->selectRaw('1')
+                        ->from('racks')
+                        ->whereColumn('racks.vendor_location_id', 'vendor_locations.id');
+                });
+            })
+            ->when($serviceType === 'delivery', function ($q) {
+                $q->whereExists(function ($sq) {
+                    $sq->selectRaw('1')
+                        ->from('products')
+                        ->whereColumn('products.vendor_id', 'vendor_locations.vendor_id')
+                        ->where('products.delivery', '=', true);
+                });
+            })
+
+            // Bounding Box Filter (Fast Indexed Spatial Search)
+            ->when($distanceKm !== null, function ($q) use ($latitude, $longitude, $distanceKm) {
+                $this->applyBoundingBox($q, $latitude, $longitude, $distanceKm);
+            })
+
+            // Category Filter
+            ->when(!empty($categoryIds), function ($q) use ($categoryIds) {
+                $q->whereExists(function ($sq) use ($categoryIds) {
+                    $sq->selectRaw('1')
+                        ->from('vendor_categories')
+                        ->whereColumn('vendor_categories.vendor_id', 'vendor_locations.vendor_id')
+                        ->whereIn('vendor_categories.category_id', $categoryIds);
+                });
+            })
+
+            // Search Filter
+            ->when(!empty($search), function ($q) use ($search) {
+                $q->where(function ($sq) use ($search) {
+                    $sq->where('vendors.vendor_name', 'like', "%{$search}%")
+                        ->orWhere('vendor_locations.location_name', 'like', "%{$search}%")
+                        ->orWhere('vendor_locations.address', 'like', "%{$search}%");
+                });
+            })
+
+            // Select Fields
+            ->select([
+                'vendors.vendor_id',
+                'vendor_locations.id as vendor_location_id',
+                'vendors.vendor_name',
+                'vendors.profile_picture',
+                'vendor_locations.location_name',
+                'vendor_locations.address',
+                'vendor_locations.latitude',
+                'vendor_locations.longitude',
+            ])
+            ->selectRaw("{$distanceExpr} as distance_km")
+            ->orderBy('distance_km', 'asc')
+            ->orderBy('vendor_locations.id', 'desc');
+
+        $vendors = $query->paginate($perPage);
+
+        Log::info($query->toSql());
+        // Transform collection in place (Preserves Laravel's native JsonResource / Paginate response structure)
+        $vendors->getCollection()->transform(function ($row) {
+            [$city, $state] = $this->extractCityState(
+                (string) ($row->address ?? ''),
+                (string) ($row->location_name ?? '')
+            );
+
+            return [
+                'vendor_id' => $row->vendor_id,
+                'vendor_location_id' => $row->vendor_location_id ? (int) $row->vendor_location_id : null,
+                'vendor_name' => $row->vendor_name,
+                'profile_picture' => $row->profile_picture ? Storage::url($row->profile_picture) : null,
+                'location_name' => (string) ($row->location_name ?? ''),
+                'address' => (string) ($row->address ?? ''),
+                'city' => $city,
+                'state' => $state,
+                'longitude' => $row->longitude !== null ? (float) $row->longitude : null,
+                'latitude' => $row->latitude !== null ? (float) $row->latitude : null,
+                'distance_km' => $row->distance_km !== null ? round((float) $row->distance_km, 2) : null,
+            ];
+        });
+
+        return response()->json($vendors);
     }
 }

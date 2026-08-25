@@ -24,7 +24,9 @@ class Products extends Model
         'product_description',
         'stock_quantity',
         'product_weight',
-        'product_dimensions',
+        'product_length',
+        'product_width',
+        'product_height',
         'is_featured',
         'is_visible',
         'is_taxable',
@@ -33,6 +35,7 @@ class Products extends Model
         'sale_price',
         'is_active',
         'is_unlimited',
+        'delivery',
     ];
 
     public $timestamps = true;
@@ -80,5 +83,31 @@ class Products extends Model
             'product_id',
             'product_id',
         )->where('is_primary', true);
+    }
+
+    public function inventories(): HasMany
+    {
+        return $this->hasMany(ProductInventories::class, 'product_id', 'product_id');
+    }
+
+    public function locations(): BelongsToMany
+    {
+        return $this->belongsToMany(VendorLocation::class, 'product_inventories', 'product_id', 'vendor_location_id', 'product_id', 'id')
+            ->withPivot(['quantity', 'safety_stock'])
+            ->withTimestamps();
+    }
+
+    // Helper: Total available stock across all vendor locations
+    public function getTotalStockAttribute(): int
+    {
+        return (int) $this->inventories()->sum('quantity');
+    }
+
+    // Helper: Check stock at a specific location
+    public function stockAt(int $vendorLocationId): int
+    {
+        return (int) $this->inventories()
+            ->where('vendor_location_id', $vendorLocationId)
+            ->value('quantity') ?? 0;
     }
 }

@@ -38,7 +38,7 @@ class ContractsController extends Controller
             ->join('vendor_locations as vendor_locations', 'racks.vendor_location_id', '=', 'vendor_locations.id', 'inner', false)
             ->join('vendors as owners', 'vendor_locations.vendor_id', '=', 'owners.vendor_id', 'inner', false)
             ->leftJoin('vendors as assigned_vendors', 'tender_compartments.vendor_id', '=', 'assigned_vendors.vendor_id', 'left', false)
-            ->whereIn('tender_compartments.tender_status', ['selected', 'paid'])
+            // ->whereIn('tender_compartments.tender_status', ['selected', 'paid', 'pending'])
             ->select([
                 'tender_compartments.tender_compartment_id',
                 'tender_compartments.tender_status',
@@ -49,6 +49,7 @@ class ContractsController extends Controller
                 'compartments.label as compartment_label',
                 'racks.rack_name',
                 'vendor_locations.location_name',
+                'unallocated_reason',
                 DB::raw("CONCAT(owners.vendor_name, ' - ', vendor_locations.location_name) as vendor_location_name"),
             ]);
 
@@ -78,6 +79,7 @@ class ContractsController extends Controller
             'tender_status',
             'tender_start_date',
             'tender_end_date',
+            'unallocated_reason'
         ];
 
         if ($request->has('sort')) {
@@ -116,6 +118,7 @@ class ContractsController extends Controller
                 'tender_status' => (string) $row->tender_status,
                 'tender_start_date' => $row->tender_start_date ? (string) $row->tender_start_date : null,
                 'tender_end_date' => $row->tender_end_date ? (string) $row->tender_end_date : null,
+                'unallocated_reason' => $row->unallocated_reason
             ])->all(),
             'meta' => [
                 'current_page' => $rows->currentPage(),

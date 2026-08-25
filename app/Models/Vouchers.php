@@ -22,7 +22,7 @@ class Vouchers extends Model
         'what_you_get',
         'voucher_code',
         'voucher_discount',
-        'voucher_type',
+        'voucher_discount_type',
         'voucher_start_date',
         'voucher_expiry_date',
         'voucher_limit',
@@ -35,11 +35,13 @@ class Vouchers extends Model
         'tnc',
         'how_to_use',
         'voucher_claim_points',
+        'min_purchase',
     ];
 
     protected $casts = [
         'voucher_status' => 'boolean',
         'is_unlimited' => 'boolean',
+        'min_purchase' => 'decimal:2',
     ];
 
     public function vendor()

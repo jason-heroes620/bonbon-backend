@@ -38,7 +38,7 @@ type MyBid = {
 
 type Props = {
     rack: RackLite;
-    auth: {
+    auth_p: {
         role: string | null;
         current_vendor_id: string | null;
         is_owner: boolean;
@@ -49,7 +49,7 @@ type Props = {
 
 export default function AvailableTenderDetail({
     rack,
-    auth,
+    auth_p,
     compartments,
     myBids,
 }: Props) {
@@ -74,7 +74,8 @@ export default function AvailableTenderDetail({
     }, [compartments]);
 
     const canBid =
-        (auth.role === "vendor" || auth.role === "admin") && !auth.is_owner;
+        (auth_p.role === "vendor" || auth_p.role === "admin") &&
+        !auth_p.is_owner;
 
     const onSelectCompartment = (c: CompartmentLite) => {
         setSelectedCompartmentId(c.compartment_id);
@@ -350,7 +351,7 @@ export default function AvailableTenderDetail({
 
                         {!canBid ? (
                             <div className="mt-4 text-xs text-red-600">
-                                {auth.is_owner
+                                {auth_p.is_owner
                                     ? "Rack owner cannot bid."
                                     : "Only vendors can bid."}
                             </div>

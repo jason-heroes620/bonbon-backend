@@ -1,6 +1,11 @@
 import AppLayout from "@/layouts/AppLayout";
 import { Ticket, BadgeCheck, Receipt } from "lucide-react";
 import { Head } from "@inertiajs/react";
+import { StockLocationBarChart } from "@/components/StockLocationBarChart";
+import {
+    MiniLineChart,
+    type SalesChartPoint,
+} from "@/components/MiniLineChart";
 
 type VendorDashboardKpis = {
     active_vouchers: number;
@@ -10,6 +15,8 @@ type VendorDashboardKpis = {
 
 type Props = {
     kpis: VendorDashboardKpis;
+    sales_3m: SalesChartPoint[];
+    stockByLocation: any[];
 };
 
 function StatCard({
@@ -36,7 +43,12 @@ function StatCard({
     );
 }
 
-export default function VendorDashboard({ kpis }: Props) {
+export default function VendorDashboard({
+    kpis,
+    sales_3m,
+    stockByLocation,
+}: Props) {
+    console.log(stockByLocation);
     return (
         <AppLayout>
             <Head title="Dashboard" />
@@ -70,9 +82,30 @@ export default function VendorDashboard({ kpis }: Props) {
                             icon={<Receipt className="h-5 w-5" />}
                         />
                     </div>
+
+                    <div className="flex flex-col md:grid md:grid-cols-3 gap-4 mt-4">
+                        <div className="rounded-xl bg-muted/50 border border-border/50">
+                            <div className="flex items-center justify-between gap-4 p-4">
+                                <div>
+                                    <div className="text-sm font-semibold text-foreground">
+                                        Sales (3 months)
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Successful payments for your vendor
+                                        account
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mt-4 px-2">
+                                <MiniLineChart points={sales_3m} />
+                            </div>
+                        </div>
+                        <div>
+                            <StockLocationBarChart items={stockByLocation} />
+                        </div>
+                    </div>
                 </div>
             </div>
         </AppLayout>
     );
 }
-

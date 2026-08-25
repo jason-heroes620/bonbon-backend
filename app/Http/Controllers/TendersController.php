@@ -106,7 +106,7 @@ class TendersController extends Controller
             ->select('compartment_id')
             ->where('tender_status', 'paid')
             ->whereNotNull('tender_end_date')
-            ->where('tender_end_date', '<', $today)
+            ->where('tender_end_date', '>', $today)
             ->groupBy('compartment_id');
 
         $query = Racks::query()
@@ -230,6 +230,7 @@ class TendersController extends Controller
             ->where('tender_end_date', '<', $today)
             ->groupBy('compartment_id');
 
+        Log::info($user->role);
         return Inertia::render('racks-tenders/tenders/availabe-rack-detail', [
             'rack' => [
                 'rack_id' => (string) $rackDetails->rack_id,
@@ -239,7 +240,7 @@ class TendersController extends Controller
                 'vendor_location_name' => (string) $rackDetails->vendor_location_name,
                 'owner_vendor_id' => (string) $rackDetails->owner_vendor_id,
             ],
-            'auth' => [
+            'auth_p' => [
                 'role' => $user ? (string) $user->role : null,
                 'current_vendor_id' => $currentVendorId,
                 'is_owner' => $isOwner,

@@ -78,6 +78,7 @@ export default function TenderSummaryDetail({
     isAdmin = false,
     vendorOptions = [],
 }: Props) {
+    console.log(bids);
     const [selectedCompartmentId, setSelectedCompartmentId] =
         useState<string>("");
     const [unallocateOpen, setUnallocateOpen] = useState(false);
@@ -370,7 +371,12 @@ export default function TenderSummaryDetail({
                                                         ? "Allocated"
                                                         : hasBids
                                                           ? "Has bids"
-                                                          : `R${row} C${col}`}
+                                                          : `R${row} C${col}`}{" "}
+                                                    {hasPaidBid ? (
+                                                        <span className="text-[10px] text-green-600 font-semibold">
+                                                            (Paid)
+                                                        </span>
+                                                    ) : null}
                                                 </div>
                                             </button>
                                         );

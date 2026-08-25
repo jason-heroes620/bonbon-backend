@@ -44,6 +44,14 @@ return [
         'code' => env('MERCHANT_CODE'),
         'entry_url' => env('IPAY88_ENTRY_URL', 'https://payment.ipay88.com.my/epayment/entry.asp'),
     ],
+    'delyva' => [
+        'base_url' => env('DELYVA_BASE_URL', 'https://api.delyva.app/v1.0'),
+        'api_key' => env('DELYVA_API_KEY'),
+        'customer_id' => env('DELYVA_CUSTOMER_ID'),
+        'company_id' => env('DELYVA_COMPANY_ID'),
+        'item_type' => env('DELYVA_ITEM_TYPE', 'PARCEL'),
+        'source' => env('DELYVA_SOURCE', 'bonbon'),
+    ],
     'monday' => [
         'token' => env('MONDAY_TOKEN'),
     ],

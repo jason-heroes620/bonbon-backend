@@ -29,6 +29,7 @@ import {
     SidebarFooter,
     SidebarHeader,
 } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
 import { Link, usePage } from "@inertiajs/react";
 import { cn } from "@/lib/utils";
 
@@ -116,6 +117,10 @@ const allItems: {
                 url: "/orders",
             },
             {
+                title: "Delivery Orders",
+                url: "/delivery-orders",
+            },
+            {
                 title: "Payments",
                 url: "/payments",
             },
@@ -150,6 +155,10 @@ const allItems: {
             {
                 title: "Referral Report",
                 url: "/reports/referral-report",
+            },
+            {
+                title: "Tender Summary Report",
+                url: "/reports/tender-summary-report",
             },
         ],
     },
@@ -230,6 +239,11 @@ export function AppSidebar() {
     const page = usePage();
     const currentPath = (page.url ?? "/").split("?")[0];
     const role = (page.props as any)?.auth?.user?.role as string | undefined;
+    const pendingCount = Number(
+        (page.props as any)?.sidebar?.delivery_orders_pending_count ?? 0,
+    );
+    const pendingBadgeVisible =
+        Number.isFinite(pendingCount) && pendingCount > 0;
 
     const items = useMemo(() => {
         if (role === "vendor") {
@@ -294,6 +308,11 @@ export function AppSidebar() {
     useEffect(() => {
         setOpenGroupTitle(activeGroupTitle);
     }, [activeGroupTitle]);
+
+    const pendingFor = (url: string) => {
+        if (url !== "/delivery-orders") return 0;
+        return pendingBadgeVisible ? pendingCount : 0;
+    };
 
     return (
         <Sidebar>
@@ -373,11 +392,12 @@ export function AppSidebar() {
                                         {hasSubItems && isExpanded ? (
                                             <SidebarMenuSub>
                                                 {item.items!.map((subItem) => {
-                                                    // const SubIcon = subItem.icon
                                                     const isSubActive =
                                                         isActiveUrl(
                                                             subItem.url,
                                                         );
+                                                    const subPending =
+                                                        pendingFor(subItem.url);
 
                                                     return (
                                                         <SidebarMenuSubItem
@@ -394,12 +414,25 @@ export function AppSidebar() {
                                                                         subItem.url
                                                                     }
                                                                 >
-                                                                    {/* {SubIcon ? <SubIcon /> : null} */}
-                                                                    <span>
+                                                                    <span className="mr-auto">
                                                                         {
                                                                             subItem.title
                                                                         }
                                                                     </span>
+                                                                    {subPending >
+                                                                    0 ? (
+                                                                        <Badge
+                                                                            variant={
+                                                                                "default"
+                                                                            }
+                                                                            className="ml-2 bg-brand text-white hover:bg-brand"
+                                                                        >
+                                                                            {subPending >
+                                                                            99
+                                                                                ? "99+"
+                                                                                : subPending}
+                                                                        </Badge>
+                                                                    ) : null}
                                                                 </Link>
                                                             </SidebarMenuSubButton>
                                                         </SidebarMenuSubItem>

@@ -21,7 +21,9 @@ return new class extends Migration
             $table->integer('stock_quantity')->default(0)->autoIncrement(false);
             $table->string('uom', 50)->default('unit');
             $table->decimal('product_weight', 10, 2)->nullable();
-            $table->string('product_dimensions', 100)->nullable();
+            $table->decimal('product_length', 10, 2)->nullable();
+            $table->decimal('product_width', 10, 2)->nullable();
+            $table->decimal('product_height', 10, 2)->nullable();
             $table->boolean('is_featured')->default(false);
             $table->boolean('is_visible')->default(true);
             $table->boolean('is_taxable')->default(false);
@@ -30,6 +32,7 @@ return new class extends Migration
             $table->decimal('sale_price', 10, 2)->default(0.00);
             $table->boolean('is_active')->default(false);
             $table->boolean('is_unlimited')->default(false);
+            $table->boolean('delivery')->default(false);
             $table->timestamps();
         });
     }

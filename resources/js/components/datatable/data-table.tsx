@@ -57,7 +57,6 @@ export function DataTable<T>({
         showFilters,
         showPagination,
     } = useTable<T>(columns, endpoint, options);
-
     const table = useReactTable({
         data,
         columns: tableColumns,

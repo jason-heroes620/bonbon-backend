@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import AppLayout from "@/layouts/AppLayout";
-import type { Product } from "@/types";
+import type { Product, VendorLocationOption } from "@/types";
 import { Head, router } from "@inertiajs/react";
 import { ChevronLeft } from "lucide-react";
 import { type Option, ProductForm } from "@/pages/products/product-form";
@@ -10,11 +10,13 @@ const EditProduct = ({
     categories,
     taxRates,
     selectedCategoryIds,
+    vendorLocations,
 }: {
     product: Product;
     categories: Option[];
     taxRates: Option[];
     selectedCategoryIds: string[];
+    vendorLocations: VendorLocationOption[];
 }) => {
     return (
         <AppLayout>
@@ -46,6 +48,7 @@ const EditProduct = ({
                         categories={categories}
                         taxRates={taxRates}
                         selectedCategoryIds={selectedCategoryIds}
+                        vendorLocations={vendorLocations}
                     />
                 </div>
             </div>

@@ -20,6 +20,7 @@ use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\CompartmentController;
 use App\Http\Controllers\ContractsController;
+use App\Http\Controllers\DeliveryOrdersController;
 use App\Http\Controllers\ProductDiscountsController;
 use App\Http\Controllers\ProductPricingTiersController;
 use App\Http\Controllers\ProductsController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\ReferralsController;
 use App\Http\Controllers\ReferralReportsController;
 use App\Http\Controllers\KolController;
 use App\Http\Controllers\RacksController;
+use App\Http\Controllers\TenderSummaryReportsController;
 use App\Http\Controllers\TendersController;
 use App\Http\Controllers\TenderCompartmentsController;
 use App\Http\Controllers\TaxesController;
@@ -257,6 +259,15 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/payments/{payment}', [PaymentsController::class, 'edit'])->name('payments.edit');
     Route::put('/payments/{payment}', [PaymentsController::class, 'update'])->name('payments.update');
 
+    // Delivery Orders
+    Route::get('/delivery-orders', [DeliveryOrdersController::class, 'index'])->name('delivery-orders.index');
+    Route::get('/delivery-orders/all', [DeliveryOrdersController::class, 'showAll'])->name('delivery-orders.all');
+    Route::get('/delivery-orders/{deliveryOrder}', [DeliveryOrdersController::class, 'show'])->name('delivery-orders.show');
+    Route::post('/delivery-orders/{deliveryOrder}/confirm', [DeliveryOrdersController::class, 'confirmDelivery'])->name('delivery-orders.confirm');
+    Route::get('/delivery-orders/{deliveryOrder}/label', [DeliveryOrdersController::class, 'printLabel'])->name('delivery-orders.label');
+    Route::get('/delivery-orders/{deliveryOrder}/tracking', [DeliveryOrdersController::class, 'trackingHistory'])->name('delivery-orders.tracking');
+    Route::post('/delivery-orders/{deliveryOrderId}/consignment-no', [DeliveryOrdersController::class, 'getConsignmentNo'])->name('delivery-orders.consignment-no');
+
     // Racks
     Route::get('/racks', [RacksController::class, 'index'])->name('racks.index');
     Route::get('/racks/all', [RacksController::class, 'showAll'])->name('racks.all');
@@ -347,4 +358,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/reports/referral-report', [ReferralReportsController::class, 'index'])->name('reports.referral.index');
     Route::get('/reports/referral-report/users', [ReferralReportsController::class, 'users'])->name('reports.referral.users');
     Route::get('/reports/referral-report/data', [ReferralReportsController::class, 'data'])->name('reports.referral.data');
+    Route::get('/reports/tender-summary-report', [TenderSummaryReportsController::class, 'index'])->name('reports.tender-summary.index');
+    Route::get('/reports/tender-summary-report/data', [TenderSummaryReportsController::class, 'data'])->name('reports.tender-summary.data');
 });

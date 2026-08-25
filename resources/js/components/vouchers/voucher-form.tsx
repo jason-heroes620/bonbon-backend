@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,7 +35,6 @@ const voucherSchema = z
         voucher_value: z.string().max(200).optional(),
         what_you_get: z.string().optional(),
         voucher_discount: z.coerce.number().min(0).optional(),
-        voucher_type: z.string().max(100).optional(),
         voucher_start_date: z.date({
             message: "Start date is required.",
         }),
@@ -58,6 +57,7 @@ const voucherSchema = z
             .optional(),
         membership_ids: z.array(z.string().uuid()).default([]),
         membership_ids_present: z.boolean().default(true),
+        applicable_product_ids: z.array(z.string().uuid()).default([]),
         categories: z.array(z.string().uuid()).optional(),
         voucher_status: z.boolean().default(false),
         voucher_image: z.any().optional(),
@@ -68,6 +68,8 @@ const voucherSchema = z
         how_to_use: z.string().optional(),
         is_unlimited: z.boolean().default(false),
         voucher_claim_points: z.coerce.number().int().min(0).default(0),
+        voucher_discount_type: z.string().optional(),
+        min_purchase: z.coerce.number().optional(),
     })
     .superRefine((values, ctx) => {
         if (values.voucher_claim_period && !values.voucher_claim_per_period) {
@@ -116,6 +118,7 @@ export function VoucherForm({
             voucher_limit: 0,
             voucher_claim_per_user: 1,
             membership_ids: [],
+            applicable_product_ids: [],
             categories: [],
             voucher_status: false,
             delete_voucher_image_ids: [],
@@ -127,9 +130,13 @@ export function VoucherForm({
     const selectedImage = watch("voucher_image") as File | undefined;
     const isUnlimited = watch("is_unlimited");
     const claimPeriod = watch("voucher_claim_period");
+    const selectedVendorId = watch("vendor_id");
 
     const [vendors, setVendors] = useState([]);
     const [categories, setCategories] = useState<
+        { value: string; label: string }[]
+    >([]);
+    const [productOptions, setProductOptions] = useState<
         { value: string; label: string }[]
     >([]);
     const [membershipOptions, setMembershipOptions] = useState<
@@ -142,6 +149,11 @@ export function VoucherForm({
     const [removedExistingImageIds, setRemovedExistingImageIds] = useState<
         number[]
     >([]);
+    const previousVendorIdRef = useRef<string | undefined>(
+        typeof defaultValues?.vendor_id === "string"
+            ? defaultValues.vendor_id
+            : undefined,
+    );
 
     useEffect(() => {
         if (isUnlimited) {
@@ -194,6 +206,50 @@ export function VoucherForm({
     }, []);
 
     useEffect(() => {
+        const nextVendorId =
+            typeof selectedVendorId === "string" ? selectedVendorId : "";
+        const previousVendorId = previousVendorIdRef.current ?? "";
+
+        if (!nextVendorId) {
+            setProductOptions([]);
+            if (previousVendorId) {
+                setValue("applicable_product_ids", [], {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                });
+            }
+            previousVendorIdRef.current = undefined;
+            return;
+        }
+
+        if (previousVendorId && previousVendorId !== nextVendorId) {
+            setValue("applicable_product_ids", [], {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+        }
+        previousVendorIdRef.current = nextVendorId;
+
+        let isActive = true;
+        axios
+            .get(route("products.list"), {
+                params: { vendor_id: nextVendorId },
+            })
+            .then((res) => {
+                if (!isActive) return;
+                setProductOptions(res.data ?? []);
+            })
+            .catch(() => {
+                if (!isActive) return;
+                setProductOptions([]);
+            });
+
+        return () => {
+            isActive = false;
+        };
+    }, [selectedVendorId, setValue]);
+
+    useEffect(() => {
         if (!selectedImage) {
             setLocalPreviewUrl(null);
             return;
@@ -217,6 +273,9 @@ export function VoucherForm({
                     payload.membership_ids_present = true;
                     if (!Array.isArray(payload.membership_ids)) {
                         payload.membership_ids = [];
+                    }
+                    if (!Array.isArray(payload.applicable_product_ids)) {
+                        payload.applicable_product_ids = [];
                     }
                     if (!payload.voucher_claim_period) {
                         delete payload.voucher_claim_period;
@@ -319,6 +378,51 @@ export function VoucherForm({
                     {errors.voucher_value && (
                         <p className="text-sm text-red-500">
                             {errors.voucher_value.message}
+                        </p>
+                    )}
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="voucher_discount_type">
+                        Voucher Discount Type
+                    </Label>
+                    <Controller
+                        control={control}
+                        name="voucher_discount_type"
+                        render={({ field }) => (
+                            <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                required
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select Voucher Type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="F">Fixed</SelectItem>
+                                    <SelectItem value="P">
+                                        Percentage
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="voucher_discount">
+                        Voucher Discount Value
+                    </Label>
+                    <Input
+                        id="voucher_discount"
+                        type="number"
+                        min={0}
+                        step={0.1}
+                        placeholder="Enter voucher discount value"
+                        {...register("voucher_discount")}
+                    />
+                    {errors.voucher_discount && (
+                        <p className="text-sm text-red-500">
+                            {errors.voucher_discount.message}
                         </p>
                     )}
                 </div>
@@ -566,6 +670,54 @@ export function VoucherForm({
                     {errors.membership_ids && (
                         <p className="text-sm text-red-500">
                             {String(errors.membership_ids.message)}
+                        </p>
+                    )}
+                </div>
+                <div className="space-y-2">
+                    <Label>Applicable Products</Label>
+                    <Controller
+                        name="applicable_product_ids"
+                        control={control}
+                        render={({ field }) => (
+                            <MultiSelect
+                                defaultValue={field.value || []}
+                                options={productOptions}
+                                onValueChange={field.onChange}
+                                placeholder={
+                                    selectedVendorId
+                                        ? "All vendor products"
+                                        : "Select a vendor first"
+                                }
+                                searchable={true}
+                                disabled={!selectedVendorId}
+                            />
+                        )}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        Leave empty to apply this voucher to all products from
+                        the selected vendor.
+                    </p>
+                    {errors.applicable_product_ids && (
+                        <p className="text-sm text-red-500">
+                            {String(errors.applicable_product_ids.message)}
+                        </p>
+                    )}
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="min_purchase">Min Purchase</Label>
+                    <Input
+                        type="number"
+                        id="min_purchase"
+                        {...register("min_purchase")}
+                        min={0}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        Leave empty if not applicable.
+                    </p>
+                    {errors.min_purchase && (
+                        <p className="text-sm text-red-500">
+                            {String(errors.min_purchase.message)}
                         </p>
                     )}
                 </div>

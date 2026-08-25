@@ -42,7 +42,7 @@ export type Voucher = {
     what_you_get: string;
     voucher_code: string;
     voucher_discount: number;
-    voucher_type: string;
+    voucher_discount_type: "F" | "P" | string;
     voucher_start_date: string;
     voucher_expiry_date: string;
     voucher_limit: number;
@@ -121,7 +121,9 @@ export type Product = {
     stock_quantity: number;
     uom: string;
     product_weight?: string | null;
-    product_dimensions?: string | null;
+    product_length?: string | null;
+    product_width?: string | null;
+    product_height?: string | null;
     is_featured: boolean;
     is_visible: boolean;
     is_taxable: boolean;
@@ -134,6 +136,23 @@ export type Product = {
     images?: ProductImage[];
     primary_image?: ProductImage | null;
     primaryImage?: ProductImage | null;
+    delivery: boolean;
+    inventories?: ProductInventory[];
+};
+
+export type ProductInventory = {
+    product_inventory_id: string;
+    product_id: string;
+    vendor_location_id: string;
+    quantity: number;
+    safety_stock: number;
+};
+
+export type VendorLocationOption = {
+    id: number;
+    location_name: string;
+    address?: string | null;
+    is_primary?: boolean;
 };
 
 export type ProductImage = {
@@ -217,6 +236,7 @@ export type Contract = {
     tender_status: "selected" | "paid";
     tender_start_date?: string | Date | null;
     tender_end_date?: string | Date | null;
+    unallocated_reason?: string | null;
 };
 
 export type Event = {
@@ -300,6 +320,7 @@ export type OrderItem = {
         product_id: string;
         product_name: string;
         uom: string;
+        product_sku?: string | null;
     } | null;
 };
 
@@ -352,6 +373,99 @@ export type Order = {
         | "completed"
         | "refunded";
     order_items?: OrderItem[];
+};
+
+export type DeliveryOrderCustomer = {
+    user_id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    contact_no: string;
+};
+
+export type DeliveryOrderBranch = {
+    id: number;
+    vendor_id: string;
+    vendor_name?: string | null;
+    location_name: string;
+    address?: string | null;
+    contact_no?: string | null;
+    is_primary?: boolean | null;
+};
+
+export type ShippingAddressJson = {
+    name?: string | null;
+    contact_no?: string | null;
+    line1?: string | null;
+    line2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postcode?: string | null;
+    country?: string | null;
+    address_1?: string | null;
+    address_2?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    [k: string]: any;
+};
+
+export type DeliveryOrderListItem = {
+    order_id: string;
+    order_no: string;
+    order_date: string;
+    created_at?: string | null;
+    updated_at?: string | null;
+    total_payment: string;
+    order_status: Order["order_status"];
+    shipping_provider?: string | null;
+    shipping_service_code?: string | null;
+    shipping_service_name?: string | null;
+    delivery_order_id?: string | null;
+    delivery_order_no?: string | null;
+    delivery_status: string;
+    fulfillment_vendor_location_id?: number | null;
+    customer?: DeliveryOrderCustomer | null;
+};
+
+export type DeliveryOrderDetail = {
+    order_id: string;
+    order_no: string;
+    order_date: string;
+    order_description?: string | null;
+    total_price: string;
+    total_charges: string;
+    total_discount: string;
+    total_payment: string;
+    shipping_method: string;
+    shipping_provider?: string | null;
+    shipping_service_code?: string | null;
+    shipping_service_name?: string | null;
+    shipping_fee?: string | null;
+    shipping_address_json?: ShippingAddressJson | null;
+    fulfillment_vendor_location_id?: number | null;
+    fulfillment_branch?: DeliveryOrderBranch | null;
+    order_status: Order["order_status"];
+    discount_code?: string | null;
+    applied_voucher_discount?: string | null;
+    wallet_credit_used?: string | null;
+    delivery_order_id?: string | null;
+    delivery_order_no?: string | null;
+    delivery_tracking_no?: string | null;
+    delivery_status: string;
+    created_at?: string | null;
+    updated_at?: string | null;
+    customer?: DeliveryOrderCustomer | null;
+    order_items?: OrderItem[] | null;
+};
+
+export type TrackingEvent = {
+    index: number;
+    code: string;
+    location: string;
+    status: string;
+    description: string;
+    occurred_at: string | null;
+    raw?: any;
 };
 
 export type Payment = {
@@ -441,6 +555,16 @@ export type Compartment = {
     min_month: number;
     compartment_status: "open" | "reviewing" | "allocated" | "closed";
     is_active: boolean;
+};
+
+export type TenderSummaryReportRow = {
+    owner_vendor_id: string;
+    owner_vendor_name: string;
+    payee_vendor_id: string;
+    payee_vendor_name: string;
+    contracts_count: number;
+    total_payable: string;
+    latest_payment_date?: string | null;
 };
 
 export interface ApiResponse<T> {

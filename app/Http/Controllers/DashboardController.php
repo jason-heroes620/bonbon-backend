@@ -9,6 +9,7 @@ use App\Models\Memberships;
 use App\Models\Orders;
 use App\Models\Payments;
 use App\Models\Referrals;
+use App\Models\TenderCompartments;
 use App\Models\User;
 use App\Models\UserVoucherClaims;
 use App\Models\UserVouchers;
@@ -22,6 +23,7 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
+        $now = Carbon::now();
         $user = $request->user();
         if ($user && $user->role === 'vendor') {
             $vendorIds = Vendors::query()
@@ -32,6 +34,8 @@ class DashboardController extends Controller
             $activeVouchers = 0;
             $totalClaims = 0;
             $totalRedeems = 0;
+
+            $sales3Months = [];
 
             if (!empty($vendorIds)) {
                 $activeVouchers = (int) Vouchers::query()
@@ -49,6 +53,89 @@ class DashboardController extends Controller
                     ->join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.voucher_id')
                     ->whereIn('vouchers.vendor_id', $vendorIds)
                     ->count();
+
+                $rangeStart = $now->copy()->subMonths(2)->startOfMonth();
+                $months = collect(range(0, 2))->map(function ($i) use ($rangeStart) {
+                    return $rangeStart->copy()->addMonths($i);
+                });
+
+                $ordersByMonth = Orders::query()
+                    ->leftJoin('payments', 'payments.order_no', '=', 'orders.order_no')
+                    ->leftJoin('order_items', 'order_items.order_id', '=', 'orders.order_id')
+                    ->leftJoin('products', 'products.product_id', '=', 'order_items.product_id')
+                    ->leftJoin('vendors', 'vendors.vendor_id', '=', 'products.vendor_id')
+                    ->whereIn('vendors.vendor_id', $vendorIds)
+                    ->where('order_status', 'completed')
+                    ->where('order_date', '>=', $rangeStart)
+                    ->selectRaw("DATE_FORMAT(order_date, '%Y-%m') as month, COUNT(*) as total")
+                    ->groupBy(DB::raw("DATE_FORMAT(order_date, '%Y-%m')"))
+                    ->orderBy('month')
+                    ->get()
+                    ->pluck('total', 'month')
+                    ->map(fn($v) => (int) $v)
+                    ->all();
+
+                // $paymentsByMonth = Payments::query()
+                //     ->where('payment_status', 1)
+                //     ->whereIn('vendor_id', $vendorIds)
+                //     ->where('payment_date', '>=', $rangeStart)
+                //     ->selectRaw("DATE_FORMAT(payment_date, '%Y-%m') as month, SUM(payment_amount) as total")
+                //     ->groupBy(DB::raw("DATE_FORMAT(payment_date, '%Y-%m')"))
+                //     ->orderBy('month')
+                //     ->get()
+                //     ->pluck('total', 'month')
+                //     ->map(fn($v) => (float) $v)
+                //     ->all();
+
+                $sales3Months = $months->map(function ($month) use ($ordersByMonth) {
+                    $monthLabel = $month->format('M Y');
+                    return [
+                        'month' => $month->format('Y-m'),
+                        'label' => $monthLabel,
+                        'total' => (float) ($ordersByMonth[$month->format('Y-m')] ?? 0),
+                    ];
+                })->all();
+            } else {
+                $rangeStart = $now->copy()->subMonths(2)->startOfMonth();
+                $sales3Months = collect(range(0, 2))->map(function ($i) use ($rangeStart) {
+                    $month = $rangeStart->copy()->addMonths($i);
+                    return [
+                        'month' => $month->format('Y-m'),
+                        'label' => $month->format('M Y'),
+                        'total' => 0,
+                    ];
+                })->all();
+            }
+
+            $stockByLocation = [];
+
+            if (!empty($vendorIds)) {
+
+                // select list of active contracts in tender compartments
+                $contracts = TenderCompartments::query()
+                    ->where('vendor_id', $vendorIds)
+                    ->where('tender_end_date', '>=', $now->toDateString())
+                    ->where('tender_status', 'paid')
+                    ->get(['tender_compartment_id'])->toArray();
+
+                if ($contracts) {
+                    $stockByLocation = DB::table('compartments')
+                        ->selectRaw('vl.location_name as label, csp.quantity as total')
+                        ->leftJoin('racks', 'racks.rack_id', 'compartments.rack_id')
+                        ->leftJoin('vendor_locations as vl', 'vl.id', 'racks.vendor_location_id')
+                        ->leftJoin('tender_compartments as tc', 'tc.compartment_id', 'compartments.compartment_id')
+                        ->leftJoin('compartment_stocks as cs', 'tc.tender_compartment_id', 'cs.tender_compartment_id')
+                        ->leftJoin('compartment_stock_products as csp', 'cs.compartment_stock_id', 'csp.compartment_stock_id')
+                        ->whereIn('cs.tender_compartment_id', $contracts)
+                        ->groupBy('vl.location_name', 'csp.quantity')
+                        ->orderBy('total', 'desc')
+                        ->get()
+                        ->map(fn($row) => [
+                            'label' => $row->label,
+                            'total' => (int) $row->total,
+                        ])
+                        ->all();
+                }
             }
 
             return Inertia::render('dashboard/vendor-dashboard', [
@@ -57,10 +144,12 @@ class DashboardController extends Controller
                     'total_claims' => $totalClaims,
                     'total_redeems' => $totalRedeems,
                 ],
+                'sales_3m' => $sales3Months,
+                'stockByLocation' => $stockByLocation,
             ]);
         }
 
-        $now = Carbon::now();
+
         $today = $now->copy()->startOfDay();
         $startOfMonth = $now->copy()->startOfMonth();
 

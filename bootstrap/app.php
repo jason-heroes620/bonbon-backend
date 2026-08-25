@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        channels: __DIR__.'/../routes/channels.php',
+        channels: __DIR__ . '/../routes/channels.php',
         web: __DIR__ . '/../routes/web.php',
         commands: __DIR__ . '/../routes/console.php',
         health: '/up',
@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'api/payments/*',
         ]);
+        $middleware->append(\App\Http\Middleware\LogRequestDuration::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {

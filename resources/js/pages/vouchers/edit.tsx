@@ -24,7 +24,7 @@ const EditVoucher = ({ voucher }: EditVoucherProps) => {
         voucher_description: voucher.voucher_description || undefined,
         duration: voucher.duration || undefined,
         what_you_get: voucher.what_you_get || undefined,
-        voucher_type: voucher.voucher_type || undefined,
+        voucher_discount_type: voucher.voucher_discount_type || undefined,
         voucher_start_date: voucher.voucher_start_date
             ? new Date(voucher.voucher_start_date)
             : undefined,

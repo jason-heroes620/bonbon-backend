@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\VoucherImages;
 use App\Models\VoucherCategories;
 use App\Models\VoucherMemberships;
+use App\Models\VoucherProducts;
 use App\Models\Vouchers;
+use App\Models\Products;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -143,7 +146,6 @@ class VouchersController extends Controller
             'what_you_get' => 'required|string',
             'voucher_code' => 'nullable|string|max:255',
             'voucher_discount' => 'nullable|numeric|min:0',
-            'voucher_type' => 'nullable|string|max:100',
             'voucher_start_date' => 'required|date',
             'voucher_expiry_date' => 'required|date',
             'voucher_limit' => 'nullable|integer|min:0',
@@ -153,6 +155,8 @@ class VouchersController extends Controller
             'membership_ids_present' => 'nullable|boolean',
             'membership_ids' => 'nullable|array',
             'membership_ids.*' => 'uuid|exists:memberships,membership_id',
+            'applicable_product_ids' => 'nullable|array',
+            'applicable_product_ids.*' => 'uuid|exists:products,product_id',
             'categories' => 'required|array',
             'categories.*' => 'uuid|exists:categories,category_id',
             'voucher_status' => 'nullable|boolean',
@@ -162,7 +166,8 @@ class VouchersController extends Controller
             'is_unlimited' => 'nullable|boolean',
             'tnc' => 'nullable|string',
             'how_to_use' => 'nullable|string',
-            'voucher_claim_points' => 'nullable|integer|min:0',
+            'voucher_discount_type' => 'nullable|string|in:F,P',
+            'min_purchase' => 'nullable|numeric',
         ]);
 
         $user = $request->user();
@@ -175,6 +180,9 @@ class VouchersController extends Controller
                 abort(403);
             }
         }
+
+        $applicableProductIds = $this->normalizeUuidArray($validated['applicable_product_ids'] ?? []);
+        $this->assertVoucherProductsBelongToVendor($validated['vendor_id'], $applicableProductIds);
 
         if (empty($validated['voucher_code'])) {
             $validated['voucher_code'] = $this->generateVoucherCode();
@@ -214,6 +222,8 @@ class VouchersController extends Controller
                 ]);
             }
         }
+
+        $this->syncApplicableProducts($voucher->voucher_id, $applicableProductIds);
 
         if ($request->hasFile('voucher_image')) {
             $path = $request->file('voucher_image')->store("vouchers/{$voucher->voucher_id}", 'public');
@@ -273,6 +283,13 @@ class VouchersController extends Controller
                 ->pluck('membership_id')
                 ->toArray(),
         );
+        $voucher->setAttribute(
+            'applicable_product_ids',
+            VoucherProducts::query()
+                ->where('voucher_id', $voucher->voucher_id)
+                ->pluck('product_id')
+                ->toArray(),
+        );
 
         return Inertia::render('vouchers/edit', [
             'voucher' => $voucher,
@@ -290,7 +307,6 @@ class VouchersController extends Controller
             'what_you_get' => 'required|string',
             'voucher_code' => 'sometimes|required|string|max:255',
             'voucher_discount' => 'nullable|numeric|min:0',
-            'voucher_type' => 'nullable|string|max:100',
             'voucher_start_date' => 'required|date',
             'voucher_expiry_date' => 'required|date',
             'voucher_limit' => 'nullable|integer|min:0',
@@ -300,6 +316,8 @@ class VouchersController extends Controller
             'membership_ids_present' => 'nullable|boolean',
             'membership_ids' => 'nullable|array',
             'membership_ids.*' => 'uuid|exists:memberships,membership_id',
+            'applicable_product_ids' => 'nullable|array',
+            'applicable_product_ids.*' => 'uuid|exists:products,product_id',
             'categories' => 'required|array',
             'categories.*' => 'uuid|exists:categories,category_id',
             'voucher_status' => 'nullable|boolean',
@@ -311,7 +329,8 @@ class VouchersController extends Controller
             'is_unlimited' => 'nullable|boolean',
             'tnc' => 'nullable|string',
             'how_to_use' => 'nullable|string',
-            'voucher_claim_points' => 'nullable|integer|min:0',
+            'voucher_discount_type' => 'nullable|string|in:F,P',
+            'min_purchase' => 'nullable|numeric',
         ]);
 
         $user = $request->user();
@@ -324,6 +343,9 @@ class VouchersController extends Controller
                 abort(403);
             }
         }
+
+        $applicableProductIds = $this->normalizeUuidArray($validated['applicable_product_ids'] ?? []);
+        $this->assertVoucherProductsBelongToVendor($validated['vendor_id'], $applicableProductIds);
 
         $validated['voucher_start_date'] = date('Y-m-d', strtotime($validated['voucher_start_date']));
         $validated['voucher_expiry_date'] = date('Y-m-d', strtotime($validated['voucher_expiry_date']));
@@ -363,6 +385,8 @@ class VouchersController extends Controller
                 ]);
             }
         }
+
+        $this->syncApplicableProducts($voucher->voucher_id, $applicableProductIds);
 
         if ($request->hasFile('voucher_image')) {
             if (!empty($voucher->voucher_image_path)) {
@@ -453,5 +477,54 @@ class VouchersController extends Controller
         $value = preg_replace("/\n{3,}/", "\n\n", $value);
 
         return trim($value);
+    }
+
+    private function normalizeUuidArray($values): array
+    {
+        if (!is_array($values)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_map('strval', $values)));
+    }
+
+    private function assertVoucherProductsBelongToVendor(string $vendorId, array $productIds): void
+    {
+        if (empty($productIds)) {
+            return;
+        }
+
+        $matchingCount = Products::query()
+            ->whereIn('product_id', $productIds)
+            ->where('vendor_id', $vendorId)
+            ->count();
+
+        if ($matchingCount !== count($productIds)) {
+            abort(422, 'Applicable products must belong to the selected vendor.');
+        }
+    }
+
+    private function syncApplicableProducts(string $voucherId, array $productIds): void
+    {
+        VoucherProducts::query()
+            ->where('voucher_id', $voucherId)
+            ->delete();
+
+        if (empty($productIds)) {
+            return;
+        }
+
+        VoucherProducts::insert(
+            array_map(
+                fn(string $productId) => [
+                    'voucher_product_id' => (string) Str::uuid(),
+                    'voucher_id' => $voucherId,
+                    'product_id' => $productId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                $productIds,
+            ),
+        );
     }
 }

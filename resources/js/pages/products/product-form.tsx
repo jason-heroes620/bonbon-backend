@@ -11,7 +11,12 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { Product, ProductImage, ProductPricingTier } from "@/types";
+import type {
+    Product,
+    ProductImage,
+    ProductPricingTier,
+    VendorLocationOption,
+} from "@/types";
 import axios from "axios";
 import { router } from "@inertiajs/react";
 import { Controller, useForm } from "react-hook-form";
@@ -38,7 +43,9 @@ type ProductFormValues = {
     stock_quantity: number;
     uom: string;
     product_weight?: number | null;
-    product_dimensions?: string | null;
+    product_length?: number | null;
+    product_width?: number | null;
+    product_height?: number | null;
     is_featured: boolean;
     is_visible: boolean;
     is_taxable: boolean;
@@ -47,6 +54,19 @@ type ProductFormValues = {
     sale_price: number;
     is_active: boolean;
     is_unlimited: boolean;
+    delivery: boolean;
+    inventories: ProductInventoryFormRow[];
+};
+
+type InventoryMode = "absolute" | "adjustment";
+
+type ProductInventoryFormRow = {
+    location_id: number;
+    mode: InventoryMode;
+    quantity: number;
+    adjustment: number;
+    safety_stock: number;
+    current_stock: number;
 };
 
 type PendingImage = {
@@ -69,6 +89,27 @@ const toNumberOrNull = (value?: string | null) => {
     if (value === null || typeof value === "undefined") return null;
     const n = Number(value);
     return Number.isFinite(n) ? n : null;
+};
+
+const getStockStatus = (quantity: number, safetyStock: number) => {
+    if (quantity <= 0) {
+        return {
+            label: "Out of Stock",
+            className: "bg-red-100 text-red-700 border-red-200",
+        };
+    }
+
+    if (quantity <= safetyStock) {
+        return {
+            label: "Low Stock",
+            className: "bg-amber-100 text-amber-700 border-amber-200",
+        };
+    }
+
+    return {
+        label: "In Stock",
+        className: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    };
 };
 
 const MAX_IMAGE_BYTES = 2048 * 2048;
@@ -123,13 +164,40 @@ export function ProductForm({
     categories,
     taxRates,
     selectedCategoryIds = [],
+    vendorLocations,
 }: {
     mode: "create" | "edit";
     product?: Product;
     categories: Option[];
     taxRates: Option[];
     selectedCategoryIds?: string[];
+    vendorLocations: VendorLocationOption[];
 }) {
+    const initialInventories = useMemo<ProductInventoryFormRow[]>(
+        () =>
+            vendorLocations.map((location) => {
+                const inventory = product?.inventories?.find(
+                    (item) =>
+                        Number(item.vendor_location_id) === Number(location.id),
+                );
+                const currentStock = Number(inventory?.quantity ?? 0);
+
+                return {
+                    location_id: Number(location.id),
+                    mode: "absolute",
+                    quantity: currentStock,
+                    adjustment: 0,
+                    safety_stock: Number(inventory?.safety_stock ?? 0),
+                    current_stock: currentStock,
+                };
+            }),
+        [product?.inventories, vendorLocations],
+    );
+
+    const initialTotalStock =
+        initialInventories.reduce((sum, item) => sum + item.quantity, 0) ||
+        Number(product?.stock_quantity ?? 0);
+
     const methods = useForm<ProductFormValues>({
         defaultValues: {
             product_name: product?.product_name ?? "",
@@ -137,10 +205,12 @@ export function ProductForm({
             product_sku: product?.product_sku ?? "",
             product_description: product?.product_description ?? "",
             category_ids: selectedCategoryIds,
-            stock_quantity: Number(product?.stock_quantity ?? 0),
+            stock_quantity: initialTotalStock,
             uom: product?.uom ?? "",
             product_weight: toNumberOrNull(product?.product_weight),
-            product_dimensions: product?.product_dimensions ?? "",
+            product_length: toNumberOrNull(product?.product_length),
+            product_width: toNumberOrNull(product?.product_width),
+            product_height: toNumberOrNull(product?.product_height),
             is_featured: Boolean(product?.is_featured),
             is_visible: product ? Boolean(product.is_visible) : true,
             is_taxable: Boolean(product?.is_taxable),
@@ -149,11 +219,29 @@ export function ProductForm({
             sale_price: Number(product?.sale_price ?? 0),
             is_active: product ? Boolean(product.is_active) : true,
             is_unlimited: Boolean(product?.is_unlimited),
+            delivery: Boolean(product?.delivery) ?? false,
+            inventories: initialInventories,
         },
         shouldUnregister: false,
     });
 
     const handleSubmit = (values: ProductFormValues) => {
+        const normalizedInventories = (values.inventories ?? []).map(
+            (item) => ({
+                location_id: Number(item.location_id),
+                mode: item.mode,
+                quantity:
+                    item.mode === "absolute"
+                        ? Number(item.quantity ?? 0)
+                        : null,
+                adjustment:
+                    item.mode === "adjustment"
+                        ? Number(item.adjustment ?? 0)
+                        : null,
+                safety_stock: Number(item.safety_stock ?? 0),
+            }),
+        );
+
         const payload = {
             ...values,
             category_ids: Array.isArray(values.category_ids)
@@ -161,10 +249,22 @@ export function ProductForm({
                 : [],
             product_code: values.product_code ? values.product_code : null,
             product_sku: values.product_sku ? values.product_sku : null,
-            product_dimensions: values.product_dimensions
-                ? values.product_dimensions
-                : null,
+            product_length: values.product_length ? values.product_length : 0,
+            product_width: values.product_width ? values.product_width : 0,
+            product_height: values.product_height ? values.product_height : 0,
             product_weight: normalizeNumberOrNull(values.product_weight),
+            stock_quantity: normalizedInventories.reduce((sum, item, index) => {
+                const currentStock =
+                    Number(values.inventories?.[index]?.current_stock ?? 0) ||
+                    0;
+                const nextQuantity =
+                    item.mode === "adjustment"
+                        ? currentStock + Number(item.adjustment ?? 0)
+                        : Number(item.quantity ?? 0);
+
+                return sum + Math.max(0, nextQuantity);
+            }, 0),
+            inventories: normalizedInventories,
             images: pendingImages.map((image) => image.file),
             removed_image_ids: removedImageIds,
         };
@@ -244,6 +344,61 @@ export function ProductForm({
             ),
         [product?.images, removedImageIds],
     );
+    const watchedInventories = methods.watch("inventories");
+    const [sameStockValue, setSameStockValue] = useState<string>("");
+
+    const computedTotalStock = useMemo(
+        () =>
+            (watchedInventories ?? []).reduce((sum, item) => {
+                const nextQuantity =
+                    item.mode === "adjustment"
+                        ? Number(item.current_stock ?? 0) +
+                          Number(item.adjustment ?? 0)
+                        : Number(item.quantity ?? 0);
+
+                return sum + Math.max(0, nextQuantity);
+            }, 0),
+        [watchedInventories],
+    );
+
+    useEffect(() => {
+        methods.setValue("stock_quantity", computedTotalStock, {
+            shouldDirty: false,
+        });
+    }, [computedTotalStock, methods]);
+
+    const updateInventoryRow = (
+        index: number,
+        updater: (current: ProductInventoryFormRow) => ProductInventoryFormRow,
+    ) => {
+        const currentRows = methods.getValues("inventories") ?? [];
+        methods.setValue(
+            "inventories",
+            currentRows.map((row, rowIndex) =>
+                rowIndex === index ? updater(row) : row,
+            ),
+            { shouldDirty: true },
+        );
+    };
+
+    const applySameStockToAllBranches = () => {
+        const parsed = Number(sameStockValue);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+            toast.error("Please enter a valid stock quantity.");
+            return;
+        }
+
+        methods.setValue(
+            "inventories",
+            (methods.getValues("inventories") ?? []).map((row) => ({
+                ...row,
+                mode: "absolute",
+                quantity: parsed,
+                adjustment: 0,
+            })),
+            { shouldDirty: true },
+        );
+    };
 
     const fetchTiers = async () => {
         if (!product?.product_id) return;
@@ -509,10 +664,14 @@ export function ProductForm({
                     />
                 </div>
 
+                <div className="w-full col-span-2 py-2">
+                    <hr />
+                </div>
+
                 <div className="flex flex-col gap-3 md:col-span-2">
                     <div className="flex flex-col gap-1">
                         <Label htmlFor="images">Product Images</Label>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                             Upload multiple square images. Each file must be
                             JPG, PNG, or WEBP, up to 2 MB, in a 1:1 ratio, and
                             no larger than 2048 x 2048.
@@ -535,7 +694,7 @@ export function ProductForm({
                             <div className="text-sm font-medium">
                                 Existing Images
                             </div>
-                            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                            <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
                                 {existingImages.map((image) => (
                                     <div
                                         key={image.product_image_id}
@@ -623,8 +782,10 @@ export function ProductForm({
                         </div>
                     )}
                 </div>
-
-                <div className="flex flex-col gap-2 md:col-span-2">
+                <div className="w-full col-span-2 py-2">
+                    <hr />
+                </div>
+                <div className="flex flex-col gap-2">
                     <Label>Categories</Label>
                     <Controller
                         name="category_ids"
@@ -674,20 +835,6 @@ export function ProductForm({
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <Label htmlFor="stock_quantity">Stock</Label>
-                    <Input
-                        id="stock_quantity"
-                        type="number"
-                        min={0}
-                        required
-                        className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                        {...methods.register("stock_quantity", {
-                            valueAsNumber: true,
-                        })}
-                    />
-                </div>
-
-                <div className="flex flex-col gap-2">
                     <Label htmlFor="uom">UOM</Label>
                     <Controller
                         name="uom"
@@ -717,29 +864,338 @@ export function ProductForm({
                     />
                 </div>
 
-                <div className="flex flex-col gap-2">
-                    <Label htmlFor="product_weight">Weight</Label>
-                    <Input
-                        id="product_weight"
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                        {...methods.register("product_weight", {
-                            valueAsNumber: true,
-                        })}
-                    />
+                <div className="flex flex-col gap-3 rounded-md border px-4 py-4 md:col-span-2">
+                    <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+                        <div className="space-y-1">
+                            <Label htmlFor="stock_quantity">
+                                Inventory by Location
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                                Manage branch stock using direct totals or
+                                relative adjustments.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex flex-col gap-1">
+                                <Label
+                                    htmlFor="stock_quantity"
+                                    className="text-xs text-muted-foreground"
+                                >
+                                    Total Stock
+                                </Label>
+                                <Input
+                                    id="stock_quantity"
+                                    type="number"
+                                    readOnly
+                                    className="w-28 border border-[#D1D5DB] rounded-md px-4 py-2 bg-muted"
+                                    {...methods.register("stock_quantity", {
+                                        valueAsNumber: true,
+                                    })}
+                                />
+                            </div>
+                            <div className="flex flex-row items-center gap-2 pt-5">
+                                <input
+                                    type="checkbox"
+                                    id="is_unlimited"
+                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                                    {...methods.register("is_unlimited")}
+                                />
+                                <Label htmlFor="is_unlimited">
+                                    Unlimited Stock
+                                </Label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-end gap-3 rounded-md border border-dashed px-3 py-3">
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="same_stock_value">
+                                Set same stock for all branches
+                            </Label>
+                            <Input
+                                id="same_stock_value"
+                                type="number"
+                                min={0}
+                                value={sameStockValue}
+                                onChange={(e) =>
+                                    setSameStockValue(e.target.value)
+                                }
+                                className="w-48"
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={applySameStockToAllBranches}
+                        >
+                            Apply to All
+                        </Button>
+                    </div>
+
+                    {vendorLocations.length === 0 ? (
+                        <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                            No store locations available for inventory setup.
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {(watchedInventories ?? []).map((row, index) => {
+                                const location = vendorLocations.find(
+                                    (item) =>
+                                        Number(item.id) ===
+                                        Number(row.location_id),
+                                );
+                                const previewQuantity =
+                                    row.mode === "adjustment"
+                                        ? Number(row.current_stock ?? 0) +
+                                          Number(row.adjustment ?? 0)
+                                        : Number(row.quantity ?? 0);
+                                const safePreviewQuantity =
+                                    previewQuantity < 0 ? 0 : previewQuantity;
+                                const status = getStockStatus(
+                                    safePreviewQuantity,
+                                    Number(row.safety_stock ?? 0),
+                                );
+
+                                return (
+                                    <div
+                                        key={row.location_id}
+                                        className="rounded-md border p-4"
+                                    >
+                                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="font-medium">
+                                                        {location?.location_name ??
+                                                            `Location ${row.location_id}`}
+                                                    </div>
+                                                    {location?.is_primary ? (
+                                                        <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                                                            Primary
+                                                        </span>
+                                                    ) : null}
+                                                    <span
+                                                        className={`rounded-full border px-2 py-0.5 text-xs font-medium ${status.className}`}
+                                                    >
+                                                        {status.label}
+                                                    </span>
+                                                </div>
+                                                {/* <div className="text-sm text-muted-foreground">
+                                                    {location?.address ||
+                                                        "No address provided"}
+                                                </div> */}
+                                                <div className="text-sm text-muted-foreground">
+                                                    Current Stock:{" "}
+                                                    <span className="font-medium text-foreground">
+                                                        {row.current_stock}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid gap-3 md:grid-cols-4">
+                                                <div className="flex flex-col gap-2">
+                                                    <Label>Mode</Label>
+                                                    <Select
+                                                        value={row.mode}
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            updateInventoryRow(
+                                                                index,
+                                                                (current) => ({
+                                                                    ...current,
+                                                                    mode: value as InventoryMode,
+                                                                    adjustment:
+                                                                        value ===
+                                                                        "adjustment"
+                                                                            ? current.adjustment
+                                                                            : 0,
+                                                                }),
+                                                            )
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="w-full">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectGroup>
+                                                                <SelectItem value="absolute">
+                                                                    Set Stock
+                                                                </SelectItem>
+                                                                <SelectItem value="adjustment">
+                                                                    Adjust Stock
+                                                                </SelectItem>
+                                                            </SelectGroup>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                <div className="flex flex-col gap-2">
+                                                    <Label>
+                                                        {row.mode ===
+                                                        "adjustment"
+                                                            ? "Adjustment"
+                                                            : "Stock Quantity"}
+                                                    </Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={
+                                                            row.mode ===
+                                                            "adjustment"
+                                                                ? undefined
+                                                                : 0
+                                                        }
+                                                        value={
+                                                            row.mode ===
+                                                            "adjustment"
+                                                                ? row.adjustment
+                                                                : row.quantity
+                                                        }
+                                                        onChange={(e) =>
+                                                            updateInventoryRow(
+                                                                index,
+                                                                (current) => ({
+                                                                    ...current,
+                                                                    quantity:
+                                                                        current.mode ===
+                                                                        "absolute"
+                                                                            ? Number(
+                                                                                  e
+                                                                                      .target
+                                                                                      .value ||
+                                                                                      0,
+                                                                              )
+                                                                            : current.quantity,
+                                                                    adjustment:
+                                                                        current.mode ===
+                                                                        "adjustment"
+                                                                            ? Number(
+                                                                                  e
+                                                                                      .target
+                                                                                      .value ||
+                                                                                      0,
+                                                                              )
+                                                                            : 0,
+                                                                }),
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+
+                                                <div className="flex flex-col gap-2">
+                                                    <Label>Safety Stock</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        value={row.safety_stock}
+                                                        onChange={(e) =>
+                                                            updateInventoryRow(
+                                                                index,
+                                                                (current) => ({
+                                                                    ...current,
+                                                                    safety_stock:
+                                                                        Number(
+                                                                            e
+                                                                                .target
+                                                                                .value ||
+                                                                                0,
+                                                                        ),
+                                                                }),
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+
+                                                <div className="flex flex-col gap-2">
+                                                    <Label>Preview Stock</Label>
+                                                    <Input
+                                                        type="number"
+                                                        readOnly
+                                                        value={
+                                                            safePreviewQuantity
+                                                        }
+                                                        className="bg-muted"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
-                <div className="flex flex-col gap-2">
-                    <Label htmlFor="product_dimensions">Dimensions</Label>
-                    <Input
-                        id="product_dimensions"
-                        type="text"
-                        maxLength={100}
-                        className="border border-[#D1D5DB] rounded-md px-4 py-2"
-                        {...methods.register("product_dimensions")}
-                    />
+                <div className="flex flex-col md:flex-row md:justify-between border rounded-md px-4 py-4 gap-2 md:col-span-2">
+                    <div className="flex flex-row md:flex-col gap-2">
+                        <Label htmlFor="product_dimensions">
+                            Weight & Dimensions
+                        </Label>
+                        <span className="text-muted-foreground text-xs">
+                            (required for delivery calculation)
+                        </span>
+                    </div>
+                    <div className="flex flex-col md:grid md:grid-cols-4 gap-4 w-full justify-between px-4">
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="product_weight">Weight (KG)</Label>
+                            <Input
+                                id="product_weight"
+                                type="number"
+                                step="0.1"
+                                min={0}
+                                className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                {...methods.register("product_weight", {
+                                    valueAsNumber: true,
+                                })}
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="product_length">Length (CM)</Label>
+                            <Input
+                                id="product_length"
+                                type="number"
+                                step="1"
+                                min={0}
+                                max={4000}
+                                className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                {...methods.register("product_length", {
+                                    valueAsNumber: true,
+                                })}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="product_width">Width (CM)</Label>
+                            <Input
+                                id="product_width"
+                                type="number"
+                                step="1"
+                                min={0}
+                                max={4000}
+                                className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                {...methods.register("product_width", {
+                                    valueAsNumber: true,
+                                })}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="product_height">Height (CM)</Label>
+                            <Input
+                                id="product_height"
+                                type="number"
+                                step="1"
+                                min={0}
+                                max={4000}
+                                className="border border-[#D1D5DB] rounded-md px-4 py-2"
+                                {...methods.register("product_height", {
+                                    valueAsNumber: true,
+                                })}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="w-full col-span-2 py-2">
+                    <hr />
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -758,7 +1214,7 @@ export function ProductForm({
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <Label htmlFor="sale_price">Sale Price</Label>
+                    <Label htmlFor="sale_price">Selling Price</Label>
                     <Input
                         id="sale_price"
                         type="number"
@@ -775,7 +1231,16 @@ export function ProductForm({
                 <div className="md:col-span-2">
                     <div className="rounded-md border border-border p-4">
                         <div className="flex items-center justify-between">
-                            <div className="font-semibold">Pricing Tiers</div>
+                            <div className="flex flex-col gap-1">
+                                <div className="font-semibold">
+                                    Pricing Tiers
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    if you have multiple tiers (e.g., different
+                                    prices for different quantities), please add
+                                    them here.
+                                </div>
+                            </div>
                             {mode === "create" ? (
                                 <div className="text-sm text-muted-foreground">
                                     Save product to manage tiers.
@@ -1111,11 +1576,11 @@ export function ProductForm({
                 <div className="flex items-center space-x-2">
                     <input
                         type="checkbox"
-                        id="is_unlimited"
+                        id="delivery"
                         className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                        {...methods.register("is_unlimited")}
+                        {...methods.register("delivery")}
                     />
-                    <Label htmlFor="is_unlimited">Unlimited Stock</Label>
+                    <Label htmlFor="delivery">Delivery</Label>
                 </div>
 
                 <div className="flex flex-end md:col-span-2 justify-end gap-2">
