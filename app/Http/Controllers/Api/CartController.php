@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\CompartmentStockProductTransaction;
 use App\Models\EventPricingRule;
 use App\Models\EventRegistration;
 use App\Models\EventRegistrationAnswer;
@@ -13,6 +14,7 @@ use App\Models\Memberships;
 use App\Models\MembershipTypes;
 use App\Models\OrderItems;
 use App\Models\OrderPickup;
+use App\Models\OrderPickupItem;
 use App\Models\Orders;
 use App\Models\Payments;
 use App\Models\Products;
@@ -1441,7 +1443,7 @@ class CartController extends Controller
         }
 
         $pickupCode = strtoupper(Str::random(12));
-        OrderPickup::query()->firstOrCreate(
+        $pickup = OrderPickup::query()->firstOrCreate(
             ['order_id' => $order->order_id],
             [
                 'user_id' => (string) $order->user_id,
@@ -1455,6 +1457,122 @@ class CartController extends Controller
                 'qr_issued_at' => now(),
             ]
         );
+
+        foreach ($orderItems as $orderItem) {
+            $cartItem = $cartItems->get((string) $orderItem->source_id);
+            if (!$cartItem) {
+                continue;
+            }
+
+            $meta = (array) ($cartItem->metadata_json ?? []);
+            $compartmentStockProductId = (string) ($meta['compartment_stock_product_id'] ?? '');
+            $compartmentStockId = (string) ($meta['compartment_stock_id'] ?? '');
+            $vendorLocationId = (int) ($meta['vendor_location_id'] ?? 0);
+
+            if ($compartmentStockProductId === '' || $compartmentStockId === '' || $vendorLocationId <= 0) {
+                continue;
+            }
+
+            $stockRow = DB::table('compartment_stock_products as csp')
+                ->join('compartment_stocks as cs', 'cs.compartment_stock_id', '=', 'csp.compartment_stock_id')
+                ->join('tender_compartments as tc', 'tc.tender_compartment_id', '=', 'cs.tender_compartment_id')
+                ->join('compartments as compartments', 'compartments.compartment_id', '=', 'tc.compartment_id')
+                ->join('racks as racks', 'racks.rack_id', '=', 'compartments.rack_id')
+                ->join('vendor_locations as vl', 'vl.id', '=', 'racks.vendor_location_id')
+                ->join('vendors as vendors', 'vendors.vendor_id', '=', 'vl.vendor_id')
+                ->where('csp.compartment_stock_product_id', $compartmentStockProductId)
+                ->where('csp.compartment_stock_id', $compartmentStockId)
+                ->where('csp.product_id', (string) $orderItem->product_id)
+                ->where('vl.id', $vendorLocationId)
+                ->lockForUpdate()
+                ->select([
+                    'csp.compartment_stock_product_id',
+                    'csp.compartment_stock_id',
+                    'csp.quantity',
+                    'compartments.compartment_id',
+                    'compartments.label as compartment_name',
+                    'racks.rack_id',
+                    'racks.rack_name',
+                    'vl.id as vendor_location_id',
+                    'vl.location_name as vendor_location_name',
+                    'vendors.vendor_id',
+                    'vendors.vendor_name',
+                ])
+                ->first();
+
+            if (!$stockRow) {
+                throw new \RuntimeException('Pickup stock row not found for order ' . $order->order_no);
+            }
+
+            $orderedQty = (int) $orderItem->quantity;
+            $currentQty = (int) $stockRow->quantity;
+            if ($currentQty < $orderedQty) {
+                throw new \RuntimeException('Insufficient pickup stock for order ' . $order->order_no);
+            }
+
+            DB::table('compartment_stock_products')
+                ->where('compartment_stock_product_id', $compartmentStockProductId)
+                ->update([
+                    'quantity' => $currentQty - $orderedQty,
+                    'updated_at' => now(),
+                ]);
+
+            OrderPickupItem::query()->updateOrCreate(
+                [
+                    'order_pickup_id' => $pickup->order_pickup_id,
+                    'order_item_id' => $orderItem->order_item_id,
+                ],
+                [
+                    'product_id' => (string) $orderItem->product_id,
+                    'compartment_stock_id' => $compartmentStockId,
+                    'compartment_stock_product_id' => $compartmentStockProductId,
+                    'rack_id' => (string) ($meta['rack_id'] ?? $stockRow->rack_id ?? ''),
+                    'compartment_id' => (string) ($meta['compartment_id'] ?? $stockRow->compartment_id ?? ''),
+                    'ordered_quantity' => $orderedQty,
+                    'picked_up_quantity' => 0,
+                    'product_name' => (string) ($orderItem->line_name ?? 'Product'),
+                    'vendor_name' => (string) ($meta['vendor_name'] ?? $stockRow->vendor_name ?? ''),
+                    'vendor_location_name' => (string) ($meta['pickup_location_name'] ?? $stockRow->vendor_location_name ?? ''),
+                    'rack_name' => (string) ($meta['rack_name'] ?? $stockRow->rack_name ?? ''),
+                    'compartment_name' => (string) ($meta['compartment_name'] ?? $stockRow->compartment_name ?? ''),
+                ]
+            );
+
+            CompartmentStockProductTransaction::query()->create([
+                'compartment_stock_product_transaction_id' => (string) Str::uuid(),
+                'transaction_quantity' => $orderedQty,
+                'compartment_stock_qr_session_id' => null,
+                'compartment_stock_id' => $compartmentStockId,
+                'compartment_stock_product_id' => $compartmentStockProductId,
+                'vendor_id' => (string) ($stockRow->vendor_id ?? ''),
+                'rack_owner_vendor_id' => (string) ($stockRow->vendor_id ?? ''),
+                'generated_by_user_id' => $actorUserId,
+                'received_by_user_id' => null,
+                'transaction_type' => 'purchase_pickup',
+                'transaction_status' => 'confirmed',
+                'prepared_quantity' => $currentQty,
+                'received_quantity' => null,
+                'quantity_delta' => -1 * $orderedQty,
+                'actor_user_id' => $actorUserId,
+                'actor_vendor_id' => (string) ($stockRow->vendor_id ?? ''),
+                'event_source' => 'order_pickup',
+                'event_source_id' => (string) $pickup->order_pickup_id,
+                'vendor_location_id' => $vendorLocationId,
+                'rack_id' => (string) ($meta['rack_id'] ?? $stockRow->rack_id ?? ''),
+                'compartment_id' => (string) ($meta['compartment_id'] ?? $stockRow->compartment_id ?? ''),
+                'product_id' => (string) $orderItem->product_id,
+                'description' => 'Purchase pickup allocation for order ' . (string) $order->order_no,
+                'confirmed_at' => now(),
+            ]);
+        }
+
+        $payload = $this->buildPickupPayload($pickup);
+        $signature = $this->signPickupPayload($payload);
+        $pickup->update([
+            'pickup_payload_json' => array_merge($payload, ['signature' => $signature]),
+            'pickup_signature_hash' => hash('sha256', $signature),
+            'qr_issued_at' => now(),
+        ]);
 
         return true;
     }
@@ -2652,5 +2770,32 @@ class CartController extends Controller
         if ($used >= $seatLimit) {
             abort(422, 'No seats available for this event.');
         }
+    }
+
+    private function buildPickupPayload(OrderPickup $pickup): array
+    {
+        return [
+            'order_pickup_id' => (string) $pickup->order_pickup_id,
+            'order_id' => (string) $pickup->order_id,
+            'user_id' => (string) $pickup->user_id,
+            'vendor_id' => (string) $pickup->vendor_id,
+            'vendor_location_id' => (int) $pickup->vendor_location_id,
+            'pickup_code' => (string) $pickup->pickup_code,
+            'ts' => now()->timestamp,
+        ];
+    }
+
+    private function signPickupPayload(array $payload): string
+    {
+        $canonical = $payload;
+        unset($canonical['signature']);
+        ksort($canonical);
+
+        return hash_hmac('sha256', json_encode($canonical, JSON_UNESCAPED_SLASHES), $this->pickupQrSecret());
+    }
+
+    private function pickupQrSecret(): string
+    {
+        return (string) (env('QR_SECRET') ?: config('app.key'));
     }
 }
