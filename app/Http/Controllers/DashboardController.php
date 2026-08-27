@@ -120,14 +120,14 @@ class DashboardController extends Controller
 
                 if ($contracts) {
                     $stockByLocation = DB::table('compartments')
-                        ->selectRaw('vl.location_name as label, csp.quantity as total')
+                        ->selectRaw('vl.location_name as label, sum(csp.quantity) as total')
                         ->leftJoin('racks', 'racks.rack_id', 'compartments.rack_id')
                         ->leftJoin('vendor_locations as vl', 'vl.id', 'racks.vendor_location_id')
                         ->leftJoin('tender_compartments as tc', 'tc.compartment_id', 'compartments.compartment_id')
                         ->leftJoin('compartment_stocks as cs', 'tc.tender_compartment_id', 'cs.tender_compartment_id')
                         ->leftJoin('compartment_stock_products as csp', 'cs.compartment_stock_id', 'csp.compartment_stock_id')
                         ->whereIn('cs.tender_compartment_id', $contracts)
-                        ->groupBy('vl.location_name', 'csp.quantity')
+                        ->groupBy('vl.location_name')
                         ->orderBy('total', 'desc')
                         ->get()
                         ->map(fn($row) => [
