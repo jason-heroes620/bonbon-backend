@@ -127,6 +127,7 @@ class DashboardController extends Controller
                         ->leftJoin('compartment_stocks as cs', 'tc.tender_compartment_id', 'cs.tender_compartment_id')
                         ->leftJoin('compartment_stock_products as csp', 'cs.compartment_stock_id', 'csp.compartment_stock_id')
                         ->whereIn('cs.tender_compartment_id', $contracts)
+                        ->where('cs.stock_status', '=', 'completed')
                         ->groupBy('vl.location_name')
                         ->orderBy('total', 'desc')
                         ->get()
