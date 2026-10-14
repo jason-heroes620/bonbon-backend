@@ -581,7 +581,7 @@ class ProductsController extends Controller
     {
         $now = now();
 
-        $query->where("{$stockAlias}.status", '=', 'completed')
+        $query->where("{$stockAlias}.stock_status", '=', 'completed')
             ->where("{$tenderAlias}.tender_status", '=', 'paid')
             ->whereNotNull("{$tenderAlias}.tender_start_date")
             ->whereNotNull("{$tenderAlias}.tender_end_date")
