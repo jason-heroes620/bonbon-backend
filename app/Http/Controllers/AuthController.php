@@ -201,7 +201,11 @@ class AuthController extends Controller
                 return response()->json(['message' => $message], 400);
             }
 
-            return response()->make($message, 400);
+            return response()->view('auth.verify-result', [
+                'title' => 'Verification Link Invalid',
+                'message' => $message,
+                'status' => 'error',
+            ], 400);
         }
 
         $user = User::query()->find($id);
@@ -211,7 +215,11 @@ class AuthController extends Controller
                 return response()->json(['message' => $message], 404);
             }
 
-            return response()->make($message, 404);
+            return response()->view('auth.verify-result', [
+                'title' => 'Account Not Found',
+                'message' => $message,
+                'status' => 'error',
+            ], 404);
         }
 
         $expected = sha1($user->getEmailForVerification());
@@ -221,30 +229,37 @@ class AuthController extends Controller
                 return response()->json(['message' => $message], 400);
             }
 
-            return response()->make($message, 400);
+            return response()->view('auth.verify-result', [
+                'title' => 'Invalid Verification Link',
+                'message' => $message,
+                'status' => 'error',
+            ], 400);
         }
 
         if ($user->hasVerifiedEmail()) {
-            if (!$user->is_active) {
-                $user->update(['is_active' => true]);
-            }
-
-            $message = 'Email already verified. Your account is active.';
+            $message = 'Email already verified. You can now claim vouchers, register for events, and update your pet details.';
             if ($wantsJson) {
                 return response()->json(['message' => $message]);
             }
 
-            return response()->make($message);
+            return response()->view('auth.verify-result', [
+                'title' => 'Email Already Verified',
+                'message' => $message,
+                'status' => 'success',
+            ]);
         }
 
         $user->markEmailAsVerified();
-        $user->forceFill(['is_active' => true])->save();
 
-        $message = 'Email verified successfully. Your account is now active.';
+        $message = 'Email verified successfully. You can now claim vouchers, register for events, and update your pet details.';
         if ($wantsJson) {
             return response()->json(['message' => $message]);
         }
 
-        return response()->make($message);
+        return response()->view('auth.verify-result', [
+            'title' => 'Welcome to BonBon!',
+            'message' => $message,
+            'status' => 'success',
+        ]);
     }
 }

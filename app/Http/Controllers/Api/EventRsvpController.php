@@ -95,6 +95,13 @@ class EventRsvpController extends Controller
             'quantity' => ['nullable', 'integer', 'min:1'],
         ]);
 
+        $user = $request->user();
+        if ($user && !$user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Please verify your email before joining events.',
+            ], 403);
+        }
+
         $userId = (string) $request->user()->user_id;
         $quantity = (int) ($validated['quantity'] ?? 1);
 
@@ -284,6 +291,13 @@ class EventRsvpController extends Controller
             'answers.*.answer_values' => ['nullable', 'array'],
             'answers.*.answer_values.*' => ['string', 'max:255'],
         ]);
+
+        $user = $request->user();
+        if ($user && !$user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Please verify your email before joining events.',
+            ], 403);
+        }
 
         $userId = (string) $request->user()->user_id;
         $event = Events::query()->whereKey($event_id)->first();

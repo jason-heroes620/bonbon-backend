@@ -74,6 +74,12 @@ class UserPetsController extends Controller
     {
         $user = $request->user();
 
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Please verify your email before adding pet details.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['nullable', 'string', 'max:100'],
@@ -103,6 +109,12 @@ class UserPetsController extends Controller
     public function update(Request $request, int $id)
     {
         $user = $request->user();
+
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Please verify your email before updating pet details.',
+            ], 403);
+        }
 
         $validated = $request->validate([
             'name' => ['nullable', 'string', 'max:255'],
@@ -159,6 +171,13 @@ class UserPetsController extends Controller
     public function destroy(Request $request, int $id)
     {
         $user = $request->user();
+
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Please verify your email before deleting pet details.',
+            ], 403);
+        }
+
         $pet = UserPets::query()
             ->where('user_id', $user->user_id)
             ->where('id', $id)

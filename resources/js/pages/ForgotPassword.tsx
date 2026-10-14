@@ -4,6 +4,7 @@ import { z } from "zod";
 import axios from "axios";
 import { useState } from "react";
 import { router } from "@inertiajs/react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const schema = z.object({
     email: z.string().email("Invalid email address"),
@@ -12,6 +13,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function ForgotPassword() {
+    const isMobile = useIsMobile();
     const [serverMessage, setServerMessage] = useState<string | null>(null);
     const [serverError, setServerError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -112,10 +114,17 @@ export default function ForgotPassword() {
 
                     <div className="text-center">
                         <button
-                            onClick={() => router.visit("/login")}
+                            onClick={() => {
+                                // if mobile use deeplink else use web link
+                                if (isMobile) {
+                                    router.visit("bonbon://login");
+                                } else {
+                                    router.visit("/login");
+                                }
+                            }}
                             className="text-sm text-indigo-600 hover:text-indigo-500"
                         >
-                            Back to sign in
+                            Back to log in
                         </button>
                     </div>
                 </div>

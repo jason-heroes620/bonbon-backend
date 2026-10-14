@@ -159,7 +159,7 @@ Artisan::command('test:register-interest-list', function () {
 
         $createdUser = User::query()->where('email', $emailWith)->first();
         $assert((bool) $createdUser, 'Expected a user to be created when referral code is valid.');
-        $assert((bool) $createdUser && $createdUser->is_active === false, 'Expected created user to be inactive.');
+        $assert((bool) $createdUser && $createdUser->is_active === true, 'Expected created user to be active on registration (email verification gated separately).');
         $assert(User::query()->count() === $usersCountBase + 1, 'Expected users count to increase by 1 for valid referral code.');
 
         $membership = UserMemberships::query()->where('user_id', $createdUser->user_id)->first();

@@ -191,7 +191,7 @@ export default function AuthPage() {
                     <div className="text-center lg:text-left">
                         <h2 className="text-3xl font-bold tracking-tight text-gray-900">
                             {isLogin
-                                ? "Sign in to account"
+                                ? "Log in to account"
                                 : "Create an account"}
                         </h2>
                         <p className="mt-2 text-sm text-[#F90606]">
@@ -207,7 +207,7 @@ export default function AuthPage() {
                                 }}
                                 className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
                             >
-                                {isLogin ? "Sign up for free" : "Sign in here"}
+                                {isLogin ? "Sign up for free" : "Log in here"}
                             </button>
                         </p>
                     </div>
@@ -304,7 +304,7 @@ export default function AuthPage() {
                                     disabled={isLoading}
                                     className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#F90606] hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isLoading ? "Signing in..." : "Sign in"}
+                                    {isLoading ? "Logging in..." : "Log in"}
                                     {!isLoading && (
                                         <ArrowRight className="ml-2 h-4 w-4" />
                                     )}
@@ -620,7 +620,7 @@ function SocialButton({ icon, label }: { icon: string; label: string }) {
             className="w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-200 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
         >
             <img className="h-5 w-5 mr-2" src={icon} alt={label} />
-            <span className="sr-only">Sign in with</span>
+            <span className="sr-only">Log in with</span>
             {label}
         </button>
     );

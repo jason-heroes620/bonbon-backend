@@ -372,7 +372,7 @@ class EventCheckInController extends Controller
             return false;
         }
 
-        return (string) $user->role === 'BBLDAdmin';
+        return (string) $user->role === 'BBLDAdmin' || (string) $user->role === 'admin';
     }
 
     private function defaultCheckInSource(User $user): string

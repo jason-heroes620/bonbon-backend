@@ -184,7 +184,7 @@ export default function ResetPassword({ token, email }: Props) {
                             onClick={() => router.visit("/login")}
                             className="text-sm text-indigo-600 hover:text-indigo-500"
                         >
-                            Back to sign in
+                            Back to log in
                         </button>
                     </div>
                 </div>

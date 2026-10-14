@@ -56,15 +56,11 @@ class AuthController extends Controller
             ]);
         }
 
-        if (isset($user->is_active) && !$user->is_active) {
-            return response()->json([
-                'message' => 'Account is inactive. Please verify your email.',
-            ], 403);
-        }
-
         $user = $this->hydrateUserProfile($user);
         $user->membership = $this->getUserMembership($user->user_id);
         [$user->referral_gifts_earned, $user->referral_gifts_claimed] = $this->getUserReferralGiftCounts($user->user_id);
+        $user->email_verified = (bool) $user->hasVerifiedEmail();
+        $user->is_active = (bool) $user->is_active;
 
         $deviceName = $validated['device_name'] ?? 'api';
         $token = $user->createToken($deviceName)->plainTextToken;
@@ -86,6 +82,8 @@ class AuthController extends Controller
         $user = $this->hydrateUserProfile($user);
         $user->membership = $this->getUserMembership($user->user_id);
         [$user->referral_gifts_earned, $user->referral_gifts_claimed] = $this->getUserReferralGiftCounts($user->user_id);
+        $user->email_verified = (bool) $user->hasVerifiedEmail();
+        $user->is_active = (bool) $user->is_active;
 
         return response()->json([
             'user' => $user,
@@ -150,6 +148,7 @@ class AuthController extends Controller
             'password_confirmation' => ['required', 'string', 'min:8', 'max:255', 'same:password'],
             'referral_code' => ['nullable', 'string', 'max:50'],
         ]);
+
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'Validation failed.',
@@ -172,7 +171,7 @@ class AuthController extends Controller
                 'email' => $validated['email'],
                 'contact_no' => $validated['contact_no'],
                 'password' => Hash::make($validated['password']),
-                'is_active' => false,
+                'is_active' => true,
                 'role' => 'user',
             ]);
 
@@ -194,7 +193,9 @@ class AuthController extends Controller
             $membership = Memberships::query()
                 ->where('membership_code', self::FREE_TRIAL_CODE)
                 ->first();
+                Log::info($membership);
             if (!$membership) {
+                Log::info('2.1');
                 throw ValidationException::withMessages([
                     'membership' => ['Free membership is not configured. Please contact support.'],
                 ]);
@@ -300,12 +301,20 @@ class AuthController extends Controller
         });
 
 
-        // end 
+        // end
+        $user = $this->hydrateUserProfile($user);
         $user->membership = $this->getUserMembership($user->user_id);
         [$user->referral_gifts_earned, $user->referral_gifts_claimed] = $this->getUserReferralGiftCounts($user->user_id);
+        $user->email_verified = (bool) $user->hasVerifiedEmail();
+        $user->is_active = (bool) $user->is_active;
+
+        $deviceName = $request->input('device_name') ?? 'api';
+        $token = $user->createToken((string) $deviceName)->plainTextToken;
 
         return response()->json([
-            'message' => 'Registration successful. Please verify your email to activate your account.',
+            'token' => $token,
+            'token_type' => 'Bearer',
+            'message' => 'Registration successful. We have sent an email to ' . $validated['email'] . '. Please verify your email to claim vouchers, register for events, and save pet details.',
             'user' => $user,
             'warnings' => $warnings,
         ]);

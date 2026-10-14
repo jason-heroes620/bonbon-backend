@@ -221,6 +221,13 @@ class VouchersController extends Controller
 
     public function claim(Request $request, string $voucher_id)
     {
+        $user = $request->user();
+        if ($user && !$user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Please verify your email before claiming vouchers.',
+            ], 403);
+        }
+
         $voucher = Vouchers::query()
             ->where('voucher_id', $voucher_id)
             ->where('voucher_status', true)
