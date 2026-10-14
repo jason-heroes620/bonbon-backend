@@ -2206,7 +2206,7 @@ class CartController extends Controller
             ->where('csp.compartment_stock_product_id', $compartmentStockProductId)
             ->where('vl.id', $vendorLocationId)
             ->where('csp.quantity', '>', 0)
-            ->where('cs.status', 'completed')
+            ->where('cs.stock_status', 'completed')
             ->where('tc.tender_status', 'paid')
             ->whereNotNull('tc.tender_start_date')
             ->whereNotNull('tc.tender_end_date')
