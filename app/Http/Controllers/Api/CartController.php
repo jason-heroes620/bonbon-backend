@@ -146,6 +146,7 @@ class CartController extends Controller
                     'shipping_service_code' => $cart->shipping_service_code,
                     'shipping_service_name' => $cart->shipping_service_name,
                     'shipping_fee' => (float) ($cart->shipping_fee ?? 0),
+                    'requires_delivery_fee' => $this->cartRequiresDeliveryFee($items),
                 ],
             ],
         ]);
@@ -758,6 +759,24 @@ class CartController extends Controller
             ->orderBy('created_at', 'asc')
             ->get();
 
+        if (!$this->cartRequiresDeliveryFee($items)) {
+            return response()->json([
+                'data' => [
+                    'address' => null,
+                    'origin' => null,
+                    'options' => [[
+                        'service_code' => 'FREE',
+                        'service_name' => 'Free Delivery',
+                        'provider_name' => 'BonBon',
+                        'amount' => 0,
+                        'currency' => 'MYR',
+                        'raw' => ['free' => true],
+                    ]],
+                    'requires_delivery_fee' => false,
+                ],
+            ]);
+        }
+
         $context = $this->buildDeliveryCheckoutContext($cart, $items, (string) $validated['user_address_id'], $userId);
         if (!$context['ok']) {
             return response()->json([
@@ -822,13 +841,6 @@ class CartController extends Controller
             ->orderBy('created_at', 'asc')
             ->get();
 
-        $context = $this->buildDeliveryCheckoutContext($cart, $items, (string) $validated['user_address_id'], $userId);
-        if (!$context['ok']) {
-            return response()->json([
-                'message' => $context['message'],
-            ], 422);
-        }
-
         $option = [
             'service_code' => (string) $validated['option']['service_code'],
             'service_name' => (string) $validated['option']['service_name'],
@@ -840,7 +852,26 @@ class CartController extends Controller
             'raw' => $validated['option']['raw'] ?? $validated['option'],
         ];
 
-        $this->syncCartShippingSelection($cart, $context['address'], $option);
+        if (!$this->cartRequiresDeliveryFee($items)) {
+            $cart->update([
+                'shipping_address_id' => null,
+                'shipping_address_json' => null,
+                'shipping_provider' => $option['provider_name'],
+                'shipping_service_code' => $option['service_code'],
+                'shipping_service_name' => $option['service_name'],
+                'shipping_fee' => 0.0,
+                'shipping_quote_payload' => $option['raw'],
+            ]);
+        } else {
+            $context = $this->buildDeliveryCheckoutContext($cart, $items, (string) $validated['user_address_id'], $userId);
+            if (!$context['ok']) {
+                return response()->json([
+                    'message' => $context['message'],
+                ], 422);
+            }
+
+            $this->syncCartShippingSelection($cart, $context['address'], $option);
+        }
 
         $voucherState = $this->resolveCartVoucherState($userId, $cart, $items);
         $totals = $this->sumCartTotals(
@@ -1029,17 +1060,33 @@ class CartController extends Controller
         }
 
         if ($productFulfillment === 'delivery') {
-            if (!$cart->shipping_address_id || !$cart->shipping_service_code) {
-                return response()->json([
-                    'message' => 'Please choose a delivery address and service before checkout.',
-                ], 422);
-            }
+            $requiresDeliveryFee = $this->cartRequiresDeliveryFee($productItems);
 
-            $context = $this->buildDeliveryCheckoutContext($cart, $productItems, (string) $cart->shipping_address_id, $userId);
-            if (!$context['ok']) {
-                return response()->json([
-                    'message' => $context['message'],
-                ], 422);
+            if ($requiresDeliveryFee) {
+                if (!$cart->shipping_address_id || !$cart->shipping_service_code) {
+                    return response()->json([
+                        'message' => 'Please choose a delivery address and service before checkout.',
+                    ], 422);
+                }
+
+                $context = $this->buildDeliveryCheckoutContext($cart, $productItems, (string) $cart->shipping_address_id, $userId);
+                if (!$context['ok']) {
+                    return response()->json([
+                        'message' => $context['message'],
+                    ], 422);
+                }
+            } else {
+                if (!$cart->shipping_service_code) {
+                    $cart->update([
+                        'shipping_address_id' => null,
+                        'shipping_address_json' => null,
+                        'shipping_provider' => 'BonBon',
+                        'shipping_service_code' => 'FREE',
+                        'shipping_service_name' => 'Free Delivery',
+                        'shipping_fee' => 0.0,
+                        'shipping_quote_payload' => ['free' => true],
+                    ]);
+                }
             }
         }
 
@@ -1233,8 +1280,24 @@ class CartController extends Controller
         }
 
         if ($productFulfillment === 'delivery') {
-            if (empty($cart->shipping_address_id) || empty($cart->shipping_service_code)) {
-                abort(422, 'Please select a delivery address and courier service before checkout.');
+            $requiresDeliveryFee = $this->cartRequiresDeliveryFee($productItems);
+
+            if ($requiresDeliveryFee) {
+                if (empty($cart->shipping_address_id) || empty($cart->shipping_service_code)) {
+                    abort(422, 'Please select a delivery address and courier service before checkout.');
+                }
+            } else {
+                if (empty($cart->shipping_service_code)) {
+                    $cart->update([
+                        'shipping_address_id' => null,
+                        'shipping_address_json' => null,
+                        'shipping_provider' => 'BonBon',
+                        'shipping_service_code' => 'FREE',
+                        'shipping_service_name' => 'Free Delivery',
+                        'shipping_fee' => 0.0,
+                        'shipping_quote_payload' => ['free' => true],
+                    ]);
+                }
             }
         }
 
@@ -1384,7 +1447,7 @@ class CartController extends Controller
 
             $this->simulateFinalizeAppliedVoucherRedemption($order);
 
-            if ($productFulfillment === 'delivery' && $this->delyvaService->isConfigured()) {
+            if ($productFulfillment === 'delivery' && $requiresDeliveryFee && $this->delyvaService->isConfigured()) {
                 $delyvaResult = $this->simulateCreateDelyvaOrder($order, $cart, $items, $userId, $products);
                 if (!empty($delyvaResult['order_no']) || !empty($delyvaResult['tracking_no'])) {
                     $order->update([
@@ -2364,6 +2427,33 @@ class CartController extends Controller
             'shipping_fee' => (float) ($option['amount'] ?? 0),
             'shipping_quote_payload' => $option['raw'] ?? $option,
         ]);
+    }
+
+    private function cartRequiresDeliveryFee($items): bool
+    {
+        $productItems = collect($items)->where('line_type', 'product')->values();
+        if ($productItems->isEmpty()) {
+            return false;
+        }
+
+        $deliveryItems = $productItems->filter(function ($item) {
+            $meta = (array) ($item->metadata_json ?? []);
+            return (string) ($meta['fulfillment_type'] ?? 'pickup') === 'delivery';
+        });
+
+        if ($deliveryItems->isEmpty()) {
+            return false;
+        }
+
+        $productIds = $deliveryItems->pluck('source_id')->filter()->unique()->values();
+        if ($productIds->isEmpty()) {
+            return false;
+        }
+
+        return Products::query()
+            ->whereIn('product_id', $productIds)
+            ->where('requires_delivery_fee', true)
+            ->exists();
     }
 
     private function buildDeliveryCheckoutContext(Cart $cart, $items, string $userAddressId, string $userId): array

@@ -176,6 +176,7 @@ class ProductsController extends Controller
                 'p.retail_price',
                 'p.is_unlimited',
                 'p.delivery',
+                'p.requires_delivery_fee',
                 'v.vendor_name',
             ])
             ->first();
@@ -267,6 +268,7 @@ class ProductsController extends Controller
                 'images'             => $images,
                 'fulfillment'        => $fulfillment,
                 'delivery'           => (bool) $product->delivery,
+                'requires_delivery_fee' => (bool) ($product->requires_delivery_fee ?? true),
                 'pickup_options'     => $pickupOptions,
                 'delivery_locations' => $deliveryLocations,
             ],

@@ -55,6 +55,7 @@ type ProductFormValues = {
     is_active: boolean;
     is_unlimited: boolean;
     delivery: boolean;
+    requires_delivery_fee: boolean;
     inventories: ProductInventoryFormRow[];
 };
 
@@ -220,6 +221,9 @@ export function ProductForm({
             is_active: product ? Boolean(product.is_active) : true,
             is_unlimited: Boolean(product?.is_unlimited),
             delivery: Boolean(product?.delivery) ?? false,
+            requires_delivery_fee: product
+                ? Boolean(product?.requires_delivery_fee)
+                : true,
             inventories: initialInventories,
         },
         shouldUnregister: false,
@@ -345,6 +349,7 @@ export function ProductForm({
         [product?.images, removedImageIds],
     );
     const watchedInventories = methods.watch("inventories");
+    const watchedDelivery = methods.watch("delivery");
     const [sameStockValue, setSameStockValue] = useState<string>("");
 
     const computedTotalStock = useMemo(
@@ -1581,6 +1586,22 @@ export function ProductForm({
                         {...methods.register("delivery")}
                     />
                     <Label htmlFor="delivery">Delivery</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                    <input
+                        type="checkbox"
+                        id="requires_delivery_fee"
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 disabled:opacity-50"
+                        disabled={!watchedDelivery}
+                        {...methods.register("requires_delivery_fee")}
+                    />
+                    <Label
+                        htmlFor="requires_delivery_fee"
+                        className={!watchedDelivery ? "text-gray-400" : ""}
+                    >
+                        Charge delivery fee
+                    </Label>
                 </div>
 
                 <div className="flex flex-end md:col-span-2 justify-end gap-2">

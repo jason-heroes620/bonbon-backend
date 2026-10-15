@@ -138,6 +138,7 @@ export type Product = {
     primaryImage?: ProductImage | null;
     delivery: boolean;
     inventories?: ProductInventory[];
+    requires_delivery_fee: boolean;
 };
 
 export type ProductInventory = {

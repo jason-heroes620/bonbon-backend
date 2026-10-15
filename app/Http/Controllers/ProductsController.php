@@ -307,6 +307,7 @@ class ProductsController extends Controller
             'removed_image_ids' => [$isUpdate ? 'nullable' : 'sometimes', 'array'],
             'removed_image_ids.*' => ['uuid'],
             'delivery' => ['required', 'boolean'],
+            'requires_delivery_fee' => ['required', 'boolean'],
             'inventories' => ['nullable', 'array'],
             'inventories.*.location_id' => ['required', 'integer', 'exists:vendor_locations,id'],
             'inventories.*.mode' => ['required', 'in:absolute,adjustment'],

@@ -36,6 +36,7 @@ class Products extends Model
         'is_active',
         'is_unlimited',
         'delivery',
+        'requires_delivery_fee',
     ];
 
     public $timestamps = true;
@@ -46,6 +47,8 @@ class Products extends Model
         'is_taxable' => 'boolean',
         'is_active' => 'boolean',
         'is_unlimited' => 'boolean',
+        'delivery' => 'boolean',
+        'requires_delivery_fee' => 'boolean',
     ];
 
     public function categories(): BelongsToMany
