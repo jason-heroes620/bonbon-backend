@@ -454,7 +454,7 @@ class ProductsController extends Controller
         // Re-enable distance logic conditionally
         if ($hasCoordinates) {
             $distanceExpr = $this->distanceExpression('vl', $latitude, $longitude);
-            $query->selectRaw("{$distanceExpr} as distance_km", [$latitude, $longitude, $latitude]);
+            $query->selectRaw("{$distanceExpr} as distance_km");
         }
 
         // Sort by distance first (if coords given), then location name
@@ -520,7 +520,7 @@ class ProductsController extends Controller
 
         if ($hasCoordinates) {
             $distanceExpr = $this->distanceExpression('vendor_locations', $latitude, $longitude);
-            $query->selectRaw("{$distanceExpr} as distance_km", [$latitude, $longitude, $latitude])
+            $query->selectRaw("{$distanceExpr} as distance_km")
                 // Standard columns in ORDER BY allow better query plan optimization
                 ->orderBy('is_primary', 'desc')
                 ->orderBy('distance_km', 'asc');
