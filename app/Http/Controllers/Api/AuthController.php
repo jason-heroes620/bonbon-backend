@@ -572,7 +572,7 @@ class AuthController extends Controller
     {
         $membership = UserMemberships::query()->where('user_id', $user_id)
             ->join('memberships', 'memberships.membership_id', '=', 'user_memberships.membership_id')
-            ->select('memberships.membership_type', 'user_memberships.membership_status', 'user_memberships.membership_end_date')
+            ->select('memberships.membership_type', 'user_memberships.membership_status', 'user_memberships.membership_end_date', 'user_memberships.max_vouchers', 'user_memberships.redeemed_vouchers_count')
             ->where('user_memberships.membership_status', 'active')
             ->first();
 
