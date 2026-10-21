@@ -13,6 +13,7 @@ import {
     Percent,
     BarChart3,
     Gavel,
+    Images,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
@@ -71,6 +72,16 @@ const allItems: {
             {
                 title: "All Events",
                 url: "/events",
+            },
+        ],
+    },
+    {
+        title: "Gallery",
+        icon: Images,
+        items: [
+            {
+                title: "All Images",
+                url: "/gallery",
             },
         ],
     },

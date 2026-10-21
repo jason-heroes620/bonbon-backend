@@ -10,6 +10,7 @@ use App\Http\Controllers\DiscountsController;
 use App\Http\Controllers\EvCategoriesController;
 use App\Http\Controllers\EventAnalyticsController;
 use App\Http\Controllers\EventsController;
+use App\Http\Controllers\GalleryImagesController;
 use App\Http\Controllers\EventPricingRulesController;
 use App\Http\Controllers\EventQuestionnairesController;
 use App\Http\Controllers\EventRegistrationsController;
@@ -329,6 +330,17 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::put('/users/{user}/referral-code', [UserController::class, 'updateReferralCode'])->name('users.referral_code.update');
     Route::post('/users/{user}/resend-verification', [UserController::class, 'resendVerificationEmail'])->name('users.resend_verification');
+
+    // Gallery
+    Route::post('/gallery/bulk-tags', [GalleryImagesController::class, 'bulkTag'])->name('gallery.tags.bulk');
+    Route::get('/gallery', [GalleryImagesController::class, 'index'])->name('gallery.index');
+    Route::get('/gallery/all', [GalleryImagesController::class, 'showAll'])->name('gallery.all');
+    Route::post('/gallery', [GalleryImagesController::class, 'store'])->name('gallery.store');
+    Route::get('/gallery/{galleryImage}', [GalleryImagesController::class, 'show'])->name('gallery.show');
+    Route::put('/gallery/{galleryImage}', [GalleryImagesController::class, 'update'])->name('gallery.update');
+    Route::delete('/gallery/{galleryImage}', [GalleryImagesController::class, 'destroy'])->name('gallery.destroy');
+    Route::post('/gallery/{galleryImage}/tags', [GalleryImagesController::class, 'tagUsers'])->name('gallery.tags.store');
+    Route::delete('/gallery/{galleryImage}/tags', [GalleryImagesController::class, 'untagUser'])->name('gallery.tags.destroy');
 
     // User Interest List
     Route::get('/user-interest-list', [UserInterestListController::class, 'index'])->name('user_interest_list.index');

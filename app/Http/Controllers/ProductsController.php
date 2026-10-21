@@ -9,6 +9,7 @@ use App\Models\Products;
 use App\Models\Taxes;
 use App\Models\VendorLocation;
 use App\Models\Vendors;
+use App\Services\ImageOptimizer;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -504,93 +505,6 @@ class ProductsController extends Controller
             throw new \RuntimeException('Unable to access uploaded image.');
         }
 
-        $imageInfo = getimagesize($realPath);
-        if ($imageInfo === false) {
-            throw new \RuntimeException('Unable to read uploaded image.');
-        }
-
-        [$srcWidth, $srcHeight] = $imageInfo;
-        $mime = (string) ($imageInfo['mime'] ?? '');
-        $source = match ($mime) {
-            'image/jpeg' => imagecreatefromjpeg($realPath),
-            'image/png' => imagecreatefrompng($realPath),
-            'image/webp' => function_exists('imagecreatefromwebp') ? imagecreatefromwebp($realPath) : false,
-            default => false,
-        };
-
-        if ($source === false) {
-            throw new \RuntimeException('Unsupported product image format.');
-        }
-
-        $bestBinary = null;
-        $bestExtension = function_exists('imagewebp') ? 'webp' : 'jpg';
-        $maxBytes = 200 * 2048;
-        $scaleSteps = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4];
-        $qualitySteps = function_exists('imagewebp')
-            ? [82, 76, 70, 64, 58, 52, 46]
-            : [82, 76, 70, 64, 58, 52, 46];
-
-        foreach ($scaleSteps as $scale) {
-            $targetWidth = max(1, (int) round($srcWidth * $scale));
-            $targetHeight = max(1, (int) round($srcHeight * $scale));
-            $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
-            imagealphablending($canvas, false);
-            imagesavealpha($canvas, true);
-            $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
-            imagefilledrectangle($canvas, 0, 0, $targetWidth, $targetHeight, $transparent);
-            imagecopyresampled(
-                $canvas,
-                $source,
-                0,
-                0,
-                0,
-                0,
-                $targetWidth,
-                $targetHeight,
-                $srcWidth,
-                $srcHeight,
-            );
-
-            foreach ($qualitySteps as $quality) {
-                ob_start();
-                if (function_exists('imagewebp')) {
-                    imagewebp($canvas, null, $quality);
-                    $extension = 'webp';
-                } else {
-                    $white = imagecreatetruecolor($targetWidth, $targetHeight);
-                    $background = imagecolorallocate($white, 255, 255, 255);
-                    imagefilledrectangle($white, 0, 0, $targetWidth, $targetHeight, $background);
-                    imagecopy($white, $canvas, 0, 0, 0, 0, $targetWidth, $targetHeight);
-                    imagejpeg($white, null, $quality);
-                    imagedestroy($white);
-                    $extension = 'jpg';
-                }
-                $binary = (string) ob_get_clean();
-
-                if ($bestBinary === null || strlen($binary) < strlen($bestBinary)) {
-                    $bestBinary = $binary;
-                    $bestExtension = $extension;
-                }
-
-                if (strlen($binary) <= $maxBytes) {
-                    imagedestroy($canvas);
-                    imagedestroy($source);
-
-                    return [
-                        'binary' => $binary,
-                        'extension' => $extension,
-                    ];
-                }
-            }
-
-            imagedestroy($canvas);
-        }
-
-        imagedestroy($source);
-
-        return [
-            'binary' => (string) $bestBinary,
-            'extension' => $bestExtension,
-        ];
+        return app(ImageOptimizer::class)->optimize($realPath, null, 200 * 2048);
     }
 }

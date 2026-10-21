@@ -568,6 +568,43 @@ export type TenderSummaryReportRow = {
     latest_payment_date?: string | null;
 };
 
+export type GalleryTag = {
+    gallery_image_user_id: string;
+    gallery_image_id: string;
+    user_id?: string | null;
+    email: string;
+    user?: {
+        user_id: string;
+        first_name: string;
+        last_name: string;
+        email: string;
+    } | null;
+};
+
+export type GalleryImage = {
+    gallery_image_id: string;
+    title?: string | null;
+    caption?: string | null;
+    original_url: string;
+    original_path: string;
+    thumbnail_url?: string | null;
+    thumbnail_path?: string | null;
+    optimized_url?: string | null;
+    optimized_path?: string | null;
+    mime_type?: string | null;
+    image_width?: number | null;
+    image_height?: number | null;
+    file_size_bytes?: number | null;
+    status: "pending" | "processing" | "ready" | "failed";
+    failure_reason?: string | null;
+    is_active: boolean;
+    uploaded_by?: string | null;
+    tagged_users_count?: number;
+    tagged_users?: GalleryTag[];
+    created_at?: string;
+    updated_at?: string;
+};
+
 export interface ApiResponse<T> {
     data: T[];
     meta: PaginationMeta;

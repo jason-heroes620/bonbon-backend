@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\EventCheckInController;
 use App\Http\Controllers\Api\EventRsvpController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\EventsController;
+use App\Http\Controllers\Api\GalleryController;
 use App\Http\Controllers\Api\LDAuthController;
 use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\PaymentController;
@@ -45,6 +46,10 @@ Route::middleware(['auth:sanctum'])->group(
 
         // My Vouchers
         Route::get('/my-vouchers', [VouchersController::class, 'myVouchers']);
+
+        // My Gallery
+        Route::get('/me/gallery', [GalleryController::class, 'index']);
+        Route::get('/me/gallery/{gallery_image_id}/download', [GalleryController::class, 'download']);
 
         // notifications
         Route::get('/notifications', [NotificationsController::class, 'notifications']);
