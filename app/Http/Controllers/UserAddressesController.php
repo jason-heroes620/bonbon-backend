@@ -13,7 +13,7 @@ class UserAddressesController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue..'], 401);
         }
 
         $addresses = UserAddresses::query()
@@ -47,7 +47,7 @@ class UserAddressesController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         $validated = $this->validateAddressPayload($request);

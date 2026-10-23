@@ -12,7 +12,7 @@ class PushTokensController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         $validated = $request->validate([
@@ -37,7 +37,7 @@ class PushTokensController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         $validated = $request->validate([

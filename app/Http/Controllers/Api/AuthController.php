@@ -76,7 +76,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         $user = $this->hydrateUserProfile($user);
@@ -324,7 +324,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         $membershipType = $this->getUserMembershipType($user->user_id);
@@ -401,7 +401,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         $user->tokens()->delete();
@@ -421,7 +421,7 @@ class AuthController extends Controller
 
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         // if (!empty($validated['password']) && !Hash::check($validated['password'], $user->password)) {
@@ -445,7 +445,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         $currentYear = (int) now()->format('Y');
@@ -505,7 +505,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         $validated = $request->validate([
@@ -549,7 +549,7 @@ class AuthController extends Controller
 
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         if (!empty($validated['password']) && !Hash::check($validated['password'], $user->password)) {

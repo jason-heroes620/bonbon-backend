@@ -11,7 +11,7 @@ class NotificationsController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         $perPage = (int) ($request->input('per_page') ?? 10);
@@ -50,7 +50,7 @@ class NotificationsController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         $ids = $request->input('ids', []);

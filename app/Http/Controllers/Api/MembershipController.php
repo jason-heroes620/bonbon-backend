@@ -18,7 +18,7 @@ class MembershipController extends Controller
         $today = now()->toDateString();
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Authentication required. Please log in to continue.'], 401);
         }
 
         if ($this->inInterestList($user->email)) {
