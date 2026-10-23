@@ -47,20 +47,35 @@ class ProductsController extends Controller
         } elseif ($sort === 'price_desc') {
             $query->orderBy('unit_price', 'desc')->orderBy('product_name', 'asc');
         } elseif ($sort === 'name_asc') {
-            $query->orderBy('product_name', 'asc')->orderBy('distance_km', 'asc');
+            $query->orderBy('product_name', 'asc')->orderBy('sort_distance_km', 'asc');
         } else {
-            $query->orderBy('distance_km', 'asc')->orderBy('product_name', 'asc');
+            $query->orderBy('sort_distance_km', 'asc')->orderBy('product_name', 'asc');
         }
 
         // 2. Performance Win: Use simplePaginate if total counts aren't strictly mandatory 
         // or apply a fast-pagination strategy. 
         $products = $query->simplePaginate($perPage);
 
-        // 3. Cleaner array mapping with pre-calculated DB states
-        $items = collect($products->items())->map(function ($row) use ($fulfillment) {
+        $rows = collect($products->items());
+
+        // 3. Resolve the store displayed for each listed product with one narrow,
+        // index-driven query over the page's product ids only. Keeping this out of the
+        // paginated query lets MySQL sort aggregated rows instead of materializing
+        // every product/location pair.
+        $stores = $this->fetchListingStores(
+            $rows->pluck('product_id')->map(fn ($id) => (string) $id)->all(),
+            $fulfillment,
+            $latitude,
+            $longitude
+        );
+
+        // 4. Cleaner array mapping with pre-calculated DB states
+        $items = $rows->map(function ($row) use ($fulfillment, $stores) {
+            $store = $stores[(string) $row->product_id] ?? null;
+
             [$city, $state] = $this->extractCityState(
-                (string) ($row->address ?? ''),
-                (string) ($row->location_name ?? '')
+                (string) ($store['address'] ?? ''),
+                (string) ($store['location_name'] ?? '')
             );
 
             return [
@@ -72,13 +87,13 @@ class ProductsController extends Controller
                     'vendor_name' => (string) $row->vendor_name,
                 ],
                 'store' => [
-                    'location_name' => (string) ($row->location_name ?? ''),
+                    'location_name' => (string) ($store['location_name'] ?? ''),
                     'city'          => $city,
                     'state'         => $state,
-                    'latitude'      => $row->store_latitude !== null ? (float) $row->store_latitude : null,
-                    'longitude'     => $row->store_longitude !== null ? (float) $row->store_longitude : null,
+                    'latitude'      => $store['latitude'] ?? null,
+                    'longitude'     => $store['longitude'] ?? null,
                 ],
-                'distance_km'   => $row->distance_km !== null ? (float) $row->distance_km : null,
+                'distance_km'   => $store['distance_km'] ?? null,
                 'is_available'  => (bool) $row->is_available,
                 'thumbnail_url' => (string) ($row->mobile_image_url ?: $row->image_url) ?: null,
                 'fulfillment' => $fulfillment,
@@ -286,52 +301,32 @@ class ProductsController extends Controller
     ) {
         // 1. Inlined distance expression (0 PDO bindings introduced)
         $distanceExpr = $this->distanceExpression('vl', $latitude, $longitude);
-        $effectivePriceExpr = $this->effectivePriceExpression('p');
 
         $base = $this->validStockedProductsQuery();
 
         // 2. Apply bounding box (0 PDO bindings introduced when inlined)
         $this->applyBoundingBox($base, $latitude, $longitude, 50.0);
 
-        // 3. Conditional Filters using standard bindings
-        $base->when(!empty($vendorId), fn($q) => $q->where('v.vendor_id', '=', $vendorId))
-            ->when(!empty($categoryId), function ($q) use ($categoryId) {
-                $q->whereExists(function ($sq) use ($categoryId) {
-                    $sq->selectRaw('1')
-                        ->from('product_categories as pc')
-                        ->whereColumn('pc.product_id', 'p.product_id')
-                        ->where('pc.category_id', '=', $categoryId);
-                });
-            })
-            ->when($minPrice !== null, fn($q) => $q->whereRaw("{$effectivePriceExpr} >= ?", [(float) $minPrice]))
-            ->when($maxPrice !== null, fn($q) => $q->whereRaw("{$effectivePriceExpr} <= ?", [(float) $maxPrice]))
-            ->when(!empty($search), function ($q) use ($search) {
-                $q->where(function ($sq) use ($search) {
-                    $sq->where('p.product_name', 'like', "%{$search}%")
-                        ->orWhere('v.vendor_name', 'like', "%{$search}%")
-                        ->orWhere('vl.location_name', 'like', "%{$search}%");
-                });
-            });
+        // 3. Conditional filters using standard bindings
+        $this->applyListingFilters($base, $search, $categoryId, $vendorId, $minPrice, $maxPrice);
 
-        $baseQuery = $base->select([
-            'p.product_id',
-            'p.product_name',
-            'p.is_unlimited',
-            'v.vendor_id',
-            'v.vendor_name',
-            'vl.location_name',
-            'vl.address',
-            'vl.latitude as store_latitude',
-            'vl.longitude as store_longitude',
-            'primary_image.mobile_image_url',
-            'primary_image.image_url',
-        ])
-            ->selectRaw("{$effectivePriceExpr} as unit_price")
-            ->selectRaw("{$distanceExpr} as distance_km")
-            ->selectRaw("(p.is_unlimited = 1 OR SUM(csp.quantity) OVER (PARTITION BY p.product_id) > 0) as is_available")
-            ->selectRaw("ROW_NUMBER() OVER (PARTITION BY p.product_id ORDER BY {$distanceExpr} ASC, vl.location_name ASC) as rn");
-
-        return DB::query()->fromSub($baseQuery, 't')->where('t.rn', '=', 1);
+        // 4. Collapse to one row per product *before* ordering and limiting. MIN() is
+        // exact here because every wrapped column is constant for a given product, so
+        // the query stays ONLY_FULL_GROUP_BY safe while letting the optimizer sort the
+        // aggregated rows instead of materializing a wide derived table per row.
+        // `sort_distance_km` is the nearest distance; the store shown to the user is
+        // resolved separately by fetchListingStores().
+        return $base
+            ->groupBy('p.product_id')
+            ->selectRaw('p.product_id')
+            ->selectRaw('MIN(p.product_name) as product_name')
+            ->selectRaw('MIN(v.vendor_id) as vendor_id')
+            ->selectRaw('MIN(v.vendor_name) as vendor_name')
+            ->selectRaw('MIN(primary_image.mobile_image_url) as mobile_image_url')
+            ->selectRaw('MIN(primary_image.image_url) as image_url')
+            ->selectRaw("MIN({$this->effectivePriceExpression('p')}) as unit_price")
+            ->selectRaw("MIN({$distanceExpr}) as sort_distance_km")
+            ->selectRaw('1 as is_available');
     }
 
     private function applyBoundingBox($query, float $lat, float $lng, float $radiusKm = 50.0)
@@ -359,7 +354,6 @@ class ProductsController extends Controller
         float $longitude
     ) {
         $distanceExpr = $this->distanceExpression('vl', $latitude, $longitude);
-        $effectivePriceExpr = $this->effectivePriceExpression('p');
 
         $base = DB::table('products as p')
             ->join('vendors as v', 'v.vendor_id', '=', 'p.vendor_id')
@@ -378,7 +372,36 @@ class ProductsController extends Controller
         $this->applyBoundingBox($base, $latitude, $longitude, 50.0);
 
         // Filters
-        $base->when(!empty($vendorId), fn($q) => $q->where('v.vendor_id', '=', $vendorId))
+        $this->applyListingFilters($base, $search, $categoryId, $vendorId, $minPrice, $maxPrice);
+
+        // Collapse to one row per product (see buildPickupProductsQuery for rationale).
+        // A primary location is preferred when one exists for the product; otherwise the
+        // nearest location wins. Both branches only aggregate the distance, so the
+        // preference stays exact without a window function.
+        return $base
+            ->groupBy('p.product_id')
+            ->selectRaw('p.product_id')
+            ->selectRaw('MIN(p.product_name) as product_name')
+            ->selectRaw('MIN(v.vendor_id) as vendor_id')
+            ->selectRaw('MIN(v.vendor_name) as vendor_name')
+            ->selectRaw('MIN(primary_image.mobile_image_url) as mobile_image_url')
+            ->selectRaw('MIN(primary_image.image_url) as image_url')
+            ->selectRaw("MIN({$this->effectivePriceExpression('p')}) as unit_price")
+            ->selectRaw("COALESCE(MIN(CASE WHEN vl.is_primary = 1 THEN {$distanceExpr} END), MIN({$distanceExpr})) as sort_distance_km")
+            ->selectRaw('1 as is_available');
+    }
+
+    private function applyListingFilters(
+        $query,
+        ?string $search,
+        ?string $categoryId,
+        ?string $vendorId,
+        ?float $minPrice,
+        ?float $maxPrice
+    ): void {
+        $effectivePriceExpr = $this->effectivePriceExpression('p');
+
+        $query->when(!empty($vendorId), fn($q) => $q->where('v.vendor_id', '=', $vendorId))
             ->when(!empty($categoryId), function ($q) use ($categoryId) {
                 $q->whereExists(function ($sq) use ($categoryId) {
                     $sq->selectRaw('1')
@@ -396,34 +419,6 @@ class ProductsController extends Controller
                         ->orWhere('vl.location_name', 'like', "%{$search}%");
                 });
             });
-
-        $subQuery = $base->select([
-            'p.product_id',
-            'p.product_name',
-            'p.is_unlimited',
-            'v.vendor_id',
-            'v.vendor_name',
-            'vl.location_name',
-            'vl.address',
-            'vl.latitude as store_latitude',
-            'vl.longitude as store_longitude',
-            'primary_image.mobile_image_url',
-            'primary_image.image_url',
-        ])
-            ->selectRaw("{$effectivePriceExpr} as unit_price")
-            ->selectRaw("{$distanceExpr} as distance_km")
-            ->selectRaw("1 as is_available")
-            ->selectRaw("
-            ROW_NUMBER() OVER (
-                PARTITION BY p.product_id 
-                ORDER BY 
-                    CASE WHEN vl.is_primary = 1 THEN 0 ELSE 1 END ASC, 
-                    {$distanceExpr} ASC, 
-                    vl.location_name ASC
-            ) as rn
-        ");
-
-        return DB::query()->fromSub($subQuery, 't')->where('t.rn', '=', 1);
     }
 
     private function fetchPickupOptions(
@@ -551,6 +546,78 @@ class ProductsController extends Controller
                 'available_quantity'   => (int) $row->available_quantity,
             ];
         })->all(); // Direct array return without unnecessary ->values() call
+    }
+
+    /**
+     * Resolve the single store (and its distance) shown for each product on the page.
+     *
+     * Runs one narrow query restricted to the page's product ids, so the paginated
+     * listing query never has to rank every matching product/location pair.
+     *
+     * @param  array<int, string>  $productIds
+     * @return array<string, array{location_name: ?string, address: ?string, latitude: ?float, longitude: ?float, distance_km: ?float}>
+     */
+    private function fetchListingStores(
+        array $productIds,
+        string $fulfillment,
+        float $latitude,
+        float $longitude
+    ): array {
+        if (empty($productIds)) {
+            return [];
+        }
+
+        $distanceExpr = $this->distanceExpression('vl', $latitude, $longitude);
+
+        if ($fulfillment === 'delivery') {
+            $query = DB::table('products as p')
+                ->join('vendors as v', 'v.vendor_id', '=', 'p.vendor_id')
+                ->join('vendor_locations as vl', 'vl.vendor_id', '=', 'v.vendor_id')
+                ->whereIn('p.product_id', $productIds)
+                ->where('v.is_active', '=', 'active')
+                ->where('p.is_active', '=', 1)
+                ->where('p.is_visible', '=', 1)
+                ->where('p.delivery', '=', 1);
+
+            $this->applyBoundingBox($query, $latitude, $longitude, 50.0);
+
+            $query->select(['p.product_id', 'vl.location_name', 'vl.address', 'vl.latitude', 'vl.longitude'])
+                ->selectRaw("{$distanceExpr} as distance_km")
+                ->orderByRaw('CASE WHEN vl.is_primary = 1 THEN 0 ELSE 1 END asc')
+                ->orderBy('distance_km', 'asc')
+                ->orderBy('vl.location_name', 'asc');
+        } else {
+            $query = $this->validStockedProductsQuery()
+                ->whereIn('csp.product_id', $productIds);
+
+            $this->applyBoundingBox($query, $latitude, $longitude, 50.0);
+
+            $query->select(['csp.product_id', 'vl.location_name', 'vl.address', 'vl.latitude', 'vl.longitude'])
+                ->selectRaw("{$distanceExpr} as distance_km")
+                ->orderBy('distance_km', 'asc')
+                ->orderBy('vl.location_name', 'asc');
+        }
+
+        $stores = [];
+
+        foreach ($query->get() as $row) {
+            $key = (string) $row->product_id;
+
+            // Rows arrive already ordered by the preferred store, so the first one wins.
+            if (isset($stores[$key])) {
+                continue;
+            }
+
+            $stores[$key] = [
+                'location_name' => $row->location_name !== null ? (string) $row->location_name : null,
+                'address'       => $row->address !== null ? (string) $row->address : null,
+                'latitude'      => $row->latitude !== null ? (float) $row->latitude : null,
+                'longitude'     => $row->longitude !== null ? (float) $row->longitude : null,
+                'distance_km'   => $row->distance_km !== null ? (float) $row->distance_km : null,
+            ];
+        }
+
+        return $stores;
     }
 
     private function validStockedProductsQuery()
